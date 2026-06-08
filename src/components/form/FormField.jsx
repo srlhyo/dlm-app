@@ -1,77 +1,140 @@
-export default function FormField({ field, value, onChange }) {
-  const baseInput = "w-full px-4 py-3 rounded-lg border text-sm outline-none transition-all duration-200 bg-white"
-  const borderStyle = { borderColor: 'var(--gold-light)' }
-  const focusClass = "focus:ring-2"
+import { useEffect, useRef } from 'react'
+
+export default function FormField({ field, value, onChange, error, onClearError }) {
+  const fieldRef = useRef(null)
+
+  // Quando há erro, o campo já está visível — o scroll é feito pelo FormStep
+  const hasError = !!error
+
+  const baseInput = `w-full px-4 py-3 rounded-lg text-sm outline-none transition-all duration-200 bg-white`
+
+  const getBorderStyle = (focused = false) => {
+    if (hasError) return {
+      border: '1.5px solid #F87171',
+      boxShadow: '0 0 0 3px rgba(248,113,113,0.12)'
+    }
+    if (focused) return {
+      border: '1.5px solid var(--gold)',
+      boxShadow: '0 0 0 3px rgba(201,168,76,0.15)'
+    }
+    return { border: '1.5px solid var(--gold-light)' }
+  }
 
   const handleFocus = (e) => {
-    e.target.style.borderColor = 'var(--gold)'
-    e.target.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.15)'
+    if (!hasError) {
+      e.target.style.borderColor = 'var(--gold)'
+      e.target.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.15)'
+    }
   }
 
   const handleBlur = (e) => {
-    e.target.style.borderColor = 'var(--gold-light)'
-    e.target.style.boxShadow = 'none'
+    if (!hasError) {
+      e.target.style.borderColor = 'var(--gold-light)'
+      e.target.style.boxShadow = 'none'
+    }
   }
 
-  // Campo de texto, email, tel, number, date, time
+  const handleChange = (id, val) => {
+    if (onClearError) onClearError(id)
+    onChange(id, val)
+  }
+
+  const ErrorMessage = () => hasError ? (
+    <div style={{
+      display: 'flex', alignItems: 'flex-start', gap: '6px',
+      marginTop: '6px', animation: 'fadeIn 0.2s ease'
+    }}>
+      <span style={{ fontSize: '13px', color: '#EF4444', lineHeight: '1.4' }}>
+        ⚠ {error}
+      </span>
+    </div>
+  ) : null
+
+  // texto, email, tel, number, date, time
   if (['text', 'email', 'tel', 'number', 'date', 'time'].includes(field.type)) {
     return (
-      <div className="flex flex-col gap-1">
-        <label className="text-sm font-medium" style={{ color: 'var(--charcoal)' }}>
+      <div ref={fieldRef} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <label style={{
+          fontSize: '13px', fontWeight: '500',
+          color: hasError ? '#EF4444' : 'var(--charcoal)'
+        }}>
           {field.label}
-          {field.required && <span style={{ color: 'var(--gold)' }}> *</span>}
+          {field.required && <span style={{ color: 'var(--gold)', marginLeft: '2px' }}>*</span>}
         </label>
-        <input
-          type={field.type}
-          value={value || ''}
-          onChange={(e) => onChange(field.id, e.target.value)}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          className={baseInput}
-          style={borderStyle}
-        />
+        <div style={{ position: 'relative' }}>
+          <input
+            type={field.type}
+            value={value || ''}
+            onChange={(e) => handleChange(field.id, e.target.value)}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            className={baseInput}
+            style={getBorderStyle()}
+          />
+          {hasError && (
+            <span style={{
+              position: 'absolute', right: '12px', top: '50%',
+              transform: 'translateY(-50%)', fontSize: '16px'
+            }}>
+              ⚠️
+            </span>
+          )}
+        </div>
+        <ErrorMessage />
       </div>
     )
   }
 
-  // Textarea
+  // textarea
   if (field.type === 'textarea') {
     return (
-      <div className="flex flex-col gap-1">
-        <label className="text-sm font-medium" style={{ color: 'var(--charcoal)' }}>
+      <div ref={fieldRef} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <label style={{
+          fontSize: '13px', fontWeight: '500',
+          color: hasError ? '#EF4444' : 'var(--charcoal)'
+        }}>
           {field.label}
-          {field.required && <span style={{ color: 'var(--gold)' }}> *</span>}
+          {field.required && <span style={{ color: 'var(--gold)', marginLeft: '2px' }}>*</span>}
         </label>
         <textarea
           rows={3}
           value={value || ''}
-          onChange={(e) => onChange(field.id, e.target.value)}
+          onChange={(e) => handleChange(field.id, e.target.value)}
           onFocus={handleFocus}
           onBlur={handleBlur}
           className={`${baseInput} resize-none`}
-          style={borderStyle}
+          style={getBorderStyle()}
         />
+        <ErrorMessage />
       </div>
     )
   }
 
-  // Radio
+  // radio
   if (field.type === 'radio') {
     return (
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium" style={{ color: 'var(--charcoal)' }}>
+      <div ref={fieldRef} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <label style={{
+          fontSize: '13px', fontWeight: '500',
+          color: hasError ? '#EF4444' : 'var(--charcoal)'
+        }}>
           {field.label}
-          {field.required && <span style={{ color: 'var(--gold)' }}> *</span>}
+          {field.required && <span style={{ color: 'var(--gold)', marginLeft: '2px' }}>*</span>}
         </label>
-        <div className="flex flex-wrap gap-3">
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
           {field.options.map((option) => (
             <button
               key={option}
               type="button"
-              onClick={() => onChange(field.id, option)}
-              className="px-5 py-2 rounded-full text-sm border transition-all duration-200"
+              onClick={() => handleChange(field.id, option)}
               style={{
-                borderColor: value === option ? 'var(--gold)' : 'var(--gold-light)',
+                padding: '8px 20px', borderRadius: '999px', fontSize: '13px',
+                transition: 'all 0.2s', cursor: 'pointer',
+                border: value === option
+                  ? '1.5px solid var(--gold)'
+                  : hasError
+                    ? '1.5px solid #F87171'
+                    : '1.5px solid var(--gold-light)',
                 backgroundColor: value === option ? 'var(--gold)' : 'white',
                 color: value === option ? 'white' : 'var(--charcoal)',
               }}
@@ -80,35 +143,44 @@ export default function FormField({ field, value, onChange }) {
             </button>
           ))}
         </div>
+        <ErrorMessage />
       </div>
     )
   }
 
-  // Checkbox (múltipla escolha)
+  // checkbox
   if (field.type === 'checkbox') {
     const selected = value || []
     const toggle = (option) => {
       const next = selected.includes(option)
         ? selected.filter((o) => o !== option)
         : [...selected, option]
-      onChange(field.id, next)
+      handleChange(field.id, next)
     }
 
     return (
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium" style={{ color: 'var(--charcoal)' }}>
+      <div ref={fieldRef} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <label style={{
+          fontSize: '13px', fontWeight: '500',
+          color: hasError ? '#EF4444' : 'var(--charcoal)'
+        }}>
           {field.label}
-          {field.required && <span style={{ color: 'var(--gold)' }}> *</span>}
+          {field.required && <span style={{ color: 'var(--gold)', marginLeft: '2px' }}>*</span>}
         </label>
-        <div className="flex flex-wrap gap-2">
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
           {field.options.map((option) => (
             <button
               key={option}
               type="button"
               onClick={() => toggle(option)}
-              className="px-4 py-2 rounded-full text-sm border transition-all duration-200"
               style={{
-                borderColor: selected.includes(option) ? 'var(--gold)' : 'var(--gold-light)',
+                padding: '8px 16px', borderRadius: '999px', fontSize: '13px',
+                transition: 'all 0.2s', cursor: 'pointer',
+                border: selected.includes(option)
+                  ? '1.5px solid var(--gold)'
+                  : hasError
+                    ? '1.5px solid #F87171'
+                    : '1.5px solid var(--gold-light)',
                 backgroundColor: selected.includes(option) ? 'var(--gold)' : 'white',
                 color: selected.includes(option) ? 'white' : 'var(--charcoal)',
               }}
@@ -117,6 +189,7 @@ export default function FormField({ field, value, onChange }) {
             </button>
           ))}
         </div>
+        <ErrorMessage />
       </div>
     )
   }

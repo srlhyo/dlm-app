@@ -3,10 +3,12 @@ import { formSteps } from '../data/formSteps'
 import ProgressBar from '../components/form/ProgressBar'
 import FormStep from '../components/form/FormStep'
 import { supabase } from '../lib/supabase'
+import { validateStep } from '../lib/validation'
 
 export default function FormPage() {
   const [currentStep, setCurrentStep] = useState(1)
   const [formData, setFormData] = useState({})
+  const [errors, setErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState(null)
@@ -18,15 +20,41 @@ export default function FormPage() {
     setFormData((prev) => ({ ...prev, [fieldId]: value }))
   }
 
+  const handleClearError = (fieldId) => {
+    setErrors((prev) => {
+      const next = { ...prev }
+      delete next[fieldId]
+      return next
+    })
+  }
+
   const handleNext = () => {
-    if (currentStep < totalSteps) setCurrentStep((s) => s + 1)
+    const stepErrors = validateStep(step, formData)
+    if (Object.keys(stepErrors).length > 0) {
+      setErrors(stepErrors)
+      // Scroll ao topo do card para ver o resumo de erros
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
+    setErrors({})
+    setCurrentStep((s) => s + 1)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleBack = () => {
+    setErrors({})
     if (currentStep > 1) setCurrentStep((s) => s - 1)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleSubmit = async () => {
+    const stepErrors = validateStep(step, formData)
+    if (Object.keys(stepErrors).length > 0) {
+      setErrors(stepErrors)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
+
     setSubmitting(true)
     setError(null)
 
@@ -89,19 +117,18 @@ export default function FormPage() {
     setSubmitting(false)
   }
 
-  // Ecrã de sucesso
   if (submitted) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: 'var(--cream)' }}>
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-sm p-10 text-center">
-          <div className="text-5xl mb-6">💍</div>
-          <h2 className="text-2xl mb-3" style={{ color: 'var(--gold)' }}>
+        <div className="bg-white rounded-2xl p-10 text-center" style={{ maxWidth: '420px', width: '100%', boxShadow: '0 2px 24px rgba(0,0,0,0.07)' }}>
+          <div style={{ fontSize: '48px', marginBottom: '20px' }}>💍</div>
+          <h2 style={{ fontSize: '24px', color: 'var(--gold)', marginBottom: '12px', fontFamily: 'Playfair Display, serif' }}>
             Obrigado!
           </h2>
-          <p className="text-sm mb-6" style={{ color: 'var(--gray-mid)' }}>
+          <p style={{ fontSize: '14px', color: 'var(--gray-mid)', lineHeight: '1.6', marginBottom: '24px' }}>
             O vosso questionário foi submetido com sucesso. Entraremos em contacto brevemente para confirmar todos os detalhes do vosso dia especial.
           </p>
-          <p className="text-xs tracking-widest uppercase" style={{ color: 'var(--gold-light)' }}>
+          <p style={{ fontSize: '11px', color: 'var(--gold-light)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
             Planeamento · Personalização · Organização · Detalhes
           </p>
         </div>
@@ -111,20 +138,20 @@ export default function FormPage() {
 
   return (
     <div className="min-h-screen py-10 px-4" style={{ backgroundColor: 'var(--cream)' }}>
-      <div className="max-w-xl mx-auto">
+      <div style={{ maxWidth: '560px', margin: '0 auto' }}>
 
-        {/* Cabeçalho da marca */}
-        <div className="text-center mb-10">
-          <h1 className="text-3xl mb-1" style={{ color: 'var(--gold)' }}>
+        {/* Cabeçalho */}
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <h1 style={{ fontSize: '28px', color: 'var(--gold)', fontFamily: 'Playfair Display, serif', margin: '0 0 4px 0' }}>
             Do Luxo à Mesa
           </h1>
-          <p className="text-xs tracking-widest uppercase" style={{ color: 'var(--gray-mid)' }}>
+          <p style={{ fontSize: '11px', color: 'var(--gray-mid)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>
             Questionário dos Noivos
           </p>
         </div>
 
-        {/* Card do formulário */}
-        <div className="bg-white rounded-2xl shadow-sm p-8">
+        {/* Card */}
+        <div style={{ backgroundColor: 'white', borderRadius: '20px', padding: '32px', boxShadow: '0 2px 24px rgba(0,0,0,0.07)' }}>
 
           <ProgressBar
             currentStep={currentStep}
@@ -136,23 +163,25 @@ export default function FormPage() {
             step={step}
             formData={formData}
             onChange={handleChange}
+            errors={errors}
+            onClearError={handleClearError}
           />
 
-          {/* Erro */}
           {error && (
-            <p className="mt-4 text-sm text-red-500 text-center">{error}</p>
+            <p style={{ fontSize: '13px', color: '#EF4444', textAlign: 'center', marginTop: '16px' }}>{error}</p>
           )}
 
           {/* Navegação */}
-          <div className="flex justify-between items-center mt-10">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '32px' }}>
             <button
               onClick={handleBack}
               disabled={currentStep === 1}
-              className="px-6 py-2 rounded-full text-sm border transition-all duration-200"
               style={{
-                borderColor: currentStep === 1 ? 'var(--gold-light)' : 'var(--gold)',
+                padding: '10px 24px', borderRadius: '999px', fontSize: '13px',
+                border: `1.5px solid ${currentStep === 1 ? 'var(--gold-light)' : 'var(--gold)'}`,
                 color: currentStep === 1 ? 'var(--gold-light)' : 'var(--gold)',
-                cursor: currentStep === 1 ? 'not-allowed' : 'pointer',
+                backgroundColor: 'white', cursor: currentStep === 1 ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s'
               }}
             >
               ← Anterior
@@ -161,8 +190,11 @@ export default function FormPage() {
             {currentStep < totalSteps ? (
               <button
                 onClick={handleNext}
-                className="px-8 py-2 rounded-full text-sm text-white transition-all duration-200"
-                style={{ backgroundColor: 'var(--gold)' }}
+                style={{
+                  padding: '10px 32px', borderRadius: '999px', fontSize: '13px',
+                  backgroundColor: 'var(--gold)', color: 'white', border: 'none',
+                  cursor: 'pointer', transition: 'all 0.2s', fontWeight: '500'
+                }}
               >
                 Seguinte →
               </button>
@@ -170,8 +202,12 @@ export default function FormPage() {
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="px-8 py-2 rounded-full text-sm text-white transition-all duration-200"
-                style={{ backgroundColor: submitting ? 'var(--gold-light)' : 'var(--gold)' }}
+                style={{
+                  padding: '10px 32px', borderRadius: '999px', fontSize: '13px',
+                  backgroundColor: submitting ? 'var(--gold-light)' : 'var(--gold)',
+                  color: 'white', border: 'none', cursor: submitting ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s', fontWeight: '500'
+                }}
               >
                 {submitting ? 'A enviar...' : 'Submeter ✓'}
               </button>
@@ -179,7 +215,7 @@ export default function FormPage() {
           </div>
         </div>
 
-        <p className="text-center text-xs mt-6 tracking-widest uppercase" style={{ color: 'var(--gold-light)' }}>
+        <p style={{ textAlign: 'center', fontSize: '11px', marginTop: '24px', color: 'var(--gold-light)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
           Planeamento · Personalização · Organização · Detalhes
         </p>
 
