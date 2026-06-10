@@ -5,121 +5,220 @@ import { supabase } from '../lib/supabase'
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
+  const [errors, setErrors] = useState({})
   const navigate = useNavigate()
 
+  const validate = () => {
+    const e = {}
+    if (!email.trim()) e.email = 'Introduz o teu endereço de email'
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = 'Endereço de email inválido'
+    if (!password.trim()) e.password = 'Introduz a tua password'
+    return e
+  }
+
   const handleLogin = async () => {
+    const e = validate()
+    if (Object.keys(e).length > 0) { setErrors(e); return }
+
     setLoading(true)
-    setError(null)
+    setErrors({})
 
     const { error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
-      setError('Email ou password incorretos.')
+      setErrors({ general: 'Email ou password incorretos. Tenta novamente.' })
     } else {
       navigate('/admin')
     }
-
     setLoading(false)
   }
 
+  const inputWrapperStyle = (hasError) => ({
+    display: 'flex', alignItems: 'center',
+    border: `1px solid ${hasError ? '#F87171' : 'var(--gold-light)'}`,
+    borderRadius: '10px', backgroundColor: 'white',
+    overflow: 'hidden', transition: 'all 0.2s',
+    boxShadow: hasError ? '0 0 0 3px rgba(248,113,113,0.1)' : 'none',
+  })
+
+  const iconStyle = {
+    width: '44px', display: 'flex', alignItems: 'center',
+    justifyContent: 'center', alignSelf: 'stretch',
+    borderRight: '1px solid var(--gold-light)',
+    backgroundColor: '#FBF7EF', fontSize: '15px', flexShrink: 0
+  }
+
   const inputStyle = {
-    borderColor: 'var(--gold-light)',
-    border: '1px solid var(--gold-light)',
-  }
-
-  const handleFocus = (e) => {
-    e.target.style.borderColor = 'var(--gold)'
-    e.target.style.boxShadow = '0 0 0 3px rgba(201,168,76,0.15)'
-  }
-
-  const handleBlur = (e) => {
-    e.target.style.borderColor = 'var(--gold-light)'
-    e.target.style.boxShadow = 'none'
+    flex: 1, border: 'none', outline: 'none',
+    padding: '12px 14px', fontSize: '13px',
+    fontFamily: 'Inter, sans-serif', color: 'var(--charcoal)',
+    backgroundColor: 'white'
   }
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center px-4 py-10"
-      style={{ backgroundColor: 'var(--cream)' }}
-    >
-      <div className="w-full" style={{ maxWidth: '420px' }}>
+    <div style={{
+      minHeight: '100vh', backgroundColor: 'var(--cream)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: '24px', fontFamily: 'Inter, sans-serif'
+    }}>
+      <div style={{ width: '100%', maxWidth: '420px' }}>
 
         {/* Cabeçalho */}
-        <div className="text-center mb-10">
-          <h1 className="text-3xl mb-1" style={{ color: 'var(--gold)' }}>
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <h1 style={{
+            fontSize: 'clamp(22px, 5vw, 32px)',
+            color: 'var(--gold)', fontFamily: 'Playfair Display, serif',
+            textTransform: 'uppercase', letterSpacing: '0.1em',
+            margin: '0 0 6px 0', lineHeight: 1.1
+          }}>
             Do Luxo à Mesa
           </h1>
-          <p className="text-xs tracking-widest uppercase" style={{ color: 'var(--gray-mid)' }}>
-            Área Privada
+          <p style={{
+            fontSize: '10px', color: 'var(--gold)',
+            textTransform: 'uppercase', letterSpacing: '0.28em',
+            margin: '0 0 16px 0'
+          }}>
+            by Luxury Events
           </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' }}>
+            <div style={{ height: '1px', flex: 1, maxWidth: '60px', backgroundColor: 'var(--gold-light)' }} />
+            <p style={{ fontSize: '11px', color: 'var(--charcoal)', textTransform: 'uppercase', letterSpacing: '0.2em', margin: 0, fontWeight: '500' }}>
+              Área Privada
+            </p>
+            <div style={{ height: '1px', flex: 1, maxWidth: '60px', backgroundColor: 'var(--gold-light)' }} />
+          </div>
         </div>
 
         {/* Card */}
-        <div
-          className="bg-white rounded-2xl p-8 flex flex-col gap-5"
-          style={{ boxShadow: '0 2px 24px rgba(0,0,0,0.07)' }}
-        >
-          <h2 className="text-xl text-center" style={{ color: 'var(--charcoal)' }}>
-            Entrar
-          </h2>
+        <div style={{
+          backgroundColor: 'white', borderRadius: '20px',
+          overflow: 'hidden', boxShadow: '0 8px 48px rgba(0,0,0,0.08)'
+        }}>
 
-          {/* Email */}
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium" style={{ color: 'var(--charcoal)' }}>
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onFocus={handleFocus}
-              onBlur={handleBlur}
-              className="w-full px-4 py-3 rounded-lg text-sm outline-none transition-all duration-200 bg-white"
-              style={inputStyle}
-              placeholder="o teu email"
-            />
+          {/* Corpo */}
+          <div style={{ padding: '32px 28px 24px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+
+              {/* Email */}
+              <div>
+                <label style={{
+                  fontSize: '11px', fontWeight: '600', letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  color: errors.email ? '#EF4444' : 'var(--charcoal)',
+                  display: 'block', marginBottom: '6px'
+                }}>
+                  Email {errors.email && <span style={{ color: '#EF4444' }}>*</span>}
+                </label>
+                <div style={inputWrapperStyle(!!errors.email)}>
+                  <div style={iconStyle}>✉️</div>
+                  <input
+                    type="email"
+                    value={email}
+                    placeholder="o teu email"
+                    onChange={(e) => {
+                      setEmail(e.target.value)
+                      if (errors.email) setErrors(p => ({ ...p, email: null }))
+                    }}
+                    onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                    style={inputStyle}
+                  />
+                </div>
+                {errors.email && (
+                  <p style={{ fontSize: '12px', color: '#EF4444', margin: '5px 0 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    ⚠ {errors.email}
+                  </p>
+                )}
+              </div>
+
+              {/* Password */}
+              <div>
+                <label style={{
+                  fontSize: '11px', fontWeight: '600', letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  color: errors.password ? '#EF4444' : 'var(--charcoal)',
+                  display: 'block', marginBottom: '6px'
+                }}>
+                  Password {errors.password && <span style={{ color: '#EF4444' }}>*</span>}
+                </label>
+                <div style={inputWrapperStyle(!!errors.password)}>
+                  <div style={iconStyle}>🔒</div>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    placeholder="••••••••"
+                    onChange={(e) => {
+                      setPassword(e.target.value)
+                      if (errors.password) setErrors(p => ({ ...p, password: null }))
+                    }}
+                    onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                    style={inputStyle}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(v => !v)}
+                    style={{
+                      padding: '0 14px', background: 'none', border: 'none',
+                      cursor: 'pointer', fontSize: '15px', color: 'var(--gray-mid)'
+                    }}
+                  >
+                    {showPassword ? '🙈' : '👁️'}
+                  </button>
+                </div>
+                {errors.password && (
+                  <p style={{ fontSize: '12px', color: '#EF4444', margin: '5px 0 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    ⚠ {errors.password}
+                  </p>
+                )}
+              </div>
+
+              {/* Erro geral */}
+              {errors.general && (
+                <div style={{
+                  backgroundColor: '#FEF2F2', border: '1px solid #FECACA',
+                  borderRadius: '8px', padding: '10px 14px'
+                }}>
+                  <p style={{ fontSize: '13px', color: '#DC2626', margin: 0 }}>
+                    ⚠ {errors.general}
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Password */}
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium" style={{ color: 'var(--charcoal)' }}>
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onFocus={handleFocus}
-              onBlur={handleBlur}
-              className="w-full px-4 py-3 rounded-lg text-sm outline-none transition-all duration-200 bg-white"
-              style={inputStyle}
-              placeholder="••••••••"
-              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-            />
+          {/* Footer creme */}
+          <div style={{
+            backgroundColor: '#FBF7EF', borderTop: '1px solid #F0E6D0',
+            padding: '16px 28px', display: 'flex', justifyContent: 'flex-end'
+          }}>
+            <button
+              onClick={handleLogin}
+              disabled={loading}
+              style={{
+                padding: '11px 36px', borderRadius: '999px',
+                fontSize: '11px', fontWeight: '600',
+                letterSpacing: '0.12em', textTransform: 'uppercase',
+                backgroundColor: loading ? 'var(--gold-light)' : 'var(--gold)',
+                color: 'white', border: 'none',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s',
+                boxShadow: loading ? 'none' : '0 4px 16px rgba(201,168,76,0.4)'
+              }}
+            >
+              {loading ? 'A entrar...' : 'Entrar →'}
+            </button>
           </div>
-
-          {/* Erro */}
-          {error && (
-            <p className="text-sm text-red-500 text-center">{error}</p>
-          )}
-
-          {/* Botão */}
-          <button
-            onClick={handleLogin}
-            disabled={loading}
-            className="w-full py-3 rounded-full text-sm text-white transition-all duration-200 mt-2"
-            style={{ backgroundColor: loading ? 'var(--gold-light)' : 'var(--gold)' }}
-          >
-            {loading ? 'A entrar...' : 'Entrar'}
-          </button>
         </div>
 
         {/* Rodapé */}
-        <p className="text-center text-xs mt-6 tracking-widest uppercase" style={{ color: 'var(--gold-light)' }}>
-          Planeamento · Personalização · Organização · Detalhes
-        </p>
+        <div style={{ marginTop: '20px', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+          <div style={{ height: '1px', width: '40px', backgroundColor: 'var(--gold-light)' }} />
+          <p style={{ fontSize: '10px', color: 'var(--gold-light)', textTransform: 'uppercase', letterSpacing: '0.18em', margin: 0 }}>
+            Planeamos cada detalhe. Criamos memórias inesquecíveis.
+          </p>
+          <div style={{ height: '1px', width: '40px', backgroundColor: 'var(--gold-light)' }} />
+        </div>
 
       </div>
     </div>
