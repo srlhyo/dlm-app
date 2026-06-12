@@ -198,6 +198,7 @@ function FlowerDecoration() {
       src={flores}
       alt=""
       aria-hidden="true"
+      className="flower-deco"
       style={{
         position: "fixed",
         top: "-30px",
@@ -215,7 +216,7 @@ function FlowerDecoration() {
 function ProgressStepper({ currentStep, steps }) {
   return (
     <div
-      className="h-scroll"
+      className="h-scroll stepper-wrap"
       style={{
         marginBottom: "24px",
         padding: "0 8px",
