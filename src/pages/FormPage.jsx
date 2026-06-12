@@ -215,104 +215,112 @@ function FlowerDecoration() {
 function ProgressStepper({ currentStep, steps }) {
   return (
     <div
+      className="h-scroll"
       style={{
-        display: "flex",
-        alignItems: "flex-start",
-        justifyContent: "center",
         marginBottom: "24px",
         padding: "0 8px",
-        width: "100%",
         boxSizing: "border-box",
       }}
     >
-      {steps.map((step, index) => {
-        const stepNum = index + 1;
-        const isCompleted = stepNum < currentStep;
-        const isActive = stepNum === currentStep;
-        const isLast = index === steps.length - 1;
-        return (
-          <div
-            key={step.id}
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              flex: isLast ? "0 0 auto" : 1,
-              minWidth: 0,
-            }}
-          >
-            {/* Círculo + label */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "center",
+          width: "100%",
+          minWidth: "520px",
+        }}
+      >
+        {steps.map((step, index) => {
+          const stepNum = index + 1;
+          const isCompleted = stepNum < currentStep;
+          const isActive = stepNum === currentStep;
+          const isLast = index === steps.length - 1;
+          return (
             <div
+              key={step.id}
               style={{
                 display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                flexShrink: 0,
+                alignItems: "flex-start",
+                flex: isLast ? "0 0 auto" : 1,
+                minWidth: 0,
               }}
             >
+              {/* Círculo + label */}
               <div
                 style={{
-                  width: "30px",
-                  height: "30px",
-                  borderRadius: "50%",
                   display: "flex",
+                  flexDirection: "column",
                   alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "11px",
-                  fontWeight: "600",
-                  transition: "all 0.35s ease",
-                  backgroundColor:
-                    isCompleted || isActive ? "var(--gold)" : "white",
-                  color:
-                    isCompleted || isActive ? "white" : "var(--gold-light)",
-                  border: `2px solid ${isCompleted || isActive ? "var(--gold)" : "var(--gold-light)"}`,
-                  boxShadow: isActive
-                    ? "0 0 0 4px rgba(201,168,76,0.15)"
-                    : "none",
                   flexShrink: 0,
                 }}
               >
-                {isCompleted ? "✓" : stepNum}
-              </div>
-              <p
-                style={{
-                  fontSize: "8px",
-                  textAlign: "center",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.04em",
-                  color: isActive
-                    ? "var(--gold)"
-                    : isCompleted
+                <div
+                  style={{
+                    width: "30px",
+                    height: "30px",
+                    borderRadius: "50%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "11px",
+                    fontWeight: "600",
+                    transition: "all 0.35s ease",
+                    backgroundColor:
+                      isCompleted || isActive ? "var(--gold)" : "white",
+                    color:
+                      isCompleted || isActive ? "white" : "var(--gold-light)",
+                    border: `2px solid ${isCompleted || isActive ? "var(--gold)" : "var(--gold-light)"}`,
+                    boxShadow: isActive
+                      ? "0 0 0 4px rgba(201,168,76,0.15)"
+                      : "none",
+                    flexShrink: 0,
+                  }}
+                >
+                  {isCompleted ? "✓" : stepNum}
+                </div>
+                <p
+                  style={{
+                    fontSize: "8px",
+                    textAlign: "center",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.04em",
+                    color: isActive
                       ? "var(--gold)"
-                      : "var(--gold-light)",
-                  fontWeight: isActive ? "700" : "400",
-                  lineHeight: "1.3",
-                  width: "52px",
-                  margin: "4px 0 0",
-                  wordBreak: "break-word",
-                }}
-              >
-                {step.title}
-              </p>
+                      : isCompleted
+                        ? "var(--gold)"
+                        : "var(--gold-light)",
+                    fontWeight: isActive ? "700" : "400",
+                    lineHeight: "1.3",
+                    width: "64px",
+                    margin: "4px 0 0",
+                  }}
+                >
+                  {step.title}
+                </p>
+              </div>
+              {/* Linha conectora — só entre passos, não após o último */}
+              {!isLast && (
+                <div
+                  style={{
+                    height: "1.5px",
+                    flex: 1,
+                    marginTop: "14px",
+                    marginLeft: "4px",
+                    marginRight: "4px",
+                    backgroundColor:
+                      stepNum < currentStep
+                        ? "var(--gold)"
+                        : "var(--gold-light)",
+                    transition: "background-color 0.35s ease",
+                    minWidth: "8px",
+                  }}
+                />
+              )}
             </div>
-            {/* Linha conectora — só entre passos, não após o último */}
-            {!isLast && (
-              <div
-                style={{
-                  height: "1.5px",
-                  flex: 1,
-                  marginTop: "14px",
-                  marginLeft: "4px",
-                  marginRight: "4px",
-                  backgroundColor:
-                    stepNum < currentStep ? "var(--gold)" : "var(--gold-light)",
-                  transition: "background-color 0.35s ease",
-                  minWidth: "8px",
-                }}
-              />
-            )}
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -760,6 +768,7 @@ export default function FormPage() {
             >
               {/* Cabeçalho do passo — ornamento entre título e subtítulo */}
               <div
+                className="step-header"
                 style={{
                   display: "flex",
                   alignItems: "flex-start",
@@ -893,6 +902,7 @@ export default function FormPage() {
             )}
             {/* Footer creme */}
             <div
+              className="form-card-footer"
               style={{
                 backgroundColor: "#FBF7EF",
                 borderTop: "1px solid #F0E6D0",

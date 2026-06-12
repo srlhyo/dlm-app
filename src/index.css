@@ -62,7 +62,7 @@ h1, h2, h3 {
 
 /* ===== Alvos de toque confortáveis ===== */
 @media (pointer: coarse) {
-  button {
+  button:not(.btn-compact) {
     min-height: 42px;
   }
   input, textarea {

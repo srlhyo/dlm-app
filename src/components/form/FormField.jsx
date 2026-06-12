@@ -13,6 +13,7 @@ function Tooltip({ text }) {
     >
       <button
         type="button"
+        className="btn-compact"
         onMouseEnter={() => setVisible(true)}
         onMouseLeave={() => setVisible(false)}
         onFocus={() => setVisible(true)}
