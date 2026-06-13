@@ -203,7 +203,7 @@ function FlowerDecoration() {
         position: "fixed",
         top: "-30px",
         left: "-40px",
-        width: "min(380px, 45vw)",
+        width: "min(380px, 34vw)",
         height: "auto",
         pointerEvents: "none",
         zIndex: 0,
@@ -669,8 +669,7 @@ export default function FormPage() {
               <div
                 style={{
                   height: "1px",
-                  flex: 1,
-                  maxWidth: "70px",
+                  width: "48px",
                   backgroundColor: "var(--gold-light)",
                 }}
               />
@@ -690,8 +689,7 @@ export default function FormPage() {
               <div
                 style={{
                   height: "1px",
-                  flex: 1,
-                  maxWidth: "70px",
+                  width: "48px",
                   backgroundColor: "var(--gold-light)",
                 }}
               />
@@ -704,6 +702,7 @@ export default function FormPage() {
 
           {/* Card */}
           <div
+            className="form-card"
             style={{
               backgroundColor: "white",
               borderRadius: "20px",
@@ -712,7 +711,9 @@ export default function FormPage() {
             }}
           >
             {/* Barra de progresso */}
-            <div style={{ padding: "14px 28px 12px" }}>
+            <div 
+              className="progress-sticky"
+              style={{ padding: "14px 28px 12px" }}>
               <div
                 style={{
                   display: "flex",
