@@ -61,129 +61,25 @@ function CoupleIcon() {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <circle
-        cx="14"
-        cy="9"
-        r="5"
-        stroke="#C9A84C"
-        strokeWidth="1.2"
-        fill="#FBF7EF"
-      />
-      <line
-        x1="14"
-        y1="14"
-        x2="14"
-        y2="17"
-        stroke="#C9A84C"
-        strokeWidth="1.1"
-      />
-      <path
-        d="M8 18 Q8 16 14 16 Q20 16 20 18 L20 30 L8 30 Z"
-        stroke="#C9A84C"
-        strokeWidth="1.1"
-        fill="#FBF7EF"
-      />
-      <path
-        d="M14 16 L11.5 20 L14 19"
-        stroke="#C9A84C"
-        strokeWidth="0.9"
-        fill="none"
-      />
-      <path
-        d="M14 16 L16.5 20 L14 19"
-        stroke="#C9A84C"
-        strokeWidth="0.9"
-        fill="none"
-      />
+      <circle cx="14" cy="9" r="5" stroke="#C9A84C" strokeWidth="1.2" fill="#FBF7EF" />
+      <line x1="14" y1="14" x2="14" y2="17" stroke="#C9A84C" strokeWidth="1.1" />
+      <path d="M8 18 Q8 16 14 16 Q20 16 20 18 L20 30 L8 30 Z" stroke="#C9A84C" strokeWidth="1.1" fill="#FBF7EF" />
+      <path d="M14 16 L11.5 20 L14 19" stroke="#C9A84C" strokeWidth="0.9" fill="none" />
+      <path d="M14 16 L16.5 20 L14 19" stroke="#C9A84C" strokeWidth="0.9" fill="none" />
       <path d="M14 17 L13 21 L14 23 L15 21 Z" fill="#C9A84C" opacity="0.7" />
-      <path
-        d="M8 30 L8 42 L12 42 L14 34 L16 42 L20 42 L20 30"
-        stroke="#C9A84C"
-        strokeWidth="1.1"
-        fill="#FBF7EF"
-      />
-      <path
-        d="M8 42 L6 43 L12 43 L12 42"
-        stroke="#C9A84C"
-        strokeWidth="0.9"
-        fill="none"
-      />
-      <path
-        d="M20 42 L22 43 L16 43 L16 42"
-        stroke="#C9A84C"
-        strokeWidth="0.9"
-        fill="none"
-      />
-      <circle
-        cx="32"
-        cy="9"
-        r="5"
-        stroke="#C9A84C"
-        strokeWidth="1.2"
-        fill="#FBF7EF"
-      />
-      <path
-        d="M29 6 Q32 3.5 35 6 L36 14 Q34 12 32 13 Q30 12 28 14 Z"
-        stroke="#C9A84C"
-        strokeWidth="0.9"
-        fill="#FBF7EF"
-        opacity="0.8"
-      />
-      <line
-        x1="32"
-        y1="14"
-        x2="32"
-        y2="17"
-        stroke="#C9A84C"
-        strokeWidth="1.1"
-      />
-      <path
-        d="M27 18 Q27 16 32 16 Q37 16 37 18 L37 26 L27 26 Z"
-        stroke="#C9A84C"
-        strokeWidth="1.1"
-        fill="#FBF7EF"
-      />
-      <path
-        d="M29 16 Q32 19 35 16"
-        stroke="#C9A84C"
-        strokeWidth="0.8"
-        fill="none"
-      />
-      <path
-        d="M27 26 Q22 32 21 42 L43 42 Q42 32 37 26 Z"
-        stroke="#C9A84C"
-        strokeWidth="1.1"
-        fill="#FBF7EF"
-      />
-      <path
-        d="M29 28 Q26 34 25 40"
-        stroke="#C9A84C"
-        strokeWidth="0.7"
-        fill="none"
-        opacity="0.5"
-      />
-      <path
-        d="M32 27 Q32 34 32 40"
-        stroke="#C9A84C"
-        strokeWidth="0.7"
-        fill="none"
-        opacity="0.4"
-      />
-      <path
-        d="M35 28 Q38 34 39 40"
-        stroke="#C9A84C"
-        strokeWidth="0.7"
-        fill="none"
-        opacity="0.5"
-      />
-      <circle
-        cx="26"
-        cy="28"
-        r="3"
-        stroke="#C9A84C"
-        strokeWidth="0.8"
-        fill="#FBF7EF"
-      />
+      <path d="M8 30 L8 42 L12 42 L14 34 L16 42 L20 42 L20 30" stroke="#C9A84C" strokeWidth="1.1" fill="#FBF7EF" />
+      <path d="M8 42 L6 43 L12 43 L12 42" stroke="#C9A84C" strokeWidth="0.9" fill="none" />
+      <path d="M20 42 L22 43 L16 43 L16 42" stroke="#C9A84C" strokeWidth="0.9" fill="none" />
+      <circle cx="32" cy="9" r="5" stroke="#C9A84C" strokeWidth="1.2" fill="#FBF7EF" />
+      <path d="M29 6 Q32 3.5 35 6 L36 14 Q34 12 32 13 Q30 12 28 14 Z" stroke="#C9A84C" strokeWidth="0.9" fill="#FBF7EF" opacity="0.8" />
+      <line x1="32" y1="14" x2="32" y2="17" stroke="#C9A84C" strokeWidth="1.1" />
+      <path d="M27 18 Q27 16 32 16 Q37 16 37 18 L37 26 L27 26 Z" stroke="#C9A84C" strokeWidth="1.1" fill="#FBF7EF" />
+      <path d="M29 16 Q32 19 35 16" stroke="#C9A84C" strokeWidth="0.8" fill="none" />
+      <path d="M27 26 Q22 32 21 42 L43 42 Q42 32 37 26 Z" stroke="#C9A84C" strokeWidth="1.1" fill="#FBF7EF" />
+      <path d="M29 28 Q26 34 25 40" stroke="#C9A84C" strokeWidth="0.7" fill="none" opacity="0.5" />
+      <path d="M32 27 Q32 34 32 40" stroke="#C9A84C" strokeWidth="0.7" fill="none" opacity="0.4" />
+      <path d="M35 28 Q38 34 39 40" stroke="#C9A84C" strokeWidth="0.7" fill="none" opacity="0.5" />
+      <circle cx="26" cy="28" r="3" stroke="#C9A84C" strokeWidth="0.8" fill="#FBF7EF" />
       <circle cx="24.5" cy="26.5" r="1.5" fill="#E8D5A3" opacity="0.8" />
       <circle cx="27" cy="26" r="1.5" fill="#E8D5A3" opacity="0.8" />
       <circle cx="25.5" cy="29" r="1.2" fill="#E8D5A3" opacity="0.7" />
@@ -217,11 +113,7 @@ function ProgressStepper({ currentStep, steps }) {
   return (
     <div
       className="h-scroll stepper-wrap"
-      style={{
-        marginBottom: "24px",
-        padding: "0 8px",
-        boxSizing: "border-box",
-      }}
+      style={{ marginBottom: "24px", padding: "0 8px", boxSizing: "border-box" }}
     >
       <div
         style={{
@@ -240,22 +132,9 @@ function ProgressStepper({ currentStep, steps }) {
           return (
             <div
               key={step.id}
-              style={{
-                display: "flex",
-                alignItems: "flex-start",
-                flex: isLast ? "0 0 auto" : 1,
-                minWidth: 0,
-              }}
+              style={{ display: "flex", alignItems: "flex-start", flex: isLast ? "0 0 auto" : 1, minWidth: 0 }}
             >
-              {/* Círculo + label */}
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  flexShrink: 0,
-                }}
-              >
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
                 <div
                   style={{
                     width: "30px",
@@ -267,14 +146,10 @@ function ProgressStepper({ currentStep, steps }) {
                     fontSize: "11px",
                     fontWeight: "600",
                     transition: "all 0.35s ease",
-                    backgroundColor:
-                      isCompleted || isActive ? "var(--gold)" : "white",
-                    color:
-                      isCompleted || isActive ? "white" : "var(--gold-light)",
+                    backgroundColor: isCompleted || isActive ? "var(--gold)" : "white",
+                    color: isCompleted || isActive ? "white" : "var(--gold-light)",
                     border: `2px solid ${isCompleted || isActive ? "var(--gold)" : "var(--gold-light)"}`,
-                    boxShadow: isActive
-                      ? "0 0 0 4px rgba(201,168,76,0.15)"
-                      : "none",
+                    boxShadow: isActive ? "0 0 0 4px rgba(201,168,76,0.15)" : "none",
                     flexShrink: 0,
                   }}
                 >
@@ -286,11 +161,7 @@ function ProgressStepper({ currentStep, steps }) {
                     textAlign: "center",
                     textTransform: "uppercase",
                     letterSpacing: "0.04em",
-                    color: isActive
-                      ? "var(--gold)"
-                      : isCompleted
-                        ? "var(--gold)"
-                        : "var(--gold-light)",
+                    color: isActive ? "var(--gold)" : isCompleted ? "var(--gold)" : "var(--gold-light)",
                     fontWeight: isActive ? "700" : "400",
                     lineHeight: "1.3",
                     width: "64px",
@@ -300,7 +171,6 @@ function ProgressStepper({ currentStep, steps }) {
                   {step.title}
                 </p>
               </div>
-              {/* Linha conectora — só entre passos, não após o último */}
               {!isLast && (
                 <div
                   style={{
@@ -309,10 +179,7 @@ function ProgressStepper({ currentStep, steps }) {
                     marginTop: "14px",
                     marginLeft: "4px",
                     marginRight: "4px",
-                    backgroundColor:
-                      stepNum < currentStep
-                        ? "var(--gold)"
-                        : "var(--gold-light)",
+                    backgroundColor: stepNum < currentStep ? "var(--gold)" : "var(--gold-light)",
                     transition: "background-color 0.35s ease",
                     minWidth: "8px",
                   }}
@@ -346,8 +213,6 @@ export default function FormPage() {
     }
     const inv = JSON.parse(stored);
     setInvite(inv);
-
-    // Pré-preenche os nomes dos noivos
     setFormData((prev) => ({
       ...prev,
       nomeNoivo: inv.nome_noivo,
@@ -409,9 +274,7 @@ export default function FormPage() {
       morada: formData.morada,
       data_evento: formData.dataEvento || null,
       local_evento: formData.localEvento,
-      numero_convidados: formData.numeroConvidados
-        ? parseInt(formData.numeroConvidados)
-        : null,
+      numero_convidados: formData.numeroConvidados ? parseInt(formData.numeroConvidados) : null,
       hora_inicio: formData.horaInicio || null,
       hora_termino: formData.horaTermino || null,
       hora_montagem: formData.horaMontagem || null,
@@ -434,13 +297,9 @@ export default function FormPage() {
       medidas_espaco: formData.medidasEspaco,
       centros_mesa: formData.centrosMesa || [],
       tipo_flores: formData.tipoFlores || [],
-      numero_mesas: formData.numeroMesas
-        ? parseInt(formData.numeroMesas)
-        : null,
+      numero_mesas: formData.numeroMesas ? parseInt(formData.numeroMesas) : null,
       formato_mesas: formData.formatoMesas,
-      lugares_por_mesa: formData.lugaresporMesa
-        ? parseInt(formData.lugaresporMesa)
-        : null,
+      lugares_por_mesa: formData.lugaresporMesa ? parseInt(formData.lugaresporMesa) : null,
       observacoes_mesas: formData.observacoesMesas,
       texto_principal_placa: formData.textoPrincipalPlaca,
       texto_secundario_placa: formData.textoSecundarioPlaca,
@@ -462,9 +321,7 @@ export default function FormPage() {
 
       if (error) {
         console.error(error);
-        setSubmitError(
-          "Ocorreu um erro ao submeter. Por favor tenta novamente.",
-        );
+        setSubmitError("Ocorreu um erro ao submeter. Por favor tenta novamente.");
       } else {
         if (invite) {
           await markInviteUsed(invite.id, newSubmission.id);
@@ -522,27 +379,12 @@ export default function FormPage() {
             Obrigado!
           </h2>
           <Ornament />
-          <p
-            style={{
-              fontSize: "14px",
-              color: "var(--gray-mid)",
-              lineHeight: "1.8",
-              margin: "12px 0 20px",
-            }}
-          >
+          <p style={{ fontSize: "14px", color: "var(--gray-mid)", lineHeight: "1.8", margin: "12px 0 20px" }}>
             O vosso questionário foi submetido com sucesso.
             <br />
             Entraremos em contacto brevemente.
           </p>
-          <p
-            style={{
-              fontSize: "10px",
-              color: "var(--gold-light)",
-              textTransform: "uppercase",
-              letterSpacing: "0.18em",
-              margin: 0,
-            }}
-          >
+          <p style={{ fontSize: "10px", color: "var(--gold-light)", textTransform: "uppercase", letterSpacing: "0.18em", margin: 0 }}>
             Planeamos cada detalhe. Criamos memórias inesquecíveis.
           </p>
         </div>
@@ -576,11 +418,7 @@ export default function FormPage() {
       cartoesPratos: "Sim",
       observacoesCartoes: "Com nome em caligrafia dourada",
       descricaoMesaNoivos: "Mesa rectangular com arranjo floral central alto",
-      cenarioPalco: [
-        "Estrutura arqueada",
-        "Arranjos florais",
-        "Luzes decorativas",
-      ],
+      cenarioPalco: ["Estrutura arqueada", "Arranjos florais", "Luzes decorativas"],
       descricaoCenario: "Arco floral branco com luzes warm white",
       medidasEspaco: "Palco com 5m de largura e 4m de altura",
       centrosMesa: ["Mistura de alturas"],
@@ -593,8 +431,7 @@ export default function FormPage() {
       textoSecundarioPlaca: "João & Maria · 15 de Dezembro de 2026",
       estiloPlaca: ["Com moldura", "Com cavalete"],
       notasPlaca: "Letra script dourada em fundo espelho",
-      moradaExacta:
-        "Quinta das Lágrimas, Rua António Augusto Gonçalves, 3040-091 Coimbra",
+      moradaExacta: "Quinta das Lágrimas, Rua António Augusto Gonçalves, 3040-091 Coimbra",
       pessoaAbreEspaco: "Carlos Ferreira",
       contactoPessoaAbre: "239123456",
       acessoLocal: ["Elevador disponível", "Estacionamento próximo"],
@@ -620,10 +457,11 @@ export default function FormPage() {
       <FlowerDecoration />
 
       <div
+        className="form-page-inner"
         style={{ position: "relative", zIndex: 1, padding: "36px 16px 64px" }}
       >
+        {/* Cabeçalho — dentro do limitador de largura */}
         <div style={{ maxWidth: "560px", margin: "0 auto" }}>
-          {/* Cabeçalho */}
           <div style={{ textAlign: "center", marginBottom: "24px" }}>
             <h1
               style={{
@@ -638,8 +476,6 @@ export default function FormPage() {
             >
               Do Luxo à Mesa
             </h1>
-
-            {/* "by Luxury Events" — dourado como no template */}
             <p
               style={{
                 fontSize: "11px",
@@ -652,178 +488,60 @@ export default function FormPage() {
             >
               by Luxury Events
             </p>
-
-            {/* "Questionário dos Noivos" com linhas laterais simétricas */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "12px",
-                justifyContent: "center",
-                marginBottom: "6px",
-              }}
-            >
-              <div
-                style={{
-                  height: "1px",
-                  width: "clamp(28px, 8vw, 70px)",
-                  flexShrink: 0,
-                  backgroundColor: "var(--gold-light)",
-                }}
-              />
-              <p
-                style={{
-                  fontSize: "12px",
-                  color: "var(--charcoal)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.2em",
-                  margin: 0,
-                  fontWeight: "500",
-                  whiteSpace: "nowrap",
-                }}
-              >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", justifyContent: "center", marginBottom: "6px" }}>
+              <div style={{ height: "1px", width: "clamp(28px, 8vw, 70px)", flexShrink: 0, backgroundColor: "var(--gold-light)" }} />
+              <p style={{ fontSize: "12px", color: "var(--charcoal)", textTransform: "uppercase", letterSpacing: "0.2em", margin: 0, fontWeight: "500", whiteSpace: "nowrap" }}>
                 Questionário dos Noivos
               </p>
-              <div
-                style={{
-                  height: "1px",
-                  width: "clamp(28px, 8vw, 70px)",
-                  flexShrink: 0,
-                  backgroundColor: "var(--gold-light)",
-                }}
-              />
+              <div style={{ height: "1px", width: "clamp(28px, 8vw, 70px)", flexShrink: 0, backgroundColor: "var(--gold-light)" }} />
             </div>
             <Ornament small />
           </div>
 
-          {/* Stepper — só desktop */}
           <ProgressStepper currentStep={currentStep} steps={formSteps} />
+        </div>
 
-          {/* Barra de progresso sticky — só mobile */}
-          <div className="sticky-progress">
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                marginBottom: "6px",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "11px",
-                  fontWeight: "600",
-                  color: "var(--gold)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
-                }}
-              >
+        {/* Barra sticky — FORA do div de 560px para colar ao topo durante o scroll */}
+        <div className="sticky-progress">
+          <div className="sticky-progress-inner">
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+              <span style={{ fontSize: "11px", fontWeight: "600", color: "var(--gold)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
                 {currentStep}/{totalSteps} · {step.title}
               </span>
-              <span
-                style={{
-                  fontSize: "11px",
-                  color: "var(--gold)",
-                  fontWeight: "600",
-                }}
-              >
+              <span style={{ fontSize: "11px", color: "var(--gold)", fontWeight: "600" }}>
                 {percentage}%
               </span>
             </div>
-            <div
-              style={{
-                height: "4px",
-                borderRadius: "999px",
-                backgroundColor: "#F5ECD7",
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  height: "100%",
-                  width: `${percentage}%`,
-                  backgroundColor: "var(--gold)",
-                  borderRadius: "999px",
-                  transition: "width 0.5s ease",
-                }}
-              />
+            <div style={{ height: "4px", borderRadius: "999px", backgroundColor: "#F5ECD7", overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${percentage}%`, backgroundColor: "var(--gold)", borderRadius: "999px", transition: "width 0.5s ease" }} />
             </div>
           </div>
+        </div>
 
-          {/* Card */}
+        {/* Card + rodapé — de volta ao limitador de largura */}
+        <div style={{ maxWidth: "560px", margin: "0 auto" }}>
           <div
             className="form-card"
-            style={{
-              backgroundColor: "white",
-              borderRadius: "20px",
-              overflow: "hidden",
-              boxShadow: "0 8px 48px rgba(0,0,0,0.08)",
-            }}
+            style={{ backgroundColor: "white", borderRadius: "20px", overflow: "hidden", boxShadow: "0 8px 48px rgba(0,0,0,0.08)" }}
           >
-            {/* Barra de progresso do card — escondida em mobile */}
             <div className="card-progress" style={{ padding: "14px 28px 12px" }}>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: "8px",
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: "600",
-                    color: "var(--gold)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.1em",
-                  }}
-                >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                <span style={{ fontSize: "11px", fontWeight: "600", color: "var(--gold)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
                   Passo {currentStep} de {totalSteps}
                 </span>
-                <span
-                  style={{
-                    fontSize: "11px",
-                    color: "var(--gold)",
-                    fontWeight: "600",
-                  }}
-                >
+                <span style={{ fontSize: "11px", color: "var(--gold)", fontWeight: "600" }}>
                   {percentage}% Concluído
                 </span>
               </div>
-              <div
-                style={{
-                  height: "5px",
-                  borderRadius: "999px",
-                  backgroundColor: "#F5ECD7",
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    height: "100%",
-                    borderRadius: "999px",
-                    backgroundColor: "var(--gold)",
-                    width: `${percentage}%`,
-                    transition: "width 0.5s ease",
-                  }}
-                />
+              <div style={{ height: "5px", borderRadius: "999px", backgroundColor: "#F5ECD7", overflow: "hidden" }}>
+                <div style={{ height: "100%", borderRadius: "999px", backgroundColor: "var(--gold)", width: `${percentage}%`, transition: "width 0.5s ease" }} />
               </div>
             </div>
 
-            {/* Corpo */}
-            <div
-              className="form-card-body"
-              style={{ padding: "20px 28px 24px" }}
-            >
-              {/* Cabeçalho do passo */}
+            <div className="form-card-body" style={{ padding: "20px 28px 24px" }}>
               <div
                 className="step-header"
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: "16px",
-                  marginBottom: "24px",
-                }}
+                style={{ display: "flex", alignItems: "flex-start", gap: "16px", marginBottom: "24px" }}
               >
                 <div
                   style={{
@@ -853,60 +571,25 @@ export default function FormPage() {
                   >
                     {step.title}
                   </h2>
-                  {/* Ornamento entre título e subtítulo */}
                   <div
                     className="step-ornament"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      margin: "0 0 5px 0",
-                    }}
+                    style={{ display: "flex", alignItems: "center", gap: "6px", margin: "0 0 5px 0" }}
                   >
-                    <div
-                      style={{
-                        height: "1px",
-                        width: "20px",
-                        backgroundColor: "var(--gold-light)",
-                      }}
-                    />
+                    <div style={{ height: "1px", width: "20px", backgroundColor: "var(--gold-light)" }} />
                     <svg width="12" height="8" viewBox="0 0 12 8" fill="none">
-                      <path
-                        d="M6 1 C4.8 1 3.5 2.2 3.5 4 C3.5 5.8 4.8 7 6 7 C7.2 7 8.5 5.8 8.5 4 C8.5 2.2 7.2 1 6 1Z"
-                        stroke="#C9A84C"
-                        strokeWidth="0.6"
-                        fill="none"
-                      />
-                      <path
-                        d="M0.5 4 L3.5 4 M8.5 4 L11.5 4"
-                        stroke="#C9A84C"
-                        strokeWidth="0.6"
-                      />
+                      <path d="M6 1 C4.8 1 3.5 2.2 3.5 4 C3.5 5.8 4.8 7 6 7 C7.2 7 8.5 5.8 8.5 4 C8.5 2.2 7.2 1 6 1Z" stroke="#C9A84C" strokeWidth="0.6" fill="none" />
+                      <path d="M0.5 4 L3.5 4 M8.5 4 L11.5 4" stroke="#C9A84C" strokeWidth="0.6" />
                       <circle cx="0.5" cy="4" r="0.7" fill="#C9A84C" />
                       <circle cx="11.5" cy="4" r="0.7" fill="#C9A84C" />
                     </svg>
-                    <div
-                      style={{
-                        height: "1px",
-                        width: "20px",
-                        backgroundColor: "var(--gold-light)",
-                      }}
-                    />
+                    <div style={{ height: "1px", width: "20px", backgroundColor: "var(--gold-light)" }} />
                   </div>
-                  <p
-                    style={{
-                      fontSize: "12px",
-                      color: "var(--gray-mid)",
-                      margin: 0,
-                      lineHeight: "1.4",
-                    }}
-                  >
+                  <p style={{ fontSize: "12px", color: "var(--gray-mid)", margin: 0, lineHeight: "1.4" }}>
                     {step.subtitle}
                   </p>
                 </div>
               </div>
 
-              {/* Campos */}
               <FormStep
                 step={step}
                 formData={formData}
@@ -916,14 +599,7 @@ export default function FormPage() {
               />
 
               {submitError && (
-                <p
-                  style={{
-                    fontSize: "13px",
-                    color: "#EF4444",
-                    textAlign: "center",
-                    marginTop: "16px",
-                  }}
-                >
+                <p style={{ fontSize: "13px", color: "#EF4444", textAlign: "center", marginTop: "16px" }}>
                   {submitError}
                 </p>
               )}
@@ -950,7 +626,7 @@ export default function FormPage() {
                 🧪 Preencher teste
               </button>
             )}
-            {/* Footer creme */}
+
             <div
               className="form-card-footer"
               style={{
@@ -973,8 +649,7 @@ export default function FormPage() {
                   letterSpacing: "0.12em",
                   textTransform: "uppercase",
                   border: `1.5px solid ${currentStep === 1 ? "var(--gold-light)" : "var(--gold)"}`,
-                  color:
-                    currentStep === 1 ? "var(--gold-light)" : "var(--gold)",
+                  color: currentStep === 1 ? "var(--gold-light)" : "var(--gold)",
                   backgroundColor: "transparent",
                   cursor: currentStep === 1 ? "not-allowed" : "pointer",
                   transition: "all 0.2s",
@@ -1016,9 +691,7 @@ export default function FormPage() {
                     fontWeight: "600",
                     letterSpacing: "0.12em",
                     textTransform: "uppercase",
-                    backgroundColor: submitting
-                      ? "var(--gold-light)"
-                      : "var(--gold)",
+                    backgroundColor: submitting ? "var(--gold-light)" : "var(--gold)",
                     color: "white",
                     border: "none",
                     cursor: submitting ? "not-allowed" : "pointer",
@@ -1032,19 +705,9 @@ export default function FormPage() {
             </div>
           </div>
 
-          {/* Rodapé */}
           <div style={{ marginTop: "20px" }}>
             <Ornament />
-            <p
-              style={{
-                textAlign: "center",
-                fontSize: "10px",
-                color: "var(--gold-light)",
-                textTransform: "uppercase",
-                letterSpacing: "0.18em",
-                margin: "4px 0 0",
-              }}
-            >
+            <p style={{ textAlign: "center", fontSize: "10px", color: "var(--gold-light)", textTransform: "uppercase", letterSpacing: "0.18em", margin: "4px 0 0" }}>
               Planeamos cada detalhe. Criamos memórias inesquecíveis.
             </p>
           </div>

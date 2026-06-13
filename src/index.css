@@ -44,6 +44,10 @@ h1, h2, h3 {
 .sticky-progress {
   display: none;
 }
+.sticky-progress-inner {
+  max-width: 560px;
+  margin: 0 auto;
+}
 
 /* ===== Ajustes mobile ===== */
 @media (max-width: 600px) {
@@ -75,11 +79,12 @@ h1, h2, h3 {
     display: block;
     position: sticky;
     top: 0;
-    z-index: 20;
+    z-index: 50;
     background: var(--cream);
     padding: 10px 16px 8px;
-    margin: 0 -16px 12px;
+    margin-bottom: 12px;
     border-bottom: 1px solid #F0E6D0;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
   }
   .flower-deco {
     position: absolute !important;
