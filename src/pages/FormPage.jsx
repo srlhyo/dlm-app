@@ -446,7 +446,7 @@ export default function FormPage() {
         minHeight: "100vh",
         backgroundColor: "var(--cream)",
         position: "relative",
-        overflow: "hidden",
+        overflowX: "clip",
       }}
     >
       <style>{`
