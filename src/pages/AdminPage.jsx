@@ -562,47 +562,55 @@ export default function AdminPage() {
         {activeTab === "clientes" && (
           <>
             {/* Estatísticas */}
-            <div className="stats-grid" style={{ marginBottom: "24px" }}>
-              {STATUS_OPTIONS.map((status) => {
-                const count = submissions.filter(
-                  (s) => s.status === status,
-                ).length;
-                const colors = STATUS_COLORS[status];
-                return (
-                  <div
-                    key={status}
-                    style={{
-                      backgroundColor: "white",
-                      borderRadius: "14px",
-                      padding: "16px 12px",
-                      textAlign: "center",
-                      boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
-                      borderTop: `3px solid ${colors.color}`,
-                    }}
-                  >
-                    <p
+            <div
+              className="stats-row filter-wrap"
+              style={{ marginBottom: "24px" }}
+            >
+              <div
+                className="h-scroll"
+                style={{ gap: "12px", paddingRight: "32px" }}
+              >
+                {STATUS_OPTIONS.map((status) => {
+                  const count = submissions.filter(
+                    (s) => s.status === status,
+                  ).length;
+                  const colors = STATUS_COLORS[status];
+                  return (
+                    <div
+                      key={status}
                       style={{
-                        fontSize: "26px",
-                        fontWeight: "600",
-                        color: colors.color,
-                        margin: "0 0 2px 0",
+                        backgroundColor: "white",
+                        borderRadius: "14px",
+                        padding: "16px 12px",
+                        textAlign: "center",
+                        boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
+                        borderTop: `3px solid ${colors.color}`,
                       }}
                     >
-                      {count}
-                    </p>
-                    <p
-                      style={{
-                        fontSize: "11px",
-                        color: "var(--gray-mid)",
-                        margin: 0,
-                        lineHeight: 1.3,
-                      }}
-                    >
-                      {status}
-                    </p>
-                  </div>
-                );
-              })}
+                      <p
+                        style={{
+                          fontSize: "26px",
+                          fontWeight: "600",
+                          color: colors.color,
+                          margin: "0 0 2px 0",
+                        }}
+                      >
+                        {count}
+                      </p>
+                      <p
+                        style={{
+                          fontSize: "11px",
+                          color: "var(--gray-mid)",
+                          margin: 0,
+                          lineHeight: 1.3,
+                        }}
+                      >
+                        {status}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Pesquisa */}
@@ -745,7 +753,7 @@ export default function AdminPage() {
               </p>
             ) : (
               <div
-                className="clientes-list"
+                className="clients-list"
                 style={{
                   display: "flex",
                   flexDirection: "column",
