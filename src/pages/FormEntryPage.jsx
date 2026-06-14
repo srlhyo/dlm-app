@@ -1,213 +1,325 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { validateCode } from '../lib/invites'
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { validateCode } from "../lib/invites";
+import flores from "../assets/flores.png";
 
 function Ornament({ small = false }) {
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: '8px',
-      justifyContent: 'center', margin: small ? '4px 0' : '8px 0'
-    }}>
-      <div style={{ height: '1px', width: small ? '18px' : '40px', backgroundColor: 'var(--gold-light)' }} />
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        justifyContent: "center",
+        margin: small ? "4px 0" : "8px 0",
+      }}
+    >
+      <div
+        style={{
+          height: "1px",
+          width: small ? "18px" : "40px",
+          backgroundColor: "var(--gold-light)",
+        }}
+      />
       <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
-        <path d="M8 1.5 C6.2 1.5 4.5 3 4.5 5 C4.5 7 6.2 8.5 8 8.5 C9.8 8.5 11.5 7 11.5 5 C11.5 3 9.8 1.5 8 1.5Z" stroke="#C9A84C" strokeWidth="0.7" fill="none"/>
-        <path d="M1 5 L4.5 5 M11.5 5 L15 5" stroke="#C9A84C" strokeWidth="0.7"/>
-        <circle cx="1" cy="5" r="0.9" fill="#C9A84C"/>
-        <circle cx="15" cy="5" r="0.9" fill="#C9A84C"/>
+        <path
+          d="M8 1.5 C6.2 1.5 4.5 3 4.5 5 C4.5 7 6.2 8.5 8 8.5 C9.8 8.5 11.5 7 11.5 5 C11.5 3 9.8 1.5 8 1.5Z"
+          stroke="#C9A84C"
+          strokeWidth="0.7"
+          fill="none"
+        />
+        <path d="M1 5 L4.5 5 M11.5 5 L15 5" stroke="#C9A84C" strokeWidth="0.7" />
+        <circle cx="1" cy="5" r="0.9" fill="#C9A84C" />
+        <circle cx="15" cy="5" r="0.9" fill="#C9A84C" />
       </svg>
-      <div style={{ height: '1px', width: small ? '18px' : '40px', backgroundColor: 'var(--gold-light)' }} />
+      <div
+        style={{
+          height: "1px",
+          width: small ? "18px" : "40px",
+          backgroundColor: "var(--gold-light)",
+        }}
+      />
     </div>
-  )
+  );
+}
+
+// Anel — ícone de linha dourado, substitui o emoji 💍
+function RingIcon() {
+  return (
+    <svg width="42" height="42" viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M21 15 L16 9 L26 9 Z" stroke="#C9A84C" strokeWidth="1.2" fill="#FBF7EF" strokeLinejoin="round" />
+      <path d="M16 9 L21 12 L26 9" stroke="#C9A84C" strokeWidth="0.9" fill="none" strokeLinejoin="round" />
+      <line x1="18" y1="9" x2="19.5" y2="13" stroke="#C9A84C" strokeWidth="0.7" />
+      <line x1="24" y1="9" x2="22.5" y2="13" stroke="#C9A84C" strokeWidth="0.7" />
+      <circle cx="21" cy="27" r="9" stroke="#C9A84C" strokeWidth="1.3" fill="none" />
+      <circle cx="21" cy="27" r="6" stroke="#C9A84C" strokeWidth="0.8" fill="none" opacity="0.5" />
+    </svg>
+  );
+}
+
+// Chave — ícone de linha dourado, substitui o emoji 🔑
+function KeyIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="8" cy="15" r="4.5" />
+      <path d="M11.5 11.5L21 2M16 7l3 3" />
+    </svg>
+  );
+}
+
+function FlowerDecoration() {
+  return (
+    <img
+      src={flores}
+      alt=""
+      aria-hidden="true"
+      className="flower-deco"
+      style={{
+        position: "fixed",
+        top: "-30px",
+        left: "-40px",
+        width: "min(380px, 45vw)",
+        height: "auto",
+        pointerEvents: "none",
+        zIndex: 0,
+        opacity: 0.9,
+      }}
+    />
+  );
 }
 
 export default function FormEntryPage() {
-  const [code, setCode] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
-  const navigate = useNavigate()
+  const [code, setCode] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
   const handleSubmit = async () => {
     if (!code.trim()) {
-      setError('Introduz o teu código de acesso')
-      return
+      setError("Introduz o teu código de acesso");
+      return;
     }
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
 
-    const result = await validateCode(code)
+    const result = await validateCode(code);
 
     if (!result.valid) {
-      setError(result.reason === 'Este código já expirou'
-        ? 'Este código já expirou. Contacta Do Luxo à Mesa para mais informações.'
-        : 'Código inválido. Verifica o código que recebeste e tenta novamente.')
-      setLoading(false)
-      return
+      setError(
+        result.reason === "Este código já expirou"
+          ? "Este código já expirou. Contacta Do Luxo à Mesa para mais informações."
+          : "Código inválido. Verifica o código que recebeste e tenta novamente.",
+      );
+      setLoading(false);
+      return;
     }
 
-    // Guarda o convite na sessão e navega para o formulário
-    sessionStorage.setItem('dlm_invite', JSON.stringify(result.invite))
-    navigate('/formulario')
-  }
+    sessionStorage.setItem("dlm_invite", JSON.stringify(result.invite));
+    navigate("/formulario");
+  };
 
   return (
-    <div style={{
-      minHeight: '100vh', backgroundColor: 'var(--cream)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '24px', position: 'relative', overflow: 'hidden'
-    }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        backgroundColor: "var(--cream)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "24px",
+        position: "relative",
+        overflowX: "clip",
+      }}
+    >
+      <FlowerDecoration />
 
-      {/* Flores decorativas simples */}
-      <div style={{
-        position: 'fixed', top: 0, left: 0, pointerEvents: 'none', zIndex: 0,
-        fontSize: '120px', opacity: 0.06, lineHeight: 1,
-        fontFamily: 'serif', color: 'var(--gold)',
-        userSelect: 'none'
-      }}>
-        ❀
-      </div>
-
-      <div style={{ width: '100%', maxWidth: '420px', position: 'relative', zIndex: 1 }}>
-
+      <div style={{ width: "100%", maxWidth: "420px", position: "relative", zIndex: 1 }}>
         {/* Cabeçalho */}
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <h1 style={{
-            fontSize: 'clamp(22px, 5vw, 36px)',
-            color: 'var(--gold)', fontFamily: 'Playfair Display, serif',
-            textTransform: 'uppercase', letterSpacing: '0.1em',
-            margin: '0 0 6px 0', lineHeight: 1.1
-          }}>
+        <div style={{ textAlign: "center", marginBottom: "32px" }}>
+          <h1
+            style={{
+              fontSize: "clamp(22px, 5vw, 36px)",
+              color: "var(--gold)",
+              fontFamily: "Playfair Display, serif",
+              textTransform: "uppercase",
+              letterSpacing: "0.1em",
+              margin: "0 0 6px 0",
+              lineHeight: 1.1,
+            }}
+          >
             Do Luxo à Mesa
           </h1>
-          <p style={{
-            fontSize: '10px', color: 'var(--gold)',
-            textTransform: 'uppercase', letterSpacing: '0.28em',
-            margin: '0 0 16px 0'
-          }}>
+          <p
+            style={{
+              fontSize: "11px",
+              color: "var(--gold)",
+              textTransform: "uppercase",
+              letterSpacing: "0.28em",
+              margin: "0 0 20px 0",
+            }}
+          >
             by Luxury Events
           </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center', marginBottom: '6px' }}>
-            <div style={{ height: '1px', flex: 1, maxWidth: '60px', backgroundColor: 'var(--gold-light)' }} />
-            <p style={{ fontSize: '11px', color: 'var(--charcoal)', textTransform: 'uppercase', letterSpacing: '0.2em', margin: 0, fontWeight: '500' }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", justifyContent: "center", marginBottom: "6px" }}>
+            <div style={{ height: "1px", width: "clamp(28px, 8vw, 70px)", flexShrink: 0, backgroundColor: "var(--gold-light)" }} />
+            <p style={{ fontSize: "12px", color: "var(--charcoal)", textTransform: "uppercase", letterSpacing: "0.2em", margin: 0, fontWeight: "500", whiteSpace: "nowrap" }}>
               Questionário dos Noivos
             </p>
-            <div style={{ height: '1px', flex: 1, maxWidth: '60px', backgroundColor: 'var(--gold-light)' }} />
+            <div style={{ height: "1px", width: "clamp(28px, 8vw, 70px)", flexShrink: 0, backgroundColor: "var(--gold-light)" }} />
           </div>
           <Ornament small />
         </div>
 
         {/* Card */}
-        <div style={{
-          backgroundColor: 'white', borderRadius: '20px',
-          overflow: 'hidden', boxShadow: '0 8px 48px rgba(0,0,0,0.08)'
-        }}>
-
-          {/* Corpo */}
-          <div style={{ padding: '32px 28px 28px' }}>
-            <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-              <div style={{ fontSize: '40px', marginBottom: '12px' }}>💍</div>
-              <h2 style={{
-                fontSize: '16px', color: 'var(--charcoal)', margin: '0 0 4px 0',
-                fontFamily: 'Playfair Display, serif',
-                textTransform: 'uppercase', letterSpacing: '0.08em'
-              }}>
+        <div style={{ backgroundColor: "white", borderRadius: "20px", overflow: "hidden", boxShadow: "0 8px 48px rgba(0,0,0,0.08)" }}>
+          <div style={{ padding: "32px 28px 28px" }}>
+            <div style={{ textAlign: "center", marginBottom: "28px" }}>
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: "12px" }}>
+                <div
+                  style={{
+                    width: "64px",
+                    height: "64px",
+                    borderRadius: "50%",
+                    backgroundColor: "#FBF7EF",
+                    border: "1.5px solid var(--gold-light)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <RingIcon />
+                </div>
+              </div>
+              <h2
+                style={{
+                  fontSize: "16px",
+                  color: "var(--charcoal)",
+                  margin: "0 0 4px 0",
+                  fontFamily: "Playfair Display, serif",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                }}
+              >
                 Bem-vindos
               </h2>
               <Ornament small />
-              <p style={{
-                fontSize: '13px', color: 'var(--gray-mid)',
-                margin: '8px 0 0', lineHeight: '1.6'
-              }}>
+              <p style={{ fontSize: "13px", color: "var(--gray-mid)", margin: "8px 0 0", lineHeight: "1.6" }}>
                 Para aceder ao vosso questionário, introduz o código de acesso que recebeste.
               </p>
             </div>
 
-            {/* Campo do código */}
-            <div style={{ marginBottom: '8px' }}>
-              <label style={{
-                fontSize: '11px', fontWeight: '600', letterSpacing: '0.08em',
-                textTransform: 'uppercase', color: error ? '#EF4444' : 'var(--charcoal)',
-                display: 'block', marginBottom: '8px'
-              }}>
+            <div style={{ marginBottom: "8px" }}>
+              <label
+                style={{
+                  fontSize: "11px",
+                  fontWeight: "600",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: error ? "#EF4444" : "var(--charcoal)",
+                  display: "block",
+                  marginBottom: "8px",
+                }}
+              >
                 Código de Acesso
               </label>
-              <div style={{
-                display: 'flex', alignItems: 'center',
-                border: `1.5px solid ${error ? '#F87171' : 'var(--gold-light)'}`,
-                borderRadius: '10px', overflow: 'hidden',
-                backgroundColor: 'white', transition: 'all 0.2s',
-                boxShadow: error ? '0 0 0 3px rgba(248,113,113,0.1)' : 'none'
-              }}>
-                <div style={{
-                  width: '44px', display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', alignSelf: 'stretch',
-                  borderRight: `1px solid ${error ? '#FECACA' : 'var(--gold-light)'}`,
-                  backgroundColor: '#FBF7EF', fontSize: '16px', flexShrink: 0
-                }}>
-                  🔑
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  border: `1.5px solid ${error ? "#F87171" : "var(--gold-light)"}`,
+                  borderRadius: "10px",
+                  overflow: "hidden",
+                  backgroundColor: "white",
+                  transition: "all 0.2s",
+                  boxShadow: error ? "0 0 0 3px rgba(248,113,113,0.1)" : "none",
+                }}
+              >
+                <div
+                  style={{
+                    width: "44px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    alignSelf: "stretch",
+                    borderRight: `1px solid ${error ? "#FECACA" : "var(--gold-light)"}`,
+                    backgroundColor: "#FBF7EF",
+                    flexShrink: 0,
+                  }}
+                >
+                  <KeyIcon />
                 </div>
                 <input
                   type="text"
                   value={code}
                   onChange={(e) => {
-                    setCode(e.target.value.toUpperCase())
-                    if (error) setError(null)
+                    setCode(e.target.value.toUpperCase());
+                    if (error) setError(null);
                   }}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+                  onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
                   placeholder="Ex: DLM-X7K9-AB23"
                   maxLength={13}
                   style={{
-                    flex: 1, border: 'none', outline: 'none',
-                    padding: '13px 14px', fontSize: '15px',
-                    fontFamily: 'Inter, sans-serif', letterSpacing: '0.1em',
-                    color: 'var(--charcoal)', backgroundColor: 'white',
-                    fontWeight: '600'
+                    flex: 1,
+                    border: "none",
+                    outline: "none",
+                    padding: "13px 14px",
+                    fontSize: "15px",
+                    fontFamily: "Inter, sans-serif",
+                    letterSpacing: "0.1em",
+                    color: "var(--charcoal)",
+                    backgroundColor: "white",
+                    fontWeight: "600",
+                    minWidth: 0,
                   }}
                 />
               </div>
               {error && (
-                <p style={{ fontSize: '12px', color: '#EF4444', margin: '6px 0 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <p style={{ fontSize: "12px", color: "#EF4444", margin: "6px 0 0", display: "flex", alignItems: "center", gap: "4px" }}>
                   ⚠ {error}
                 </p>
               )}
             </div>
           </div>
 
-          {/* Footer creme */}
-          <div style={{
-            backgroundColor: '#FBF7EF', borderTop: '1px solid #F0E6D0',
-            padding: '16px 28px', display: 'flex', justifyContent: 'flex-end'
-          }}>
+          <div
+            style={{
+              backgroundColor: "#FBF7EF",
+              borderTop: "1px solid #F0E6D0",
+              padding: "16px 28px",
+              display: "flex",
+              justifyContent: "flex-end",
+            }}
+          >
             <button
               onClick={handleSubmit}
               disabled={loading}
               style={{
-                padding: '11px 36px', borderRadius: '999px',
-                fontSize: '11px', fontWeight: '600',
-                letterSpacing: '0.12em', textTransform: 'uppercase',
-                backgroundColor: loading ? 'var(--gold-light)' : 'var(--gold)',
-                color: 'white', border: 'none',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                transition: 'all 0.2s',
-                boxShadow: loading ? 'none' : '0 4px 16px rgba(201,168,76,0.4)'
+                padding: "11px 36px",
+                borderRadius: "999px",
+                fontSize: "11px",
+                fontWeight: "600",
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                backgroundColor: loading ? "var(--gold-light)" : "var(--gold)",
+                color: "white",
+                border: "none",
+                cursor: loading ? "not-allowed" : "pointer",
+                transition: "all 0.2s",
+                boxShadow: loading ? "none" : "0 4px 16px rgba(201,168,76,0.4)",
               }}
             >
-              {loading ? 'A verificar...' : 'Entrar →'}
+              {loading ? "A verificar..." : "Entrar →"}
             </button>
           </div>
         </div>
 
-        {/* Rodapé */}
-        <div style={{ marginTop: '20px' }}>
+        <div style={{ marginTop: "20px" }}>
           <Ornament />
-          <p style={{
-            textAlign: 'center', fontSize: '10px', color: 'var(--gold-light)',
-            textTransform: 'uppercase', letterSpacing: '0.18em', margin: '4px 0 0'
-          }}>
+          <p style={{ textAlign: "center", fontSize: "10px", color: "var(--gold-light)", textTransform: "uppercase", letterSpacing: "0.18em", margin: "4px 0 0" }}>
             Planeamos cada detalhe. Criamos memórias inesquecíveis.
           </p>
         </div>
-
       </div>
     </div>
-  )
+  );
 }
