@@ -94,6 +94,49 @@ h1, h2, h3 {
   }
 }
 
+/* ===== Admin: cards de stats responsivos ===== */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+@media (max-width: 600px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ===== Admin: filtros com pista de scroll (fade dourado à direita) ===== */
+.filter-wrap {
+  position: relative;
+}
+.filter-wrap::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 32px;
+  pointer-events: none;
+  background: linear-gradient(to right, rgba(250,250,248,0), var(--cream));
+}
+
+/* ===== Admin: lista de clientes com scroll próprio (≈4 visíveis) ===== */
+.clients-list {
+  max-height: 340px;
+  overflow-y: auto;
+  padding: 4px 4px 4px 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--gold-light) transparent;
+}
+.clients-list::-webkit-scrollbar {
+  width: 6px;
+}
+.clients-list::-webkit-scrollbar-thumb {
+  background: var(--gold-light);
+  border-radius: 999px;
+}
+
 /* ===== Alvos de toque confortáveis ===== */
 @media (pointer: coarse) {
   button:not(.btn-compact) {

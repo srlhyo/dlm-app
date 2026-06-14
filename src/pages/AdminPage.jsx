@@ -562,14 +562,7 @@ export default function AdminPage() {
         {activeTab === "clientes" && (
           <>
             {/* Estatísticas */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gap: "12px",
-                marginBottom: "28px",
-              }}
-            >
+            <div className="stats-grid" style={{ marginBottom: "24px" }}>
               {STATUS_OPTIONS.map((status) => {
                 const count = submissions.filter(
                   (s) => s.status === status,
@@ -581,7 +574,7 @@ export default function AdminPage() {
                     style={{
                       backgroundColor: "white",
                       borderRadius: "14px",
-                      padding: "20px",
+                      padding: "16px 12px",
                       textAlign: "center",
                       boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
                       borderTop: `3px solid ${colors.color}`,
@@ -589,19 +582,20 @@ export default function AdminPage() {
                   >
                     <p
                       style={{
-                        fontSize: "30px",
+                        fontSize: "26px",
                         fontWeight: "600",
                         color: colors.color,
-                        margin: "0 0 4px 0",
+                        margin: "0 0 2px 0",
                       }}
                     >
                       {count}
                     </p>
                     <p
                       style={{
-                        fontSize: "12px",
+                        fontSize: "11px",
                         color: "var(--gray-mid)",
                         margin: 0,
+                        lineHeight: 1.3,
                       }}
                     >
                       {status}
@@ -675,27 +669,22 @@ export default function AdminPage() {
               )}
             </div>
 
-            {/* Filtros + exportação */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                flexWrap: "wrap",
-                gap: "8px",
-                marginBottom: "20px",
-              }}
-            >
+            {/* Filtros de estado */}
+            <div className="filter-wrap" style={{ marginBottom: "8px" }}>
               <div
                 className="h-scroll"
-                style={{ gap: "8px", alignItems: "center", maxWidth: "100%" }}
+                style={{
+                  gap: "8px",
+                  alignItems: "center",
+                  paddingRight: "32px",
+                }}
               >
                 {["Todos", ...STATUS_OPTIONS].map((status) => (
                   <button
                     key={status}
                     onClick={() => setFilterStatus(status)}
                     style={{
-                      padding: "6px 16px",
+                      padding: "7px 18px",
                       borderRadius: "999px",
                       fontSize: "12px",
                       fontWeight: filterStatus === status ? "600" : "400",
@@ -706,48 +695,30 @@ export default function AdminPage() {
                         filterStatus === status ? "white" : "var(--charcoal)",
                       cursor: "pointer",
                       transition: "all 0.2s",
+                      whiteSpace: "nowrap",
                     }}
                   >
                     {status}
                   </button>
                 ))}
-                {search && (
-                  <p
-                    style={{
-                      fontSize: "12px",
-                      color: "var(--gray-mid)",
-                      margin: 0,
-                    }}
-                  >
-                    {filtered.length === 0
-                      ? "Sem resultados"
-                      : `${filtered.length} resultado${filtered.length !== 1 ? "s" : ""}`}
-                  </p>
-                )}
               </div>
-              <button
-                onClick={() => exportTodosExcel(submissions)}
-                disabled={submissions.length === 0}
+            </div>
+
+            {/* Contador de resultados da pesquisa */}
+            {search && (
+              <p
                 style={{
-                  padding: "8px 18px",
-                  borderRadius: "10px",
                   fontSize: "12px",
-                  fontWeight: "600",
-                  cursor: submissions.length === 0 ? "not-allowed" : "pointer",
-                  backgroundColor:
-                    submissions.length === 0
-                      ? "var(--gold-light)"
-                      : "var(--gold)",
-                  color: "white",
-                  border: "none",
-                  whiteSpace: "nowrap",
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
+                  color: "var(--gray-mid)",
+                  margin: "0 0 16px 4px",
                 }}
               >
-                📊 Exportar Todos
-              </button>
-            </div>
+                {filtered.length === 0
+                  ? "Sem resultados"
+                  : `${filtered.length} resultado${filtered.length !== 1 ? "s" : ""}`}
+              </p>
+            )}
+            {!search && <div style={{ marginBottom: "16px" }} />}
 
             {/* Lista */}
             {loading ? (
@@ -774,6 +745,7 @@ export default function AdminPage() {
               </p>
             ) : (
               <div
+                className="clientes-list"
                 style={{
                   display: "flex",
                   flexDirection: "column",
