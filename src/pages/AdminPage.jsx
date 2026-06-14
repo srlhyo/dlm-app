@@ -475,38 +475,31 @@ export default function AdminPage() {
             padding: "14px 0",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <img
-              src={logo}
-              alt="Do Luxo à Mesa"
-              style={{ width: "44px", height: "auto", display: "block" }}
-            />
-            <div>
-              <h1
-                style={{
-                  fontSize: "18px",
-                  color: "var(--gold)",
-                  fontFamily: "Playfair Display, serif",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.1em",
-                  margin: "0 0 1px 0",
-                  lineHeight: 1.1,
-                }}
-              >
-                Do Luxo à Mesa
-              </h1>
-              <p
-                style={{
-                  fontSize: "9px",
-                  color: "var(--gold)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.25em",
-                  margin: 0,
-                }}
-              >
-                by Luxury Events
-              </p>
-            </div>
+          <div>
+            <h1
+              style={{
+                fontSize: "18px",
+                color: "var(--gold)",
+                fontFamily: "Playfair Display, serif",
+                textTransform: "uppercase",
+                letterSpacing: "0.1em",
+                margin: "0 0 1px 0",
+                lineHeight: 1.1,
+              }}
+            >
+              Do Luxo à Mesa
+            </h1>
+            <p
+              style={{
+                fontSize: "9px",
+                color: "var(--gold)",
+                textTransform: "uppercase",
+                letterSpacing: "0.25em",
+                margin: 0,
+              }}
+            >
+              by Luxury Events
+            </p>
           </div>
           <button
             onClick={handleLogout}
