@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { validateCode } from "../lib/invites";
 import flores from "../assets/flores.png";
-import logo from "../assets/logo.png";
 
 function Ornament({ small = false }) {
   return (
@@ -193,16 +192,30 @@ export default function FormEntryPage() {
       >
         {/* Cabeçalho */}
         <div style={{ textAlign: "center", marginBottom: "32px" }}>
-          <img
-            src={logo}
-            alt="Do Luxo à Mesa — by Luxury Events"
+          <h1
             style={{
-              width: "min(200px, 55vw)",
-              height: "auto",
-              margin: "0 auto 18px",
-              display: "block",
+              fontSize: "clamp(22px, 5vw, 36px)",
+              color: "var(--gold)",
+              fontFamily: "Playfair Display, serif",
+              textTransform: "uppercase",
+              letterSpacing: "0.1em",
+              margin: "0 0 6px 0",
+              lineHeight: 1.1,
             }}
-          />
+          >
+            Do Luxo à Mesa
+          </h1>
+          <p
+            style={{
+              fontSize: "11px",
+              color: "var(--gold)",
+              textTransform: "uppercase",
+              letterSpacing: "0.28em",
+              margin: "0 0 20px 0",
+            }}
+          >
+            by Luxury Events
+          </p>
           <div
             style={{
               display: "flex",
