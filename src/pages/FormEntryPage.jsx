@@ -28,7 +28,11 @@ function Ornament({ small = false }) {
           strokeWidth="0.7"
           fill="none"
         />
-        <path d="M1 5 L4.5 5 M11.5 5 L15 5" stroke="#C9A84C" strokeWidth="0.7" />
+        <path
+          d="M1 5 L4.5 5 M11.5 5 L15 5"
+          stroke="#C9A84C"
+          strokeWidth="0.7"
+        />
         <circle cx="1" cy="5" r="0.9" fill="#C9A84C" />
         <circle cx="15" cy="5" r="0.9" fill="#C9A84C" />
       </svg>
@@ -43,16 +47,52 @@ function Ornament({ small = false }) {
   );
 }
 
-// Anel — ícone de linha dourado, substitui o emoji 💍
+// Anel de noivado — ícone de linha dourado
 function RingIcon() {
   return (
-    <svg width="42" height="42" viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M21 15 L16 9 L26 9 Z" stroke="#C9A84C" strokeWidth="1.2" fill="#FBF7EF" strokeLinejoin="round" />
-      <path d="M16 9 L21 12 L26 9" stroke="#C9A84C" strokeWidth="0.9" fill="none" strokeLinejoin="round" />
-      <line x1="18" y1="9" x2="19.5" y2="13" stroke="#C9A84C" strokeWidth="0.7" />
-      <line x1="24" y1="9" x2="22.5" y2="13" stroke="#C9A84C" strokeWidth="0.7" />
-      <circle cx="21" cy="27" r="9" stroke="#C9A84C" strokeWidth="1.3" fill="none" />
-      <circle cx="21" cy="27" r="6" stroke="#C9A84C" strokeWidth="0.8" fill="none" opacity="0.5" />
+    <svg
+      width="40"
+      height="40"
+      viewBox="0 0 40 40"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* Diamante */}
+      <path
+        d="M20 6 L15 11 L20 17 L25 11 Z"
+        stroke="#C9A84C"
+        strokeWidth="1.2"
+        fill="#FBF7EF"
+        strokeLinejoin="round"
+      />
+      <path d="M15 11 L25 11" stroke="#C9A84C" strokeWidth="1" />
+      <path
+        d="M17.5 8.5 L18.5 11 L20 8 L21.5 11 L22.5 8.5"
+        stroke="#C9A84C"
+        strokeWidth="0.7"
+        fill="none"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M18.5 11 L20 17 L21.5 11"
+        stroke="#C9A84C"
+        strokeWidth="0.7"
+        fill="none"
+      />
+      {/* Argola */}
+      <path
+        d="M12 24 A 8 8 0 1 0 28 24 A 8 8 0 1 0 12 24"
+        stroke="#C9A84C"
+        strokeWidth="1.3"
+        fill="none"
+      />
+      <path
+        d="M14.5 19 A 8 8 0 0 1 25.5 19"
+        stroke="#C9A84C"
+        strokeWidth="0.7"
+        fill="none"
+        opacity="0.45"
+      />
     </svg>
   );
 }
@@ -60,7 +100,16 @@ function RingIcon() {
 // Chave — ícone de linha dourado, substitui o emoji 🔑
 function KeyIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="#C9A84C"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <circle cx="8" cy="15" r="4.5" />
       <path d="M11.5 11.5L21 2M16 7l3 3" />
     </svg>
@@ -133,7 +182,14 @@ export default function FormEntryPage() {
     >
       <FlowerDecoration />
 
-      <div style={{ width: "100%", maxWidth: "420px", position: "relative", zIndex: 1 }}>
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "420px",
+          position: "relative",
+          zIndex: 1,
+        }}
+      >
         {/* Cabeçalho */}
         <div style={{ textAlign: "center", marginBottom: "32px" }}>
           <h1
@@ -160,21 +216,66 @@ export default function FormEntryPage() {
           >
             by Luxury Events
           </p>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", justifyContent: "center", marginBottom: "6px" }}>
-            <div style={{ height: "1px", width: "clamp(28px, 8vw, 70px)", flexShrink: 0, backgroundColor: "var(--gold-light)" }} />
-            <p style={{ fontSize: "12px", color: "var(--charcoal)", textTransform: "uppercase", letterSpacing: "0.2em", margin: 0, fontWeight: "500", whiteSpace: "nowrap" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              justifyContent: "center",
+              marginBottom: "6px",
+            }}
+          >
+            <div
+              style={{
+                height: "1px",
+                width: "clamp(28px, 8vw, 70px)",
+                flexShrink: 0,
+                backgroundColor: "var(--gold-light)",
+              }}
+            />
+            <p
+              style={{
+                fontSize: "12px",
+                color: "var(--charcoal)",
+                textTransform: "uppercase",
+                letterSpacing: "0.2em",
+                margin: 0,
+                fontWeight: "500",
+                whiteSpace: "nowrap",
+              }}
+            >
               Questionário dos Noivos
             </p>
-            <div style={{ height: "1px", width: "clamp(28px, 8vw, 70px)", flexShrink: 0, backgroundColor: "var(--gold-light)" }} />
+            <div
+              style={{
+                height: "1px",
+                width: "clamp(28px, 8vw, 70px)",
+                flexShrink: 0,
+                backgroundColor: "var(--gold-light)",
+              }}
+            />
           </div>
           <Ornament small />
         </div>
 
         {/* Card */}
-        <div style={{ backgroundColor: "white", borderRadius: "20px", overflow: "hidden", boxShadow: "0 8px 48px rgba(0,0,0,0.08)" }}>
+        <div
+          style={{
+            backgroundColor: "white",
+            borderRadius: "20px",
+            overflow: "hidden",
+            boxShadow: "0 8px 48px rgba(0,0,0,0.08)",
+          }}
+        >
           <div style={{ padding: "32px 28px 28px" }}>
             <div style={{ textAlign: "center", marginBottom: "28px" }}>
-              <div style={{ display: "flex", justifyContent: "center", marginBottom: "12px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  marginBottom: "12px",
+                }}
+              >
                 <div
                   style={{
                     width: "64px",
@@ -203,8 +304,16 @@ export default function FormEntryPage() {
                 Bem-vindos
               </h2>
               <Ornament small />
-              <p style={{ fontSize: "13px", color: "var(--gray-mid)", margin: "8px 0 0", lineHeight: "1.6" }}>
-                Para aceder ao vosso questionário, introduz o código de acesso que recebeste.
+              <p
+                style={{
+                  fontSize: "13px",
+                  color: "var(--gray-mid)",
+                  margin: "8px 0 0",
+                  lineHeight: "1.6",
+                }}
+              >
+                Para aceder ao vosso questionário, introduz o código de acesso
+                que recebeste.
               </p>
             </div>
 
@@ -274,7 +383,16 @@ export default function FormEntryPage() {
                 />
               </div>
               {error && (
-                <p style={{ fontSize: "12px", color: "#EF4444", margin: "6px 0 0", display: "flex", alignItems: "center", gap: "4px" }}>
+                <p
+                  style={{
+                    fontSize: "12px",
+                    color: "#EF4444",
+                    margin: "6px 0 0",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                  }}
+                >
                   ⚠ {error}
                 </p>
               )}
@@ -315,7 +433,16 @@ export default function FormEntryPage() {
 
         <div style={{ marginTop: "20px" }}>
           <Ornament />
-          <p style={{ textAlign: "center", fontSize: "10px", color: "var(--gold-light)", textTransform: "uppercase", letterSpacing: "0.18em", margin: "4px 0 0" }}>
+          <p
+            style={{
+              textAlign: "center",
+              fontSize: "10px",
+              color: "var(--gold-light)",
+              textTransform: "uppercase",
+              letterSpacing: "0.18em",
+              margin: "4px 0 0",
+            }}
+          >
             Planeamos cada detalhe. Criamos memórias inesquecíveis.
           </p>
         </div>
