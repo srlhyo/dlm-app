@@ -6,6 +6,7 @@ import { validateStep } from "../lib/validation";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { markInviteUsed } from "../lib/invites";
+import { motion, AnimatePresence } from "framer-motion";
 import flores from "../assets/flores.png";
 
 function Ornament({ small = false }) {
@@ -352,7 +353,10 @@ export default function FormPage() {
         }}
       >
         <FlowerDecoration />
-        <div
+        <motion.div
+          initial={{ opacity: 0, y: 16, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
           style={{
             backgroundColor: "white",
             borderRadius: "20px",
@@ -387,7 +391,7 @@ export default function FormPage() {
           <p style={{ fontSize: "10px", color: "var(--gold-light)", textTransform: "uppercase", letterSpacing: "0.18em", margin: 0 }}>
             Planeamos cada detalhe. Criamos memórias inesquecíveis.
           </p>
-        </div>
+        </motion.div>
       </div>
     );
   }
@@ -462,7 +466,12 @@ export default function FormPage() {
       >
         {/* Cabeçalho — dentro do limitador de largura */}
         <div style={{ maxWidth: "560px", margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: "24px" }}>
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            style={{ textAlign: "center", marginBottom: "24px" }}
+          >
             <h1
               style={{
                 fontSize: "clamp(24px, 6.5vw, 44px)",
@@ -496,7 +505,7 @@ export default function FormPage() {
               <div style={{ height: "1px", width: "clamp(28px, 8vw, 70px)", flexShrink: 0, backgroundColor: "var(--gold-light)" }} />
             </div>
             <Ornament small />
-          </div>
+          </motion.div>
 
           <ProgressStepper currentStep={currentStep} steps={formSteps} />
         </div>
@@ -520,7 +529,10 @@ export default function FormPage() {
 
         {/* Card + rodapé — de volta ao limitador de largura */}
         <div style={{ maxWidth: "560px", margin: "0 auto" }}>
-          <div
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut", delay: 0.1 }}
             className="form-card"
             style={{ backgroundColor: "white", borderRadius: "20px", overflow: "hidden", boxShadow: "0 8px 48px rgba(0,0,0,0.08)" }}
           >
@@ -539,64 +551,74 @@ export default function FormPage() {
             </div>
 
             <div className="form-card-body" style={{ padding: "20px 28px 24px" }}>
-              <div
-                className="step-header"
-                style={{ display: "flex", alignItems: "flex-start", gap: "16px", marginBottom: "24px" }}
-              >
-                <div
-                  style={{
-                    width: "64px",
-                    height: "64px",
-                    borderRadius: "50%",
-                    backgroundColor: "#FBF7EF",
-                    border: "1.5px solid var(--gold-light)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                  }}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentStep}
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -12 }}
+                  transition={{ duration: 0.28, ease: "easeOut" }}
                 >
-                  <CoupleIcon />
-                </div>
-                <div style={{ flex: 1, paddingTop: "2px" }}>
-                  <h2
-                    style={{
-                      fontSize: "16px",
-                      color: "var(--charcoal)",
-                      margin: "0 0 4px 0",
-                      fontFamily: "Playfair Display, serif",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.1em",
-                    }}
-                  >
-                    {step.title}
-                  </h2>
                   <div
-                    className="step-ornament"
-                    style={{ display: "flex", alignItems: "center", gap: "6px", margin: "0 0 5px 0" }}
+                    className="step-header"
+                    style={{ display: "flex", alignItems: "flex-start", gap: "16px", marginBottom: "24px" }}
                   >
-                    <div style={{ height: "1px", width: "20px", backgroundColor: "var(--gold-light)" }} />
-                    <svg width="12" height="8" viewBox="0 0 12 8" fill="none">
-                      <path d="M6 1 C4.8 1 3.5 2.2 3.5 4 C3.5 5.8 4.8 7 6 7 C7.2 7 8.5 5.8 8.5 4 C8.5 2.2 7.2 1 6 1Z" stroke="#C9A84C" strokeWidth="0.6" fill="none" />
-                      <path d="M0.5 4 L3.5 4 M8.5 4 L11.5 4" stroke="#C9A84C" strokeWidth="0.6" />
-                      <circle cx="0.5" cy="4" r="0.7" fill="#C9A84C" />
-                      <circle cx="11.5" cy="4" r="0.7" fill="#C9A84C" />
-                    </svg>
-                    <div style={{ height: "1px", width: "20px", backgroundColor: "var(--gold-light)" }} />
+                    <div
+                      style={{
+                        width: "64px",
+                        height: "64px",
+                        borderRadius: "50%",
+                        backgroundColor: "#FBF7EF",
+                        border: "1.5px solid var(--gold-light)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <CoupleIcon />
+                    </div>
+                    <div style={{ flex: 1, paddingTop: "2px" }}>
+                      <h2
+                        style={{
+                          fontSize: "16px",
+                          color: "var(--charcoal)",
+                          margin: "0 0 4px 0",
+                          fontFamily: "Playfair Display, serif",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.1em",
+                        }}
+                      >
+                        {step.title}
+                      </h2>
+                      <div
+                        className="step-ornament"
+                        style={{ display: "flex", alignItems: "center", gap: "6px", margin: "0 0 5px 0" }}
+                      >
+                        <div style={{ height: "1px", width: "20px", backgroundColor: "var(--gold-light)" }} />
+                        <svg width="12" height="8" viewBox="0 0 12 8" fill="none">
+                          <path d="M6 1 C4.8 1 3.5 2.2 3.5 4 C3.5 5.8 4.8 7 6 7 C7.2 7 8.5 5.8 8.5 4 C8.5 2.2 7.2 1 6 1Z" stroke="#C9A84C" strokeWidth="0.6" fill="none" />
+                          <path d="M0.5 4 L3.5 4 M8.5 4 L11.5 4" stroke="#C9A84C" strokeWidth="0.6" />
+                          <circle cx="0.5" cy="4" r="0.7" fill="#C9A84C" />
+                          <circle cx="11.5" cy="4" r="0.7" fill="#C9A84C" />
+                        </svg>
+                        <div style={{ height: "1px", width: "20px", backgroundColor: "var(--gold-light)" }} />
+                      </div>
+                      <p style={{ fontSize: "12px", color: "var(--gray-mid)", margin: 0, lineHeight: "1.4" }}>
+                        {step.subtitle}
+                      </p>
+                    </div>
                   </div>
-                  <p style={{ fontSize: "12px", color: "var(--gray-mid)", margin: 0, lineHeight: "1.4" }}>
-                    {step.subtitle}
-                  </p>
-                </div>
-              </div>
 
-              <FormStep
-                step={step}
-                formData={formData}
-                onChange={handleChange}
-                errors={errors}
-                onClearError={handleClearError}
-              />
+                  <FormStep
+                    step={step}
+                    formData={formData}
+                    onChange={handleChange}
+                    errors={errors}
+                    onClearError={handleClearError}
+                  />
+                </motion.div>
+              </AnimatePresence>
 
               {submitError && (
                 <p style={{ fontSize: "13px", color: "#EF4444", textAlign: "center", marginTop: "16px" }}>
@@ -703,7 +725,7 @@ export default function FormPage() {
                 </button>
               )}
             </div>
-          </div>
+          </motion.div>
 
           <div style={{ marginTop: "20px" }}>
             <Ornament />
