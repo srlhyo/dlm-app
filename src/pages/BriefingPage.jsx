@@ -142,7 +142,12 @@ export default function BriefingPage() {
           font-family: 'Inter, sans-serif';
           display: inline-flex; align-items: center; gap: 8px;
         }
-        .briefing-hint { display: none; }
+        .briefing-hint {
+          display: block;
+          font-size: 11px; color: #6B7280;
+          margin: 8px 0 0; line-height: 1.5;
+          text-align: right; max-width: 240px;
+        }
 
         .briefing-header {
           background-color: #C9A84C; padding: 28px 40px;
@@ -158,9 +163,9 @@ export default function BriefingPage() {
             font-size: 14px;
           }
           .briefing-hint {
-            display: block; text-align: center;
-            font-size: 11px; color: #6B7280;
-            margin: 8px 16px 0; line-height: 1.5;
+            text-align: center;
+            margin: 8px 16px 0; 
+            max-width: none;
           }
           .briefing-header {
             flex-direction: column; align-items: flex-start;
