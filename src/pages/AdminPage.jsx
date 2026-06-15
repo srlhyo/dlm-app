@@ -1444,27 +1444,9 @@ export default function AdminPage() {
                         {isPendente && (
                           <button
                             className="btn-compact"
-                            onClick={async () => {
-                              const { error } = await supabase
-                                .from("invites")
-                                .delete()
-                                .eq("id", inviteToDelete.id);
-                              if (error) {
-                                console.error(
-                                  "Erro ao remover convite:",
-                                  error,
-                                );
-                                alert(
-                                  "Não foi possível remover o convite. Tenta novamente.",
-                                );
-                                return;
-                              }
-                              setInvites((prev) =>
-                                prev.filter((i) => i.id !== inviteToDelete.id),
-                              );
-                              if (selectedInvite?.id === inviteToDelete.id)
-                                setSelectedInvite(null);
-                              setInviteToDelete(null);
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setInviteToDelete(invite);
                             }}
                             title="Remover convite"
                             style={{
@@ -1612,10 +1594,17 @@ export default function AdminPage() {
                       </button>
                       <button
                         onClick={async () => {
-                          await supabase
+                          const { error } = await supabase
                             .from("invites")
                             .delete()
                             .eq("id", inviteToDelete.id);
+                          if (error) {
+                            console.error("Erro ao remover convite:", error);
+                            alert(
+                              "Não foi possível remover o convite. Tenta novamente.",
+                            );
+                            return;
+                          }
                           setInvites((prev) =>
                             prev.filter((i) => i.id !== inviteToDelete.id),
                           );
