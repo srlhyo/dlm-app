@@ -1910,29 +1910,35 @@ export default function AdminPage() {
               >
                 Estado do Evento
               </p>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-                {STATUS_OPTIONS.map((status) => {
-                  const colors = STATUS_COLORS[status];
-                  const isActive = selected.status === status;
-                  return (
-                    <button
-                      key={status}
-                      onClick={() => handleStatusChange(selected.id, status)}
-                      style={{
-                        padding: "6px 14px",
-                        borderRadius: "999px",
-                        fontSize: "12px",
-                        border: `1px solid ${colors.border}`,
-                        backgroundColor: isActive ? colors.color : colors.bg,
-                        color: isActive ? "white" : colors.color,
-                        cursor: "pointer",
-                        transition: "all 0.2s",
-                      }}
-                    >
-                      {status}
-                    </button>
-                  );
-                })}
+              <div className="filter-wrap">
+                <div
+                  className="h-scroll"
+                  style={{ gap: "8px", paddingRight: "32px" }}
+                >
+                  {STATUS_OPTIONS.map((status) => {
+                    const colors = STATUS_COLORS[status];
+                    const isActive = selected.status === status;
+                    return (
+                      <button
+                        key={status}
+                        onClick={() => handleStatusChange(selected.id, status)}
+                        style={{
+                          padding: "6px 14px",
+                          borderRadius: "999px",
+                          fontSize: "12px",
+                          whiteSpace: "nowrap",
+                          border: `1px solid ${colors.border}`,
+                          backgroundColor: isActive ? colors.color : colors.bg,
+                          color: isActive ? "white" : colors.color,
+                          cursor: "pointer",
+                          transition: "all 0.2s",
+                        }}
+                      >
+                        {status}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
