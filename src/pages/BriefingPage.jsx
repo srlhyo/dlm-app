@@ -194,7 +194,7 @@ export default function BriefingPage() {
           <IconPrint /> Imprimir / Guardar PDF
         </button>
         <p className="briefing-hint">
-          No telemóvel, escolhe “Guardar como PDF” no destino da impressão.
+          Para guardar como PDf, escolhe “Guardar como PDF” no destino da impressão.
         </p>
       </div>
 
