@@ -1,18 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-} from "recharts";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import { createInvite } from "../lib/invites";
 
 const STATUS_OPTIONS = ["Recebido", "Em Preparação", "Confirmado", "Concluído"];
@@ -26,6 +15,30 @@ const STATUS_COLORS = {
 
 const PIE_COLORS = ["#C9A84C", "#3B82F6", "#22C55E", "#6B7280"];
 const GOLD_SHADES = ["#C9A84C", "#A07830", "#E8D5A3", "#7A5C20", "#F5ECD7"];
+
+// Estilos partilhados dos cards de KPI do dashboard
+const kpiCardStyle = {
+  backgroundColor: "white",
+  borderRadius: "14px",
+  padding: "20px 16px",
+  textAlign: "center",
+  boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "center",
+};
+const kpiValueStyle = {
+  fontSize: "34px",
+  fontWeight: "600",
+  margin: "0 0 4px 0",
+  lineHeight: 1,
+};
+const kpiLabelStyle = {
+  fontSize: "12px",
+  color: "var(--gray-mid)",
+  margin: 0,
+  lineHeight: 1.4,
+};
 
 function DetailRow({ label, value }) {
   if (!value && value !== 0) return null;
@@ -395,6 +408,60 @@ export default function AdminPage() {
     return Math.round(
       validos.reduce((sum, s) => sum + s.numero_convidados, 0) / validos.length,
     );
+  };
+
+  // ===== Métricas de negócio para o dashboard =====
+
+  // Total de convidados a servir (soma de todos os eventos ativos)
+  const totalConvidados = () =>
+    submissions
+      .filter((s) => s.status !== "Concluído")
+      .reduce((sum, s) => sum + (s.numero_convidados || 0), 0);
+
+  // Taxa de resposta dos convites (preenchidos / total enviados)
+  const taxaResposta = () => {
+    if (!invites.length) return null;
+    const preenchidos = invites.filter((i) => i.status === "Preenchido").length;
+    return {
+      preenchidos,
+      total: invites.length,
+      pct: Math.round((preenchidos / invites.length) * 100),
+    };
+  };
+
+  // Próximo evento (o mais próximo no futuro, não concluído)
+  const proximoEvento = () => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const futuros = submissions
+      .filter((s) => s.data_evento && s.status !== "Concluído")
+      .filter((s) => new Date(s.data_evento) >= hoje)
+      .sort((a, b) => new Date(a.data_evento) - new Date(b.data_evento));
+    return futuros[0] || null;
+  };
+
+  // Eventos que precisam de atenção: próximos 60 dias e ainda "Recebido"
+  const eventosAtencao = () => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const limite = new Date(hoje);
+    limite.setDate(limite.getDate() + 60);
+    return submissions
+      .filter((s) => s.data_evento && s.status === "Recebido")
+      .filter((s) => {
+        const d = new Date(s.data_evento);
+        return d >= hoje && d <= limite;
+      })
+      .sort((a, b) => new Date(a.data_evento) - new Date(b.data_evento));
+  };
+
+  // Dias até uma data (para etiquetas "faltam X dias")
+  const diasAte = (date) => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return Math.round((d - hoje) / (1000 * 60 * 60 * 24));
   };
 
   const formatDate = (date) => {
@@ -1632,65 +1699,203 @@ export default function AdminPage() {
         {/* ---- TAB DASHBOARD ---- */}
         {activeTab === "dashboard" && (
           <>
-            {/* KPIs */}
+            {/* ===== ZONA 1 — O essencial ===== */}
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(3, 1fr)",
+                gridTemplateColumns: "repeat(2, 1fr)",
                 gap: "12px",
-                marginBottom: "28px",
+                marginBottom: "20px",
               }}
             >
-              {[
-                {
-                  label: "Total de Eventos",
-                  value: submissions.length,
-                  color: "var(--gold)",
-                },
-                {
-                  label: "Média de Convidados",
-                  value: mediaConvidados(),
-                  color: "#3B82F6",
-                },
-                {
-                  label: "Eventos Activos",
-                  value: submissions.filter((s) => s.status !== "Concluído")
-                    .length,
-                  color: "#22C55E",
-                },
-              ].map((kpi) => (
-                <div
-                  key={kpi.label}
+              {/* Eventos ativos */}
+              <div style={kpiCardStyle}>
+                <p style={{ ...kpiValueStyle, color: "var(--gold)" }}>
+                  {submissions.filter((s) => s.status !== "Concluído").length}
+                </p>
+                <p style={kpiLabelStyle}>Eventos Activos</p>
+              </div>
+
+              {/* Total de convidados a servir */}
+              <div style={kpiCardStyle}>
+                <p style={{ ...kpiValueStyle, color: "#3B82F6" }}>
+                  {totalConvidados()}
+                </p>
+                <p style={kpiLabelStyle}>Convidados a Servir</p>
+              </div>
+
+              {/* Confirmados */}
+              <div style={kpiCardStyle}>
+                <p style={{ ...kpiValueStyle, color: "#22C55E" }}>
+                  {submissions.filter((s) => s.status === "Confirmado").length}
+                </p>
+                <p style={kpiLabelStyle}>Confirmados</p>
+              </div>
+
+              {/* Taxa de resposta dos convites */}
+              <div style={kpiCardStyle}>
+                {taxaResposta() ? (
+                  <>
+                    <p style={{ ...kpiValueStyle, color: "var(--gold-dark)" }}>
+                      {taxaResposta().pct}%
+                    </p>
+                    <p style={kpiLabelStyle}>
+                      Convites Preenchidos
+                      <br />
+                      <span style={{ fontSize: "10px", opacity: 0.7 }}>
+                        {taxaResposta().preenchidos} de {taxaResposta().total}
+                      </span>
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p style={{ ...kpiValueStyle, color: "var(--gold-light)" }}>
+                      —
+                    </p>
+                    <p style={kpiLabelStyle}>Sem convites ainda</p>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Próximo evento — destaque */}
+            {proximoEvento() && (
+              <div
+                onClick={() => setSelected(proximoEvento())}
+                style={{
+                  backgroundColor: "var(--gold)",
+                  borderRadius: "16px",
+                  padding: "20px 24px",
+                  marginBottom: "28px",
+                  cursor: "pointer",
+                  boxShadow: "0 4px 20px rgba(201,168,76,0.3)",
+                  color: "white",
+                }}
+              >
+                <p
                   style={{
-                    backgroundColor: "white",
-                    borderRadius: "14px",
-                    padding: "24px 20px",
-                    textAlign: "center",
-                    boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
+                    fontSize: "10px",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.15em",
+                    margin: "0 0 8px 0",
+                    opacity: 0.85,
                   }}
                 >
-                  <p
-                    style={{
-                      fontSize: "36px",
-                      fontWeight: "600",
-                      color: kpi.color,
-                      margin: "0 0 6px 0",
-                    }}
-                  >
-                    {kpi.value}
-                  </p>
-                  <p
-                    style={{
-                      fontSize: "12px",
-                      color: "var(--gray-mid)",
-                      margin: 0,
-                    }}
-                  >
-                    {kpi.label}
-                  </p>
+                  Próximo Evento
+                </p>
+                <p
+                  style={{
+                    fontSize: "20px",
+                    fontFamily: "Playfair Display, serif",
+                    margin: "0 0 6px 0",
+                  }}
+                >
+                  {proximoEvento().nome_noivo} & {proximoEvento().nome_noiva}
+                </p>
+                <p style={{ fontSize: "13px", margin: 0, opacity: 0.95 }}>
+                  {formatDate(proximoEvento().data_evento)}
+                  {(() => {
+                    const dias = diasAte(proximoEvento().data_evento);
+                    if (dias === 0) return " · É hoje!";
+                    if (dias === 1) return " · Amanhã";
+                    return ` · Faltam ${dias} dias`;
+                  })()}
+                </p>
+              </div>
+            )}
+
+            {/* ===== ZONA 2 — A precisar de atenção ===== */}
+            {eventosAtencao().length > 0 && (
+              <div style={{ marginBottom: "28px" }}>
+                <p
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    color: "var(--gray-mid)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    margin: "0 0 12px 4px",
+                  }}
+                >
+                  A precisar de atenção
+                </p>
+                <div
+                  style={{
+                    backgroundColor: "#FEF9EC",
+                    borderRadius: "16px",
+                    padding: "8px",
+                    border: "1px solid var(--gold-light)",
+                  }}
+                >
+                  {eventosAtencao().map((s, i) => {
+                    const dias = diasAte(s.data_evento);
+                    return (
+                      <div
+                        key={s.id}
+                        onClick={() => setSelected(s)}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "12px 14px",
+                          borderBottom:
+                            i < eventosAtencao().length - 1
+                              ? "1px solid rgba(201,168,76,0.15)"
+                              : "none",
+                          cursor: "pointer",
+                          gap: "12px",
+                        }}
+                      >
+                        <div style={{ minWidth: 0 }}>
+                          <p
+                            style={{
+                              fontSize: "14px",
+                              fontWeight: "500",
+                              color: "var(--charcoal)",
+                              margin: "0 0 2px 0",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {s.nome_noivo} & {s.nome_noiva}
+                          </p>
+                          <p
+                            style={{
+                              fontSize: "12px",
+                              color: "var(--gray-mid)",
+                              margin: 0,
+                            }}
+                          >
+                            {formatDate(s.data_evento)}
+                          </p>
+                        </div>
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: "600",
+                            color: dias <= 14 ? "#DC2626" : "var(--gold-dark)",
+                            backgroundColor: "white",
+                            padding: "4px 10px",
+                            borderRadius: "999px",
+                            whiteSpace: "nowrap",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {dias === 0
+                            ? "Hoje"
+                            : dias === 1
+                              ? "Amanhã"
+                              : `${dias} dias`}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
+
+            {/* ===== ZONA 3 — Tendências do negócio ===== */}
 
             {/* Eventos por mês */}
             <ChartCard title="Eventos por Mês">
@@ -1700,7 +1905,7 @@ export default function AdminPage() {
                 <ResponsiveContainer width="100%" height={240}>
                   <BarChart
                     data={eventosPorMes()}
-                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                    margin={{ top: 24, right: 10, left: -20, bottom: 0 }}
                   >
                     <XAxis
                       dataKey="mes"
@@ -1714,170 +1919,199 @@ export default function AdminPage() {
                       axisLine={false}
                       tickLine={false}
                     />
-                    <Tooltip
-                      contentStyle={{
-                        borderRadius: "10px",
-                        border: "1px solid var(--gold-light)",
-                        fontSize: "13px",
-                      }}
-                      cursor={{ fill: "rgba(201,168,76,0.08)" }}
-                    />
                     <Bar
                       dataKey="total"
                       fill="var(--gold)"
                       radius={[6, 6, 0, 0]}
                       name="Eventos"
+                      label={{
+                        position: "top",
+                        fontSize: 13,
+                        fill: "var(--gold-dark)",
+                        fontWeight: 600,
+                      }}
                     />
                   </BarChart>
                 </ResponsiveContainer>
               )}
             </ChartCard>
 
-            {/* Pipeline — dois gráficos lado a lado */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "20px",
-                marginBottom: "20px",
-              }}
-            >
-              <ChartCard title="Pipeline de Estados">
-                {pipelineData.length === 0 ? (
-                  <EmptyChart />
-                ) : (
-                  <ResponsiveContainer width="100%" height={260}>
-                    <PieChart>
-                      <Pie
-                        data={pipelineData}
-                        dataKey="total"
-                        nameKey="status"
-                        cx="50%"
-                        cy="45%"
-                        outerRadius={85}
-                        innerRadius={40}
-                      >
-                        {pipelineData.map((entry) => (
-                          <Cell key={entry.status} fill={entry.fill} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{
-                          borderRadius: "10px",
-                          border: "1px solid var(--gold-light)",
-                          fontSize: "13px",
-                        }}
-                      />
-                      <Legend
-                        iconType="circle"
-                        iconSize={8}
-                        formatter={(value) => (
-                          <span
-                            style={{
-                              fontSize: "12px",
-                              color: "var(--charcoal)",
-                            }}
-                          >
-                            {value}
-                          </span>
-                        )}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                )}
-              </ChartCard>
-
-              <ChartCard title="Paletas Mais Populares">
-                {paletasMaisPopulares().length === 0 ? (
-                  <EmptyChart />
-                ) : (
-                  <ResponsiveContainer width="100%" height={260}>
-                    <PieChart>
-                      <Pie
-                        data={paletasMaisPopulares()}
-                        dataKey="valor"
-                        nameKey="nome"
-                        cx="50%"
-                        cy="45%"
-                        outerRadius={85}
-                        innerRadius={40}
-                      >
-                        {paletasMaisPopulares().map((entry, index) => (
-                          <Cell
-                            key={entry.nome}
-                            fill={GOLD_SHADES[index % GOLD_SHADES.length]}
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{
-                          borderRadius: "10px",
-                          border: "1px solid var(--gold-light)",
-                          fontSize: "13px",
-                        }}
-                      />
-                      <Legend
-                        iconType="circle"
-                        iconSize={8}
-                        formatter={(value) => (
-                          <span
-                            style={{
-                              fontSize: "12px",
-                              color: "var(--charcoal)",
-                            }}
-                          >
-                            {value}
-                          </span>
-                        )}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                )}
-              </ChartCard>
-            </div>
-
             {/* Estilos mais pedidos */}
             <ChartCard title="Estilos Mais Pedidos">
               {estilosMaisPedidos().length === 0 ? (
                 <EmptyChart />
               ) : (
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer
+                  width="100%"
+                  height={estilosMaisPedidos().length * 44 + 20}
+                >
                   <BarChart
                     data={estilosMaisPedidos()}
                     layout="vertical"
-                    margin={{ top: 0, right: 20, left: 10, bottom: 0 }}
+                    margin={{ top: 0, right: 36, left: 10, bottom: 0 }}
                   >
-                    <XAxis
-                      type="number"
-                      allowDecimals={false}
-                      tick={{ fontSize: 12, fill: "var(--gray-mid)" }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
+                    <XAxis type="number" hide allowDecimals={false} />
                     <YAxis
                       type="category"
                       dataKey="nome"
                       width={130}
-                      tick={{ fontSize: 12, fill: "var(--gray-mid)" }}
+                      tick={{ fontSize: 12, fill: "var(--charcoal)" }}
                       axisLine={false}
                       tickLine={false}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        borderRadius: "10px",
-                        border: "1px solid var(--gold-light)",
-                        fontSize: "13px",
-                      }}
-                      cursor={{ fill: "rgba(201,168,76,0.08)" }}
                     />
                     <Bar
                       dataKey="valor"
                       fill="var(--gold)"
                       radius={[0, 6, 6, 0]}
                       name="Pedidos"
+                      label={{
+                        position: "right",
+                        fontSize: 13,
+                        fill: "var(--gold-dark)",
+                        fontWeight: 600,
+                      }}
                     />
                   </BarChart>
                 </ResponsiveContainer>
+              )}
+            </ChartCard>
+
+            {/* Paletas mais populares */}
+            <ChartCard title="Paletas Mais Populares">
+              {paletasMaisPopulares().length === 0 ? (
+                <EmptyChart />
+              ) : (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "10px",
+                  }}
+                >
+                  {paletasMaisPopulares().map((p, index) => {
+                    const max = paletasMaisPopulares()[0].valor;
+                    const pct = Math.round((p.valor / max) * 100);
+                    return (
+                      <div key={p.nome}>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            marginBottom: "4px",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: "13px",
+                              color: "var(--charcoal)",
+                            }}
+                          >
+                            {p.nome}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: "13px",
+                              fontWeight: "600",
+                              color: "var(--gold-dark)",
+                            }}
+                          >
+                            {p.valor}
+                          </span>
+                        </div>
+                        <div
+                          style={{
+                            height: "8px",
+                            borderRadius: "999px",
+                            backgroundColor: "#F5ECD7",
+                            overflow: "hidden",
+                          }}
+                        >
+                          <div
+                            style={{
+                              height: "100%",
+                              width: `${pct}%`,
+                              borderRadius: "999px",
+                              backgroundColor:
+                                GOLD_SHADES[index % GOLD_SHADES.length],
+                              transition: "width 0.5s ease",
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </ChartCard>
+
+            {/* Pipeline de estados — barras horizontais com valor visível */}
+            <ChartCard title="Pipeline de Estados">
+              {pipelineData.length === 0 ? (
+                <EmptyChart />
+              ) : (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "12px",
+                  }}
+                >
+                  {STATUS_OPTIONS.map((status, i) => {
+                    const total = submissions.filter(
+                      (s) => s.status === status,
+                    ).length;
+                    const max = submissions.length || 1;
+                    const pct = Math.round((total / max) * 100);
+                    const colors = STATUS_COLORS[status];
+                    return (
+                      <div key={status}>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            marginBottom: "4px",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: "13px",
+                              color: "var(--charcoal)",
+                            }}
+                          >
+                            {status}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: "13px",
+                              fontWeight: "600",
+                              color: colors.color,
+                            }}
+                          >
+                            {total}
+                          </span>
+                        </div>
+                        <div
+                          style={{
+                            height: "8px",
+                            borderRadius: "999px",
+                            backgroundColor: "#F3F4F6",
+                            overflow: "hidden",
+                          }}
+                        >
+                          <div
+                            style={{
+                              height: "100%",
+                              width: `${pct}%`,
+                              borderRadius: "999px",
+                              backgroundColor: colors.color,
+                              transition: "width 0.5s ease",
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </ChartCard>
           </>
