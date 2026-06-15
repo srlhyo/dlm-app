@@ -13,13 +13,7 @@ import {
   Cell,
   Legend,
 } from "recharts";
-import {
-  exportClienteExcel,
-  exportClientePDF,
-  exportTodosExcel,
-} from "../lib/exports";
 import { createInvite } from "../lib/invites";
-import logo from "../assets/logo.png";
 
 const STATUS_OPTIONS = ["Recebido", "Em Preparação", "Confirmado", "Concluído"];
 
@@ -184,16 +178,6 @@ export default function AdminPage() {
     };
   }, []);
 
-  const handleDeleteInvite = async (inviteId, e) => {
-    e.stopPropagation();
-    if (!window.confirm("Tens a certeza que queres remover este convite?"))
-      return;
-    await supabase.from("invites").delete().eq("id", inviteId);
-    setInvites((prev) => prev.filter((i) => i.id !== inviteId));
-    if (selectedInvite?.id === inviteId) setSelectedInvite(null);
-    if (createdInvite?.id === inviteId) setCreatedInvite(null);
-  };
-
   const handleCreateInvite = async () => {
     const errors = {};
     if (!newInvite.nomeNoivo.trim()) errors.nomeNoivo = "Obrigatório";
@@ -231,34 +215,6 @@ export default function AdminPage() {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2500);
-  };
-
-  const shareInvite = async (invite) => {
-    const message = getShareMessage(invite);
-
-    // Web Share API — abre menu nativo no móvel
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: "Do Luxo à Mesa — Questionário dos Noivos",
-          text: message,
-        });
-        return;
-      } catch (e) {
-        // Utilizador cancelou — não fazer nada
-        if (e.name === "AbortError") return;
-      }
-    }
-
-    // Fallback para desktop — copia para clipboard
-    copyWithFeedback(message, `msg-${invite.id}`);
-  };
-
-  const copyShareMessage = (invite) => {
-    shareInvite(invite);
-  };
-  const copyCode = (invite) => {
-    copyWithFeedback(invite.code, `code-${invite.id}`);
   };
 
   const fetchSubmissions = async () => {
@@ -1266,7 +1222,7 @@ export default function AdminPage() {
               </div>
             ) : (
               <div
-                className="clients-list"
+                className="invites-list"
                 style={{
                   display: "flex",
                   flexDirection: "column",
@@ -1288,9 +1244,8 @@ export default function AdminPage() {
                         cursor: "pointer",
                         transition: "box-shadow 0.2s",
                         display: "flex",
-                        alignItems: "center",
+                        alignItems: "flex-start",
                         justifyContent: "space-between",
-                        flexWrap: "wrap",
                         gap: "12px",
                       }}
                     >
@@ -1344,8 +1299,10 @@ export default function AdminPage() {
                       <div
                         style={{
                           display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
+                          flexDirection: "column",
+                          alignItems: "flex-end",
+                          gap: "10px",
+                          flexShrink: 0,
                         }}
                       >
                         <span
@@ -1357,6 +1314,7 @@ export default function AdminPage() {
                             color: isPendente ? "var(--gold)" : "#22C55E",
                             border: `1px solid ${isPendente ? "var(--gold-light)" : "#BBF7D0"}`,
                             fontWeight: "500",
+                            whiteSpace: "nowrap",
                           }}
                         >
                           {invite.status}
