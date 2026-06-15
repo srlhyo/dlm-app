@@ -2,27 +2,53 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
+/* ===== Ícones SVG dourados (linha fina) ===== */
+function IconCal() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M3 9h18M8 3v4M16 3v4" />
+    </svg>
+  )
+}
+function IconPin() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <path d="M12 21s-7-6.1-7-11a7 7 0 0114 0c0 4.9-7 11-7 11z" />
+      <circle cx="12" cy="10" r="2.5" />
+    </svg>
+  )
+}
+function IconGuests() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M3 20c0-3 2.5-5 6-5s6 2 6 5" />
+      <path d="M16 8.5a3 3 0 100-6M21 20c0-2.6-1.8-4.4-4.5-4.9" />
+    </svg>
+  )
+}
+function IconPrint() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <path d="M6 9V3h12v6" />
+      <rect x="6" y="14" width="12" height="7" />
+      <path d="M6 18H4a2 2 0 01-2-2v-3a2 2 0 012-2h16a2 2 0 012 2v3a2 2 0 01-2 2h-2" />
+    </svg>
+  )
+}
+
 function Section({ title, children }) {
   return (
     <div style={{ marginBottom: '28px', breakInside: 'avoid' }}>
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: '10px',
-        marginBottom: '12px'
-      }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
         <div style={{ height: '1px', flex: 1, backgroundColor: '#C9A84C' }} />
-        <p style={{
-          fontSize: '10px', fontWeight: '700', color: '#C9A84C',
-          textTransform: 'uppercase', letterSpacing: '0.12em', margin: 0,
-          whiteSpace: 'nowrap'
-        }}>
+        <p style={{ fontSize: '10px', fontWeight: '700', color: '#C9A84C', textTransform: 'uppercase', letterSpacing: '0.12em', margin: 0, whiteSpace: 'nowrap' }}>
           {title}
         </p>
         <div style={{ height: '1px', flex: 1, backgroundColor: '#C9A84C' }} />
       </div>
-      <div style={{
-        display: 'grid', gridTemplateColumns: '1fr 1fr',
-        gap: '10px 24px'
-      }}>
+      <div className="briefing-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 24px' }}>
         {children}
       </div>
     </div>
@@ -104,6 +130,52 @@ export default function BriefingPage() {
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Inter:wght@300;400;500;600&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { margin: 0; background: #FAFAF8; }
+
+        .briefing-toolbar {
+          position: fixed; top: 20px; right: 20px; z-index: 100;
+        }
+        .briefing-print-btn {
+          padding: 11px 22px; border-radius: 10px; font-size: 13px;
+          font-weight: 600; cursor: pointer;
+          background-color: #C9A84C; color: white; border: none;
+          box-shadow: 0 4px 16px rgba(201,168,76,0.4);
+          font-family: 'Inter, sans-serif';
+          display: inline-flex; align-items: center; gap: 8px;
+        }
+        .briefing-hint { display: none; }
+
+        .briefing-header {
+          background-color: #C9A84C; padding: 28px 40px;
+          display: flex; align-items: center; justify-content: space-between; gap: 16px;
+        }
+
+        @media (max-width: 600px) {
+          .briefing-toolbar {
+            position: static; padding: 12px 16px 0;
+          }
+          .briefing-print-btn {
+            width: 100%; justify-content: center; padding: 13px;
+            font-size: 14px;
+          }
+          .briefing-hint {
+            display: block; text-align: center;
+            font-size: 11px; color: #6B7280;
+            margin: 8px 16px 0; line-height: 1.5;
+          }
+          .briefing-header {
+            flex-direction: column; align-items: flex-start;
+            gap: 10px; padding: 22px 22px;
+          }
+          .briefing-header-date { text-align: left !important; }
+          .briefing-grid { grid-template-columns: 1fr !important; }
+          .briefing-body { padding: 22px !important; }
+          .briefing-names { padding: 22px 22px 18px !important; }
+          .briefing-footer {
+            flex-direction: column !important; align-items: flex-start !important;
+            gap: 6px; padding: 16px 22px !important;
+          }
+        }
+
         @media print {
           body { background: white; }
           .no-print { display: none !important; }
@@ -111,26 +183,17 @@ export default function BriefingPage() {
         }
       `}</style>
 
-      {/* Botão imprimir — não aparece na impressão */}
-      <div className="no-print" style={{
-        position: 'fixed', top: '20px', right: '20px', zIndex: 100,
-        display: 'flex', gap: '10px'
-      }}>
-        <button
-          onClick={() => window.print()}
-          style={{
-            padding: '10px 22px', borderRadius: '10px', fontSize: '13px',
-            fontWeight: '600', cursor: 'pointer',
-            backgroundColor: '#C9A84C', color: 'white', border: 'none',
-            boxShadow: '0 4px 16px rgba(201,168,76,0.4)',
-            fontFamily: 'Inter, sans-serif'
-          }}
-        >
-          🖨️ Imprimir / Guardar PDF
+      {/* Toolbar — botão imprimir/guardar */}
+      <div className="briefing-toolbar no-print">
+        <button className="briefing-print-btn" onClick={() => window.print()}>
+          <IconPrint /> Imprimir / Guardar PDF
         </button>
+        <p className="briefing-hint">
+          No telemóvel, escolhe “Guardar como PDF” no destino da impressão.
+        </p>
       </div>
 
-      <div style={{ padding: '40px 20px', fontFamily: 'Inter, sans-serif' }}>
+      <div className="briefing-outer" style={{ padding: '40px 20px', fontFamily: 'Inter, sans-serif' }}>
         <div className="page" style={{
           backgroundColor: 'white', maxWidth: '720px', margin: '0 auto',
           borderRadius: '16px', overflow: 'hidden',
@@ -138,10 +201,7 @@ export default function BriefingPage() {
         }}>
 
           {/* Cabeçalho dourado */}
-          <div style={{
-            backgroundColor: '#C9A84C', padding: '28px 40px',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between'
-          }}>
+          <div className="briefing-header">
             <div>
               <h1 style={{
                 fontFamily: 'Playfair Display, serif',
@@ -155,7 +215,7 @@ export default function BriefingPage() {
                 by Luxury Events
               </p>
             </div>
-            <div style={{ textAlign: 'right' }}>
+            <div className="briefing-header-date" style={{ textAlign: 'right' }}>
               <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 2px 0' }}>
                 Briefing do Evento
               </p>
@@ -166,34 +226,30 @@ export default function BriefingPage() {
           </div>
 
           {/* Nome dos noivos */}
-          <div style={{
-            padding: '28px 40px 20px',
-            borderBottom: '1px solid #F5ECD7'
-          }}>
+          <div className="briefing-names" style={{ padding: '28px 40px 20px', borderBottom: '1px solid #F5ECD7' }}>
             <h2 style={{
               fontFamily: 'Playfair Display, serif',
               fontSize: '28px', color: '#1A1A1A',
-              margin: '0 0 6px 0'
+              margin: '0 0 10px 0'
             }}>
               {submission.nome_noivo} & {submission.nome_noiva}
             </h2>
             <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
-              <p style={{ fontSize: '13px', color: '#6B7280', margin: 0 }}>
-                📅 {formatDate(submission.data_evento)}
+              <p style={{ fontSize: '13px', color: '#6B7280', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <IconCal /> {formatDate(submission.data_evento)}
               </p>
               {submission.local_evento && (
-                <p style={{ fontSize: '13px', color: '#6B7280', margin: 0 }}>
-                  📍 {submission.local_evento}
+                <p style={{ fontSize: '13px', color: '#6B7280', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <IconPin /> {submission.local_evento}
                 </p>
               )}
               {submission.numero_convidados && (
-                <p style={{ fontSize: '13px', color: '#6B7280', margin: 0 }}>
-                  👥 {submission.numero_convidados} convidados
+                <p style={{ fontSize: '13px', color: '#6B7280', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <IconGuests /> {submission.numero_convidados} convidados
                 </p>
               )}
             </div>
 
-            {/* Badge de estado */}
             <div style={{ marginTop: '12px' }}>
               <span style={{
                 fontSize: '11px', padding: '4px 12px', borderRadius: '999px',
@@ -206,7 +262,7 @@ export default function BriefingPage() {
           </div>
 
           {/* Conteúdo */}
-          <div style={{ padding: '28px 40px' }}>
+          <div className="briefing-body" style={{ padding: '28px 40px' }}>
 
             <Section title="Horários">
               <Field label="Hora de Início" value={submission.hora_inicio} />
@@ -273,7 +329,7 @@ export default function BriefingPage() {
           </div>
 
           {/* Rodapé */}
-          <div style={{
+          <div className="briefing-footer" style={{
             backgroundColor: '#FBF7EF', padding: '16px 40px',
             borderTop: '1px solid #F0E6D0',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between'
