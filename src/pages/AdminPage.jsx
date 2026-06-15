@@ -150,6 +150,7 @@ export default function AdminPage() {
   const [editData, setEditData] = useState({});
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
+  const [inviteToDelete, setInviteToDelete] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -1265,6 +1266,7 @@ export default function AdminPage() {
               </div>
             ) : (
               <div
+                className="clients-list"
                 style={{
                   display: "flex",
                   flexDirection: "column",
@@ -1359,31 +1361,176 @@ export default function AdminPage() {
                         >
                           {invite.status}
                         </span>
-                        <button
-                          onClick={(e) => handleDeleteInvite(invite.id, e)}
-                          title="Remover convite"
-                          style={{
-                            width: "30px",
-                            height: "30px",
-                            borderRadius: "50%",
-                            border: "1px solid #FECACA",
-                            backgroundColor: "#FEF2F2",
-                            color: "#EF4444",
-                            cursor: "pointer",
-                            fontSize: "14px",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            transition: "all 0.2s",
-                            flexShrink: 0,
-                          }}
-                        >
-                          ✕
-                        </button>
+                        {isPendente && (
+                          <button
+                            className="btn-compact"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setInviteToDelete(invite);
+                            }}
+                            title="Remover convite"
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              padding: "6px 12px",
+                              borderRadius: "8px",
+                              border: "1px solid #FECACA",
+                              backgroundColor: "#FEF2F2",
+                              color: "#DC2626",
+                              cursor: "pointer",
+                              fontSize: "12px",
+                              fontWeight: "500",
+                              transition: "all 0.2s",
+                              flexShrink: 0,
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="#DC2626"
+                              strokeWidth="1.6"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+                              <path d="M10 11v6M14 11v6" />
+                            </svg>
+                            Remover
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
                 })}
+              </div>
+            )}
+            {/* Confirmação de remoção */}
+            {inviteToDelete && (
+              <div
+                onClick={() => setInviteToDelete(null)}
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  zIndex: 60,
+                  backgroundColor: "rgba(0,0,0,0.4)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "16px",
+                }}
+              >
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    backgroundColor: "white",
+                    borderRadius: "16px",
+                    padding: "28px 24px",
+                    width: "100%",
+                    maxWidth: "380px",
+                    boxShadow: "0 8px 40px rgba(0,0,0,0.15)",
+                    textAlign: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "52px",
+                      height: "52px",
+                      borderRadius: "50%",
+                      backgroundColor: "#FEF2F2",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      margin: "0 auto 16px",
+                    }}
+                  >
+                    <svg
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="#DC2626"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+                      <path d="M10 11v6M14 11v6" />
+                    </svg>
+                  </div>
+                  <h3
+                    style={{
+                      fontSize: "16px",
+                      color: "var(--charcoal)",
+                      margin: "0 0 8px 0",
+                      fontFamily: "Playfair Display, serif",
+                    }}
+                  >
+                    Remover convite?
+                  </h3>
+                  <p
+                    style={{
+                      fontSize: "13px",
+                      color: "var(--gray-mid)",
+                      margin: "0 0 22px 0",
+                      lineHeight: "1.6",
+                    }}
+                  >
+                    O convite de{" "}
+                    <strong>
+                      {inviteToDelete.nome_noivo} & {inviteToDelete.nome_noiva}
+                    </strong>{" "}
+                    será removido. Esta ação não pode ser anulada.
+                  </p>
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    <button
+                      onClick={() => setInviteToDelete(null)}
+                      style={{
+                        flex: 1,
+                        padding: "11px",
+                        borderRadius: "10px",
+                        fontSize: "13px",
+                        fontWeight: "500",
+                        border: "1.5px solid var(--gold-light)",
+                        color: "var(--gray-mid)",
+                        backgroundColor: "white",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={async () => {
+                        await supabase
+                          .from("invites")
+                          .delete()
+                          .eq("id", inviteToDelete.id);
+                        setInvites((prev) =>
+                          prev.filter((i) => i.id !== inviteToDelete.id),
+                        );
+                        if (selectedInvite?.id === inviteToDelete.id)
+                          setSelectedInvite(null);
+                        setInviteToDelete(null);
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: "11px",
+                        borderRadius: "10px",
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        border: "none",
+                        color: "white",
+                        backgroundColor: "#DC2626",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Remover
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
             {/* Drawer do convite seleccionado */}
