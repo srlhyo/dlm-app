@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import { createInvite } from "../lib/invites";
+import { motion, AnimatePresence } from "framer-motion";
 
 const STATUS_OPTIONS = ["Recebido", "Em Preparação", "Confirmado", "Concluído"];
 
@@ -584,7 +585,12 @@ export default function AdminPage() {
       >
         {/* ---- TAB CLIENTES ---- */}
         {activeTab === "clientes" && (
-          <>
+          <motion.div
+            key="tab-clientes"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+          >
             {/* Estatísticas */}
             <div
               className="stats-row filter-wrap"
@@ -784,13 +790,24 @@ export default function AdminPage() {
                   gap: "10px",
                 }}
               >
-                {filtered.map((s) => {
+                {filtered.map((s, idx) => {
                   const colors =
                     STATUS_COLORS[s.status] || STATUS_COLORS["Recebido"];
                   return (
-                    <div
+                    <motion.div
                       key={s.id}
                       onClick={() => setSelected(s)}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{
+                        duration: 0.25,
+                        ease: "easeOut",
+                        delay: Math.min(idx * 0.04, 0.3),
+                      }}
+                      whileHover={{
+                        y: -2,
+                        boxShadow: "0 6px 20px rgba(0,0,0,0.08)",
+                      }}
                       style={{
                         backgroundColor: "white",
                         borderRadius: "14px",
@@ -852,143 +869,159 @@ export default function AdminPage() {
                           Ver detalhes →
                         </span>
                       </div>
-                    </div>
+                    </motion.div>
                   );
                 })}
               </div>
             )}
-          </>
+          </motion.div>
         )}
 
         {/* ---- TAB CONVITES ---- */}
         {activeTab === "convites" && (
-          <>
+          <motion.div
+            key="tab-convites"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+          >
             {/* Notificação de convite criado */}
-            {createdInvite && (
-              <div
-                onClick={() => setCreatedInvite(null)}
-                style={{
-                  position: "fixed",
-                  inset: 0,
-                  zIndex: 50,
-                  backgroundColor: "rgba(0,0,0,0.4)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: "16px",
-                }}
-              >
-                <div
-                  onClick={(e) => e.stopPropagation()}
+            <AnimatePresence>
+              {createdInvite && (
+                <motion.div
+                  onClick={() => setCreatedInvite(null)}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
                   style={{
-                    backgroundColor: "#F0FDF4",
-                    borderRadius: "16px",
-                    padding: "20px 24px",
-                    width: "100%",
-                    maxWidth: "480px",
-                    boxShadow: "0 8px 40px rgba(0,0,0,0.15)",
-                    border: "1px solid #BBF7D0",
+                    position: "fixed",
+                    inset: 0,
+                    zIndex: 50,
+                    backgroundColor: "rgba(0,0,0,0.4)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "16px",
                   }}
                 >
-                  <div
+                  <motion.div
+                    onClick={(e) => e.stopPropagation()}
+                    initial={{ opacity: 0, scale: 0.96, y: 8 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.96, y: 8 }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
                     style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      marginBottom: "16px",
+                      backgroundColor: "#F0FDF4",
+                      borderRadius: "16px",
+                      padding: "20px 24px",
+                      width: "100%",
+                      maxWidth: "480px",
+                      boxShadow: "0 8px 40px rgba(0,0,0,0.15)",
+                      border: "1px solid #BBF7D0",
                     }}
                   >
-                    <div>
-                      <p
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        marginBottom: "16px",
+                      }}
+                    >
+                      <div>
+                        <p
+                          style={{
+                            fontSize: "14px",
+                            fontWeight: "600",
+                            color: "#166534",
+                            margin: "0 0 2px 0",
+                          }}
+                        >
+                          ✓ Convite criado com sucesso!
+                        </p>
+                        <p
+                          style={{
+                            fontSize: "13px",
+                            color: "#166534",
+                            margin: 0,
+                          }}
+                        >
+                          {createdInvite.nome_noivo} &{" "}
+                          {createdInvite.nome_noiva}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setCreatedInvite(null)}
                         style={{
-                          fontSize: "14px",
-                          fontWeight: "600",
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
                           color: "#166534",
-                          margin: "0 0 2px 0",
+                          fontSize: "18px",
                         }}
                       >
-                        ✓ Convite criado com sucesso!
+                        ✕
+                      </button>
+                    </div>
+
+                    {/* Mensagem */}
+                    <div
+                      style={{
+                        backgroundColor: "white",
+                        borderRadius: "10px",
+                        padding: "14px 18px",
+                        marginBottom: "14px",
+                        border: "1px solid #BBF7D0",
+                      }}
+                    >
+                      <p
+                        style={{
+                          fontSize: "10px",
+                          color: "#6B7280",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.08em",
+                          margin: "0 0 8px 0",
+                        }}
+                      >
+                        Mensagem para partilhar
                       </p>
                       <p
                         style={{
                           fontSize: "13px",
-                          color: "#166534",
+                          color: "var(--charcoal)",
                           margin: 0,
+                          lineHeight: "1.6",
+                          whiteSpace: "pre-line",
                         }}
                       >
-                        {createdInvite.nome_noivo} & {createdInvite.nome_noiva}
+                        {getShareMessage(createdInvite)}
                       </p>
                     </div>
+
+                    {/* Botão partilhar */}
                     <button
-                      onClick={() => setCreatedInvite(null)}
+                      onClick={() => setShareTarget(createdInvite)}
                       style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        color: "#166534",
-                        fontSize: "18px",
-                      }}
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  {/* Mensagem */}
-                  <div
-                    style={{
-                      backgroundColor: "white",
-                      borderRadius: "10px",
-                      padding: "14px 18px",
-                      marginBottom: "14px",
-                      border: "1px solid #BBF7D0",
-                    }}
-                  >
-                    <p
-                      style={{
-                        fontSize: "10px",
-                        color: "#6B7280",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.08em",
-                        margin: "0 0 8px 0",
-                      }}
-                    >
-                      Mensagem para partilhar
-                    </p>
-                    <p
-                      style={{
+                        width: "100%",
+                        padding: "12px",
+                        borderRadius: "10px",
                         fontSize: "13px",
-                        color: "var(--charcoal)",
-                        margin: 0,
-                        lineHeight: "1.6",
-                        whiteSpace: "pre-line",
+                        fontWeight: "600",
+                        cursor: "pointer",
+                        backgroundColor: "var(--gold)",
+                        color: "white",
+                        border: "none",
+                        boxShadow: "0 4px 12px rgba(201,168,76,0.35)",
+                        transition: "all 0.2s",
                       }}
                     >
-                      {getShareMessage(createdInvite)}
-                    </p>
-                  </div>
-
-                  {/* Botão partilhar */}
-                  <button
-                    onClick={() => setShareTarget(createdInvite)}
-                    style={{
-                      width: "100%",
-                      padding: "12px",
-                      borderRadius: "10px",
-                      fontSize: "13px",
-                      fontWeight: "600",
-                      cursor: "pointer",
-                      backgroundColor: "var(--gold)",
-                      color: "white",
-                      border: "none",
-                      boxShadow: "0 4px 12px rgba(201,168,76,0.35)",
-                      transition: "all 0.2s",
-                    }}
-                  >
-                    ↗ Partilhar
-                  </button>
-                </div>
-              </div>
-            )}
+                      ↗ Partilhar
+                    </button>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Botão novo convite */}
             <div
@@ -1296,12 +1329,23 @@ export default function AdminPage() {
                   gap: "10px",
                 }}
               >
-                {invites.map((invite) => {
+                {invites.map((invite, idx) => {
                   const isPendente = invite.status === "Pendente";
                   return (
-                    <div
+                    <motion.div
                       key={invite.id}
                       onClick={() => setSelectedInvite(invite)}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{
+                        duration: 0.25,
+                        ease: "easeOut",
+                        delay: Math.min(idx * 0.04, 0.3),
+                      }}
+                      whileHover={{
+                        y: -2,
+                        boxShadow: "0 6px 20px rgba(0,0,0,0.08)",
+                      }}
                       style={{
                         backgroundColor: "white",
                         borderRadius: "14px",
@@ -1428,277 +1472,303 @@ export default function AdminPage() {
                           </button>
                         )}
                       </div>
-                    </div>
+                    </motion.div>
                   );
                 })}
               </div>
             )}
             {/* Confirmação de remoção */}
-            {inviteToDelete && (
-              <div
-                onClick={() => setInviteToDelete(null)}
-                style={{
-                  position: "fixed",
-                  inset: 0,
-                  zIndex: 60,
-                  backgroundColor: "rgba(0,0,0,0.4)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: "16px",
-                }}
-              >
-                <div
-                  onClick={(e) => e.stopPropagation()}
+            <AnimatePresence>
+              {inviteToDelete && (
+                <motion.div
+                  onClick={() => setInviteToDelete(null)}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
                   style={{
-                    backgroundColor: "white",
-                    borderRadius: "16px",
-                    padding: "28px 24px",
-                    width: "100%",
-                    maxWidth: "380px",
-                    boxShadow: "0 8px 40px rgba(0,0,0,0.15)",
-                    textAlign: "center",
+                    position: "fixed",
+                    inset: 0,
+                    zIndex: 60,
+                    backgroundColor: "rgba(0,0,0,0.4)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "16px",
                   }}
                 >
-                  <div
-                    style={{
-                      width: "52px",
-                      height: "52px",
-                      borderRadius: "50%",
-                      backgroundColor: "#FEF2F2",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      margin: "0 auto 16px",
-                    }}
-                  >
-                    <svg
-                      width="24"
-                      height="24"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="#DC2626"
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
-                      <path d="M10 11v6M14 11v6" />
-                    </svg>
-                  </div>
-                  <h3
-                    style={{
-                      fontSize: "16px",
-                      color: "var(--charcoal)",
-                      margin: "0 0 8px 0",
-                      fontFamily: "Playfair Display, serif",
-                    }}
-                  >
-                    Remover convite?
-                  </h3>
-                  <p
-                    style={{
-                      fontSize: "13px",
-                      color: "var(--gray-mid)",
-                      margin: "0 0 22px 0",
-                      lineHeight: "1.6",
-                    }}
-                  >
-                    O convite de{" "}
-                    <strong>
-                      {inviteToDelete.nome_noivo} & {inviteToDelete.nome_noiva}
-                    </strong>{" "}
-                    será removido. Esta ação não pode ser anulada.
-                  </p>
-                  <div style={{ display: "flex", gap: "10px" }}>
-                    <button
-                      onClick={() => setInviteToDelete(null)}
-                      style={{
-                        flex: 1,
-                        padding: "11px",
-                        borderRadius: "10px",
-                        fontSize: "13px",
-                        fontWeight: "500",
-                        border: "1.5px solid var(--gold-light)",
-                        color: "var(--gray-mid)",
-                        backgroundColor: "white",
-                        cursor: "pointer",
-                      }}
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={async () => {
-                        await supabase
-                          .from("invites")
-                          .delete()
-                          .eq("id", inviteToDelete.id);
-                        setInvites((prev) =>
-                          prev.filter((i) => i.id !== inviteToDelete.id),
-                        );
-                        if (selectedInvite?.id === inviteToDelete.id)
-                          setSelectedInvite(null);
-                        setInviteToDelete(null);
-                      }}
-                      style={{
-                        flex: 1,
-                        padding: "11px",
-                        borderRadius: "10px",
-                        fontSize: "13px",
-                        fontWeight: "600",
-                        border: "none",
-                        color: "white",
-                        backgroundColor: "#DC2626",
-                        cursor: "pointer",
-                      }}
-                    >
-                      Remover
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-            {/* Drawer do convite seleccionado */}
-            {selectedInvite && (
-              <div
-                onClick={() => setSelectedInvite(null)}
-                style={{
-                  position: "fixed",
-                  inset: 0,
-                  zIndex: 50,
-                  backgroundColor: "rgba(0,0,0,0.4)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: "16px",
-                }}
-              >
-                <div
-                  onClick={(e) => e.stopPropagation()}
-                  style={{
-                    backgroundColor: "#F0FDF4",
-                    borderRadius: "16px",
-                    padding: "20px 24px",
-                    width: "100%",
-                    maxWidth: "480px",
-                    boxShadow: "0 8px 40px rgba(0,0,0,0.15)",
-                    border: "1px solid #BBF7D0",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      marginBottom: "16px",
-                    }}
-                  >
-                    <div>
-                      <p
-                        style={{
-                          fontSize: "14px",
-                          fontWeight: "600",
-                          color: "#166534",
-                          margin: "0 0 2px 0",
-                        }}
-                      >
-                        {selectedInvite.nome_noivo} &{" "}
-                        {selectedInvite.nome_noiva}
-                      </p>
-                      <p
-                        style={{
-                          fontSize: "12px",
-                          color: "#166534",
-                          margin: 0,
-                        }}
-                      >
-                        {selectedInvite.data_evento
-                          ? new Date(
-                              selectedInvite.data_evento,
-                            ).toLocaleDateString("pt-PT", {
-                              day: "2-digit",
-                              month: "long",
-                              year: "numeric",
-                            })
-                          : "Sem data"}{" "}
-                        · {selectedInvite.status}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setSelectedInvite(null)}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        color: "#166534",
-                        fontSize: "18px",
-                      }}
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  {/* Mensagem */}
-                  <div
+                  <motion.div
+                    onClick={(e) => e.stopPropagation()}
+                    initial={{ opacity: 0, scale: 0.96, y: 8 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.96, y: 8 }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
                     style={{
                       backgroundColor: "white",
-                      borderRadius: "10px",
-                      padding: "14px 18px",
-                      marginBottom: "14px",
+                      borderRadius: "16px",
+                      padding: "28px 24px",
+                      width: "100%",
+                      maxWidth: "380px",
+                      boxShadow: "0 8px 40px rgba(0,0,0,0.15)",
+                      textAlign: "center",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: "52px",
+                        height: "52px",
+                        borderRadius: "50%",
+                        backgroundColor: "#FEF2F2",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        margin: "0 auto 16px",
+                      }}
+                    >
+                      <svg
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#DC2626"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+                        <path d="M10 11v6M14 11v6" />
+                      </svg>
+                    </div>
+                    <h3
+                      style={{
+                        fontSize: "16px",
+                        color: "var(--charcoal)",
+                        margin: "0 0 8px 0",
+                        fontFamily: "Playfair Display, serif",
+                      }}
+                    >
+                      Remover convite?
+                    </h3>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        color: "var(--gray-mid)",
+                        margin: "0 0 22px 0",
+                        lineHeight: "1.6",
+                      }}
+                    >
+                      O convite de{" "}
+                      <strong>
+                        {inviteToDelete.nome_noivo} &{" "}
+                        {inviteToDelete.nome_noiva}
+                      </strong>{" "}
+                      será removido. Esta ação não pode ser anulada.
+                    </p>
+                    <div style={{ display: "flex", gap: "10px" }}>
+                      <button
+                        onClick={() => setInviteToDelete(null)}
+                        style={{
+                          flex: 1,
+                          padding: "11px",
+                          borderRadius: "10px",
+                          fontSize: "13px",
+                          fontWeight: "500",
+                          border: "1.5px solid var(--gold-light)",
+                          color: "var(--gray-mid)",
+                          backgroundColor: "white",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={async () => {
+                          await supabase
+                            .from("invites")
+                            .delete()
+                            .eq("id", inviteToDelete.id);
+                          setInvites((prev) =>
+                            prev.filter((i) => i.id !== inviteToDelete.id),
+                          );
+                          if (selectedInvite?.id === inviteToDelete.id)
+                            setSelectedInvite(null);
+                          setInviteToDelete(null);
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: "11px",
+                          borderRadius: "10px",
+                          fontSize: "13px",
+                          fontWeight: "600",
+                          border: "none",
+                          color: "white",
+                          backgroundColor: "#DC2626",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            {/* Drawer do convite seleccionado */}
+            <AnimatePresence>
+              {selectedInvite && (
+                <motion.div
+                  onClick={() => setSelectedInvite(null)}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  style={{
+                    position: "fixed",
+                    inset: 0,
+                    zIndex: 50,
+                    backgroundColor: "rgba(0,0,0,0.4)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "16px",
+                  }}
+                >
+                  <motion.div
+                    onClick={(e) => e.stopPropagation()}
+                    initial={{ opacity: 0, scale: 0.96, y: 8 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.96, y: 8 }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                    style={{
+                      backgroundColor: "#F0FDF4",
+                      borderRadius: "16px",
+                      padding: "20px 24px",
+                      width: "100%",
+                      maxWidth: "480px",
+                      boxShadow: "0 8px 40px rgba(0,0,0,0.15)",
                       border: "1px solid #BBF7D0",
                     }}
                   >
-                    <p
+                    <div
                       style={{
-                        fontSize: "10px",
-                        color: "#6B7280",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.08em",
-                        margin: "0 0 8px 0",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        marginBottom: "16px",
                       }}
                     >
-                      Mensagem para partilhar
-                    </p>
-                    <p
-                      style={{
-                        fontSize: "13px",
-                        color: "var(--charcoal)",
-                        margin: 0,
-                        lineHeight: "1.6",
-                        whiteSpace: "pre-line",
-                      }}
-                    >
-                      {getShareMessage(selectedInvite)}
-                    </p>
-                  </div>
+                      <div>
+                        <p
+                          style={{
+                            fontSize: "14px",
+                            fontWeight: "600",
+                            color: "#166534",
+                            margin: "0 0 2px 0",
+                          }}
+                        >
+                          {selectedInvite.nome_noivo} &{" "}
+                          {selectedInvite.nome_noiva}
+                        </p>
+                        <p
+                          style={{
+                            fontSize: "12px",
+                            color: "#166534",
+                            margin: 0,
+                          }}
+                        >
+                          {selectedInvite.data_evento
+                            ? new Date(
+                                selectedInvite.data_evento,
+                              ).toLocaleDateString("pt-PT", {
+                                day: "2-digit",
+                                month: "long",
+                                year: "numeric",
+                              })
+                            : "Sem data"}{" "}
+                          · {selectedInvite.status}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setSelectedInvite(null)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          color: "#166534",
+                          fontSize: "18px",
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </div>
 
-                  <button
-                    onClick={() => setShareTarget(selectedInvite)}
-                    style={{
-                      width: "100%",
-                      padding: "12px",
-                      borderRadius: "10px",
-                      fontSize: "13px",
-                      fontWeight: "600",
-                      cursor: "pointer",
-                      backgroundColor: "var(--gold)",
-                      color: "white",
-                      border: "none",
-                      boxShadow: "0 4px 12px rgba(201,168,76,0.35)",
-                      transition: "all 0.2s",
-                    }}
-                  >
-                    ↗ Partilhar
-                  </button>
-                </div>
-              </div>
-            )}
-          </>
+                    {/* Mensagem */}
+                    <div
+                      style={{
+                        backgroundColor: "white",
+                        borderRadius: "10px",
+                        padding: "14px 18px",
+                        marginBottom: "14px",
+                        border: "1px solid #BBF7D0",
+                      }}
+                    >
+                      <p
+                        style={{
+                          fontSize: "10px",
+                          color: "#6B7280",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.08em",
+                          margin: "0 0 8px 0",
+                        }}
+                      >
+                        Mensagem para partilhar
+                      </p>
+                      <p
+                        style={{
+                          fontSize: "13px",
+                          color: "var(--charcoal)",
+                          margin: 0,
+                          lineHeight: "1.6",
+                          whiteSpace: "pre-line",
+                        }}
+                      >
+                        {getShareMessage(selectedInvite)}
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => setShareTarget(selectedInvite)}
+                      style={{
+                        width: "100%",
+                        padding: "12px",
+                        borderRadius: "10px",
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        cursor: "pointer",
+                        backgroundColor: "var(--gold)",
+                        color: "white",
+                        border: "none",
+                        boxShadow: "0 4px 12px rgba(201,168,76,0.35)",
+                        transition: "all 0.2s",
+                      }}
+                    >
+                      ↗ Partilhar
+                    </button>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
         )}
 
         {/* ---- TAB DASHBOARD ---- */}
         {activeTab === "dashboard" && (
-          <>
+          <motion.div
+            key="tab-dashboard"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+          >
             {/* ===== ZONA 1 — O essencial ===== */}
             <div
               style={{
@@ -2114,912 +2184,963 @@ export default function AdminPage() {
                 </div>
               )}
             </ChartCard>
-          </>
+          </motion.div>
         )}
       </div>
 
       {/* Drawer */}
-      {selected && (
-        <div
-          onClick={() => setSelected(null)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 50,
-            backgroundColor: "rgba(0,0,0,0.35)",
-            display: "flex",
-            justifyContent: "flex-end",
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
+      <AnimatePresence>
+        {selected && (
+          <motion.div
+            onClick={() => setSelected(null)}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
             style={{
-              backgroundColor: "white",
-              width: "100%",
-              maxWidth: "480px",
-              height: "100%",
-              overflowY: "auto",
-              padding: "28px 24px",
-              boxShadow: "-4px 0 24px rgba(0,0,0,0.1)",
+              position: "fixed",
+              inset: 0,
+              zIndex: 50,
+              backgroundColor: "rgba(0,0,0,0.35)",
+              display: "flex",
+              justifyContent: "flex-end",
             }}
           >
-            <div style={{ marginBottom: "24px" }}>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "flex-start",
-                  marginBottom: "24px",
-                }}
-              >
-                <div>
-                  <h2
-                    style={{
-                      fontSize: "20px",
-                      color: "var(--charcoal)",
-                      margin: "0 0 4px 0",
-                      fontFamily: "Playfair Display, serif",
-                    }}
-                  >
-                    {selected.nome_noivo} & {selected.nome_noiva}
-                  </h2>
-                  <p
-                    style={{
-                      fontSize: "13px",
-                      color: "var(--gray-mid)",
-                      margin: 0,
-                    }}
-                  >
-                    {formatDate(selected.data_evento)}
-                  </p>
-                </div>
+            <motion.div
+              onClick={(e) => e.stopPropagation()}
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ duration: 0.32, ease: [0.32, 0.72, 0, 1] }}
+              style={{
+                backgroundColor: "white",
+                width: "100%",
+                maxWidth: "480px",
+                height: "100%",
+                overflowY: "auto",
+                padding: "28px 24px",
+                boxShadow: "-4px 0 24px rgba(0,0,0,0.1)",
+              }}
+            >
+              <div style={{ marginBottom: "24px" }}>
                 <div
-                  style={{ display: "flex", gap: "8px", alignItems: "center" }}
-                >
-                  {!editMode && (
-                    <button
-                      onClick={handleEditOpen}
-                      style={{
-                        padding: "7px 16px",
-                        borderRadius: "8px",
-                        fontSize: "12px",
-                        fontWeight: "500",
-                        cursor: "pointer",
-                        border: "1.5px solid var(--gold)",
-                        color: "var(--gold)",
-                        backgroundColor: "white",
-                        transition: "all 0.2s",
-                      }}
-                    >
-                      ✏️ Editar
-                    </button>
-                  )}
-                  <button
-                    onClick={() => {
-                      setSelected(null);
-                      setEditMode(false);
-                    }}
-                    style={{
-                      fontSize: "20px",
-                      color: "var(--gray-mid)",
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                    }}
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-
-              {/* Botão briefing */}
-              <div style={{ display: "flex", gap: "8px" }}>
-                <button
-                  onClick={() =>
-                    window.open(`/briefing/${selected.id}`, "_blank")
-                  }
                   style={{
-                    flex: 1,
-                    padding: "9px 12px",
-                    borderRadius: "10px",
-                    fontSize: "12px",
-                    fontWeight: "500",
-                    cursor: "pointer",
-                    transition: "all 0.2s",
-                    backgroundColor: "var(--gold)",
-                    color: "white",
-                    border: "none",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    marginBottom: "24px",
                   }}
                 >
-                  📄 Ver Briefing
-                </button>
-              </div>
-            </div>
-
-            <div style={{ marginBottom: "28px" }}>
-              <p
-                style={{
-                  fontSize: "11px",
-                  fontWeight: "600",
-                  color: "var(--gray-mid)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
-                  marginBottom: "10px",
-                }}
-              >
-                Estado do Evento
-              </p>
-              <div className="filter-wrap">
-                <div
-                  className="h-scroll"
-                  style={{ gap: "8px", paddingRight: "32px" }}
-                >
-                  {STATUS_OPTIONS.map((status) => {
-                    const colors = STATUS_COLORS[status];
-                    const isActive = selected.status === status;
-                    return (
+                  <div>
+                    <h2
+                      style={{
+                        fontSize: "20px",
+                        color: "var(--charcoal)",
+                        margin: "0 0 4px 0",
+                        fontFamily: "Playfair Display, serif",
+                      }}
+                    >
+                      {selected.nome_noivo} & {selected.nome_noiva}
+                    </h2>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        color: "var(--gray-mid)",
+                        margin: 0,
+                      }}
+                    >
+                      {formatDate(selected.data_evento)}
+                    </p>
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "8px",
+                      alignItems: "center",
+                    }}
+                  >
+                    {!editMode && (
                       <button
-                        key={status}
-                        onClick={() => handleStatusChange(selected.id, status)}
+                        onClick={handleEditOpen}
                         style={{
-                          padding: "6px 14px",
-                          borderRadius: "999px",
+                          padding: "7px 16px",
+                          borderRadius: "8px",
                           fontSize: "12px",
-                          whiteSpace: "nowrap",
-                          border: `1px solid ${colors.border}`,
-                          backgroundColor: isActive ? colors.color : colors.bg,
-                          color: isActive ? "white" : colors.color,
+                          fontWeight: "500",
                           cursor: "pointer",
+                          border: "1.5px solid var(--gold)",
+                          color: "var(--gold)",
+                          backgroundColor: "white",
                           transition: "all 0.2s",
                         }}
                       >
-                        {status}
+                        ✏️ Editar
                       </button>
-                    );
-                  })}
+                    )}
+                    <button
+                      onClick={() => {
+                        setSelected(null);
+                        setEditMode(false);
+                      }}
+                      style={{
+                        fontSize: "20px",
+                        color: "var(--gray-mid)",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Botão briefing */}
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    onClick={() =>
+                      window.open(`/briefing/${selected.id}`, "_blank")
+                    }
+                    style={{
+                      flex: 1,
+                      padding: "9px 12px",
+                      borderRadius: "10px",
+                      fontSize: "12px",
+                      fontWeight: "500",
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                      backgroundColor: "var(--gold)",
+                      color: "white",
+                      border: "none",
+                    }}
+                  >
+                    📄 Ver Briefing
+                  </button>
                 </div>
               </div>
-            </div>
 
-            {/* Modo leitura */}
-            {!editMode && (
-              <>
-                <Section title="Dados Principais">
-                  <DetailRow
-                    label="Contacto"
-                    value={selected.contacto_principal}
-                  />
-                  <DetailRow label="Email" value={selected.email} />
-                  <DetailRow label="Morada" value={selected.morada} />
-                  <DetailRow
-                    label="Local do Evento"
-                    value={selected.local_evento}
-                  />
-                  <DetailRow
-                    label="Nº Convidados"
-                    value={selected.numero_convidados}
-                  />
-                  <DetailRow label="Hora Início" value={selected.hora_inicio} />
-                  <DetailRow
-                    label="Hora Término"
-                    value={selected.hora_termino}
-                  />
-                  <DetailRow
-                    label="Hora Montagem"
-                    value={selected.hora_montagem}
-                  />
-                  <DetailRow
-                    label="Hora Limite Montagem"
-                    value={selected.hora_limite_montagem}
-                  />
-                  <DetailRow
-                    label="Hora Recolha"
-                    value={selected.hora_recolha}
-                  />
-                  <DetailRow
-                    label="Recolha Dia Seguinte"
-                    value={selected.recolha_dia_seguinte}
-                  />
-                </Section>
-                <Section title="Contacto no Dia">
-                  <DetailRow
-                    label="Responsável"
-                    value={selected.nome_responsavel}
-                  />
-                  <DetailRow
-                    label="Contacto"
-                    value={selected.contacto_responsavel}
-                  />
-                  <DetailRow
-                    label="Relação"
-                    value={selected.relacao_responsavel}
-                  />
-                </Section>
-                <Section title="Estilo e Cores">
-                  <DetailRow
-                    label="Estilo"
-                    value={selected.estilo_evento?.join(", ")}
-                  />
-                  <DetailRow
-                    label="Outro Estilo"
-                    value={selected.estilo_outro}
-                  />
-                  <DetailRow
-                    label="Paleta de Cores"
-                    value={selected.paleta_cores?.join(", ")}
-                  />
-                  <DetailRow
-                    label="Observações Paleta"
-                    value={selected.paleta_observacoes}
-                  />
-                </Section>
-                <Section title="Detalhes Decorativos">
-                  <DetailRow
-                    label="Mesa dos Noivos"
-                    value={selected.mesa_noivos?.join(", ")}
-                  />
-                  <DetailRow
-                    label="Cartões nos Pratos"
-                    value={selected.cartoes_pratos}
-                  />
-                  <DetailRow
-                    label="Obs. Cartões"
-                    value={selected.observacoes_cartoes}
-                  />
-                  <DetailRow
-                    label="Descrição Mesa Noivos"
-                    value={selected.descricao_mesa_noivos}
-                  />
-                  <DetailRow
-                    label="Cenário de Palco"
-                    value={selected.cenario_palco?.join(", ")}
-                  />
-                  <DetailRow
-                    label="Descrição Cenário"
-                    value={selected.descricao_cenario}
-                  />
-                  <DetailRow
-                    label="Medidas / Limitações"
-                    value={selected.medidas_espaco}
-                  />
-                </Section>
-                <Section title="Convidados e Placa">
-                  <DetailRow
-                    label="Centros de Mesa"
-                    value={selected.centros_mesa?.join(", ")}
-                  />
-                  <DetailRow
-                    label="Tipo de Flores"
-                    value={selected.tipo_flores?.join(", ")}
-                  />
-                  <DetailRow label="Nº Mesas" value={selected.numero_mesas} />
-                  <DetailRow
-                    label="Formato Mesas"
-                    value={selected.formato_mesas}
-                  />
-                  <DetailRow
-                    label="Lugares por Mesa"
-                    value={selected.lugares_por_mesa}
-                  />
-                  <DetailRow
-                    label="Obs. Mesas"
-                    value={selected.observacoes_mesas}
-                  />
-                  <DetailRow
-                    label="Texto Principal Placa"
-                    value={selected.texto_principal_placa}
-                  />
-                  <DetailRow
-                    label="Texto Secundário Placa"
-                    value={selected.texto_secundario_placa}
-                  />
-                  <DetailRow
-                    label="Estilo Placa"
-                    value={selected.estilo_placa?.join(", ")}
-                  />
-                  <DetailRow label="Notas Placa" value={selected.notas_placa} />
-                </Section>
-                <Section title="Logística">
-                  <DetailRow
-                    label="Morada Exacta"
-                    value={selected.morada_exacta}
-                  />
-                  <DetailRow
-                    label="Pessoa que Abre"
-                    value={selected.pessoa_abre_espaco}
-                  />
-                  <DetailRow
-                    label="Contacto"
-                    value={selected.contacto_pessoa_abre}
-                  />
-                  <DetailRow
-                    label="Acesso Local"
-                    value={selected.acesso_local?.join(", ")}
-                  />
-                  <DetailRow
-                    label="Notas Acesso"
-                    value={selected.notas_acesso}
-                  />
-                  <DetailRow
-                    label="Observações Gerais"
-                    value={selected.observacoes_gerais}
-                  />
-                </Section>
-              </>
-            )}
+              <div style={{ marginBottom: "28px" }}>
+                <p
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: "600",
+                    color: "var(--gray-mid)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    marginBottom: "10px",
+                  }}
+                >
+                  Estado do Evento
+                </p>
+                <div className="filter-wrap">
+                  <div
+                    className="h-scroll"
+                    style={{ gap: "8px", paddingRight: "32px" }}
+                  >
+                    {STATUS_OPTIONS.map((status) => {
+                      const colors = STATUS_COLORS[status];
+                      const isActive = selected.status === status;
+                      return (
+                        <button
+                          key={status}
+                          onClick={() =>
+                            handleStatusChange(selected.id, status)
+                          }
+                          style={{
+                            padding: "6px 14px",
+                            borderRadius: "999px",
+                            fontSize: "12px",
+                            whiteSpace: "nowrap",
+                            border: `1px solid ${colors.border}`,
+                            backgroundColor: isActive
+                              ? colors.color
+                              : colors.bg,
+                            color: isActive ? "white" : colors.color,
+                            cursor: "pointer",
+                            transition: "all 0.2s",
+                          }}
+                        >
+                          {status}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
 
-            {/* Modo edição */}
-            {editMode && (
+              {/* Modo leitura */}
+              {!editMode && (
+                <>
+                  <Section title="Dados Principais">
+                    <DetailRow
+                      label="Contacto"
+                      value={selected.contacto_principal}
+                    />
+                    <DetailRow label="Email" value={selected.email} />
+                    <DetailRow label="Morada" value={selected.morada} />
+                    <DetailRow
+                      label="Local do Evento"
+                      value={selected.local_evento}
+                    />
+                    <DetailRow
+                      label="Nº Convidados"
+                      value={selected.numero_convidados}
+                    />
+                    <DetailRow
+                      label="Hora Início"
+                      value={selected.hora_inicio}
+                    />
+                    <DetailRow
+                      label="Hora Término"
+                      value={selected.hora_termino}
+                    />
+                    <DetailRow
+                      label="Hora Montagem"
+                      value={selected.hora_montagem}
+                    />
+                    <DetailRow
+                      label="Hora Limite Montagem"
+                      value={selected.hora_limite_montagem}
+                    />
+                    <DetailRow
+                      label="Hora Recolha"
+                      value={selected.hora_recolha}
+                    />
+                    <DetailRow
+                      label="Recolha Dia Seguinte"
+                      value={selected.recolha_dia_seguinte}
+                    />
+                  </Section>
+                  <Section title="Contacto no Dia">
+                    <DetailRow
+                      label="Responsável"
+                      value={selected.nome_responsavel}
+                    />
+                    <DetailRow
+                      label="Contacto"
+                      value={selected.contacto_responsavel}
+                    />
+                    <DetailRow
+                      label="Relação"
+                      value={selected.relacao_responsavel}
+                    />
+                  </Section>
+                  <Section title="Estilo e Cores">
+                    <DetailRow
+                      label="Estilo"
+                      value={selected.estilo_evento?.join(", ")}
+                    />
+                    <DetailRow
+                      label="Outro Estilo"
+                      value={selected.estilo_outro}
+                    />
+                    <DetailRow
+                      label="Paleta de Cores"
+                      value={selected.paleta_cores?.join(", ")}
+                    />
+                    <DetailRow
+                      label="Observações Paleta"
+                      value={selected.paleta_observacoes}
+                    />
+                  </Section>
+                  <Section title="Detalhes Decorativos">
+                    <DetailRow
+                      label="Mesa dos Noivos"
+                      value={selected.mesa_noivos?.join(", ")}
+                    />
+                    <DetailRow
+                      label="Cartões nos Pratos"
+                      value={selected.cartoes_pratos}
+                    />
+                    <DetailRow
+                      label="Obs. Cartões"
+                      value={selected.observacoes_cartoes}
+                    />
+                    <DetailRow
+                      label="Descrição Mesa Noivos"
+                      value={selected.descricao_mesa_noivos}
+                    />
+                    <DetailRow
+                      label="Cenário de Palco"
+                      value={selected.cenario_palco?.join(", ")}
+                    />
+                    <DetailRow
+                      label="Descrição Cenário"
+                      value={selected.descricao_cenario}
+                    />
+                    <DetailRow
+                      label="Medidas / Limitações"
+                      value={selected.medidas_espaco}
+                    />
+                  </Section>
+                  <Section title="Convidados e Placa">
+                    <DetailRow
+                      label="Centros de Mesa"
+                      value={selected.centros_mesa?.join(", ")}
+                    />
+                    <DetailRow
+                      label="Tipo de Flores"
+                      value={selected.tipo_flores?.join(", ")}
+                    />
+                    <DetailRow label="Nº Mesas" value={selected.numero_mesas} />
+                    <DetailRow
+                      label="Formato Mesas"
+                      value={selected.formato_mesas}
+                    />
+                    <DetailRow
+                      label="Lugares por Mesa"
+                      value={selected.lugares_por_mesa}
+                    />
+                    <DetailRow
+                      label="Obs. Mesas"
+                      value={selected.observacoes_mesas}
+                    />
+                    <DetailRow
+                      label="Texto Principal Placa"
+                      value={selected.texto_principal_placa}
+                    />
+                    <DetailRow
+                      label="Texto Secundário Placa"
+                      value={selected.texto_secundario_placa}
+                    />
+                    <DetailRow
+                      label="Estilo Placa"
+                      value={selected.estilo_placa?.join(", ")}
+                    />
+                    <DetailRow
+                      label="Notas Placa"
+                      value={selected.notas_placa}
+                    />
+                  </Section>
+                  <Section title="Logística">
+                    <DetailRow
+                      label="Morada Exacta"
+                      value={selected.morada_exacta}
+                    />
+                    <DetailRow
+                      label="Pessoa que Abre"
+                      value={selected.pessoa_abre_espaco}
+                    />
+                    <DetailRow
+                      label="Contacto"
+                      value={selected.contacto_pessoa_abre}
+                    />
+                    <DetailRow
+                      label="Acesso Local"
+                      value={selected.acesso_local?.join(", ")}
+                    />
+                    <DetailRow
+                      label="Notas Acesso"
+                      value={selected.notas_acesso}
+                    />
+                    <DetailRow
+                      label="Observações Gerais"
+                      value={selected.observacoes_gerais}
+                    />
+                  </Section>
+                </>
+              )}
+
+              {/* Modo edição */}
+              {editMode && (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "20px",
+                  }}
+                >
+                  {[
+                    {
+                      section: "Dados Principais",
+                      fields: [
+                        {
+                          key: "nome_noivo",
+                          label: "Nome do Noivo",
+                          type: "text",
+                        },
+                        {
+                          key: "nome_noiva",
+                          label: "Nome da Noiva",
+                          type: "text",
+                        },
+                        {
+                          key: "contacto_principal",
+                          label: "Contacto Principal",
+                          type: "tel",
+                        },
+                        { key: "email", label: "Email", type: "email" },
+                        { key: "morada", label: "Morada", type: "text" },
+                        {
+                          key: "data_evento",
+                          label: "Data do Evento",
+                          type: "date",
+                        },
+                        {
+                          key: "local_evento",
+                          label: "Local do Evento",
+                          type: "text",
+                        },
+                        {
+                          key: "numero_convidados",
+                          label: "Nº Convidados",
+                          type: "number",
+                        },
+                        {
+                          key: "hora_inicio",
+                          label: "Hora Início",
+                          type: "time",
+                        },
+                        {
+                          key: "hora_termino",
+                          label: "Hora Término",
+                          type: "time",
+                        },
+                        {
+                          key: "hora_montagem",
+                          label: "Hora Montagem",
+                          type: "time",
+                        },
+                        {
+                          key: "hora_limite_montagem",
+                          label: "Hora Limite Montagem",
+                          type: "time",
+                        },
+                        {
+                          key: "hora_recolha",
+                          label: "Hora Recolha",
+                          type: "time",
+                        },
+                        {
+                          key: "recolha_dia_seguinte",
+                          label: "Recolha Dia Seguinte",
+                          type: "text",
+                        },
+                      ],
+                    },
+                    {
+                      section: "Contacto no Dia",
+                      fields: [
+                        {
+                          key: "nome_responsavel",
+                          label: "Responsável",
+                          type: "text",
+                        },
+                        {
+                          key: "contacto_responsavel",
+                          label: "Contacto",
+                          type: "tel",
+                        },
+                        {
+                          key: "relacao_responsavel",
+                          label: "Relação",
+                          type: "text",
+                        },
+                      ],
+                    },
+                    {
+                      section: "Estilo e Cores",
+                      fields: [
+                        {
+                          key: "estilo_outro",
+                          label: "Outro Estilo",
+                          type: "text",
+                        },
+                        {
+                          key: "paleta_observacoes",
+                          label: "Observações Paleta",
+                          type: "textarea",
+                        },
+                      ],
+                    },
+                    {
+                      section: "Detalhes Decorativos",
+                      fields: [
+                        {
+                          key: "observacoes_cartoes",
+                          label: "Obs. Cartões",
+                          type: "textarea",
+                        },
+                        {
+                          key: "descricao_mesa_noivos",
+                          label: "Descrição Mesa Noivos",
+                          type: "textarea",
+                        },
+                        {
+                          key: "descricao_cenario",
+                          label: "Descrição Cenário",
+                          type: "textarea",
+                        },
+                        {
+                          key: "medidas_espaco",
+                          label: "Medidas / Limitações",
+                          type: "textarea",
+                        },
+                      ],
+                    },
+                    {
+                      section: "Convidados e Placa",
+                      fields: [
+                        {
+                          key: "numero_mesas",
+                          label: "Nº Mesas",
+                          type: "number",
+                        },
+                        {
+                          key: "formato_mesas",
+                          label: "Formato Mesas",
+                          type: "text",
+                        },
+                        {
+                          key: "lugares_por_mesa",
+                          label: "Lugares por Mesa",
+                          type: "number",
+                        },
+                        {
+                          key: "observacoes_mesas",
+                          label: "Obs. Mesas",
+                          type: "textarea",
+                        },
+                        {
+                          key: "texto_principal_placa",
+                          label: "Texto Principal Placa",
+                          type: "text",
+                        },
+                        {
+                          key: "texto_secundario_placa",
+                          label: "Texto Secundário Placa",
+                          type: "text",
+                        },
+                        {
+                          key: "notas_placa",
+                          label: "Notas Placa",
+                          type: "textarea",
+                        },
+                      ],
+                    },
+                    {
+                      section: "Logística",
+                      fields: [
+                        {
+                          key: "morada_exacta",
+                          label: "Morada Exacta",
+                          type: "textarea",
+                        },
+                        {
+                          key: "pessoa_abre_espaco",
+                          label: "Pessoa que Abre",
+                          type: "text",
+                        },
+                        {
+                          key: "contacto_pessoa_abre",
+                          label: "Contacto",
+                          type: "tel",
+                        },
+                        {
+                          key: "notas_acesso",
+                          label: "Notas Acesso",
+                          type: "textarea",
+                        },
+                        {
+                          key: "observacoes_gerais",
+                          label: "Observações Gerais",
+                          type: "textarea",
+                        },
+                      ],
+                    },
+                  ].map(({ section, fields }) => (
+                    <div key={section}>
+                      <p
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: "600",
+                          color: "var(--gold)",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.08em",
+                          borderBottom: "1px solid var(--gold-light)",
+                          paddingBottom: "6px",
+                          marginBottom: "12px",
+                        }}
+                      >
+                        {section}
+                      </p>
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "10px",
+                        }}
+                      >
+                        {fields.map(({ key, label, type }) => (
+                          <div key={key}>
+                            <label
+                              style={{
+                                fontSize: "11px",
+                                color: "var(--gray-mid)",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.05em",
+                                display: "block",
+                                marginBottom: "4px",
+                              }}
+                            >
+                              {label}
+                            </label>
+                            {type === "textarea" ? (
+                              <textarea
+                                rows={2}
+                                value={editData[key] || ""}
+                                onChange={(e) =>
+                                  setEditData((prev) => ({
+                                    ...prev,
+                                    [key]: e.target.value,
+                                  }))
+                                }
+                                style={{
+                                  width: "100%",
+                                  padding: "8px 12px",
+                                  borderRadius: "8px",
+                                  border: "1.5px solid var(--gold-light)",
+                                  fontSize: "13px",
+                                  outline: "none",
+                                  resize: "none",
+                                  fontFamily: "Inter, sans-serif",
+                                  boxSizing: "border-box",
+                                }}
+                              />
+                            ) : (
+                              <input
+                                type={type}
+                                value={editData[key] || ""}
+                                onChange={(e) =>
+                                  setEditData((prev) => ({
+                                    ...prev,
+                                    [key]: e.target.value,
+                                  }))
+                                }
+                                style={{
+                                  width: "100%",
+                                  padding: "8px 12px",
+                                  borderRadius: "8px",
+                                  border: "1.5px solid var(--gold-light)",
+                                  fontSize: "13px",
+                                  outline: "none",
+                                  fontFamily: "Inter, sans-serif",
+                                  boxSizing: "border-box",
+                                }}
+                              />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+
+                  <div
+                    style={{ display: "flex", gap: "10px", paddingTop: "8px" }}
+                  >
+                    <button
+                      onClick={() => setEditMode(false)}
+                      style={{
+                        flex: 1,
+                        padding: "11px",
+                        borderRadius: "10px",
+                        fontSize: "13px",
+                        border: "1.5px solid var(--gold-light)",
+                        color: "var(--gray-mid)",
+                        backgroundColor: "white",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handleSave}
+                      disabled={saving}
+                      style={{
+                        flex: 2,
+                        padding: "11px",
+                        borderRadius: "10px",
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        cursor: saving ? "not-allowed" : "pointer",
+                        backgroundColor: saving
+                          ? "var(--gold-light)"
+                          : "var(--gold)",
+                        color: "white",
+                        border: "none",
+                        boxShadow: "0 4px 12px rgba(201,168,76,0.3)",
+                      }}
+                    >
+                      {saving ? "A guardar..." : "✓ Guardar alterações"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/* Modal de partilha */}
+      <AnimatePresence>
+        {shareTarget && (
+          <motion.div
+            onClick={() => setShareTarget(null)}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 60,
+              backgroundColor: "rgba(0,0,0,0.5)",
+              display: "flex",
+              alignItems: "flex-end",
+              justifyContent: "center",
+            }}
+          >
+            <motion.div
+              onClick={(e) => e.stopPropagation()}
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ duration: 0.32, ease: [0.32, 0.72, 0, 1] }}
+              style={{
+                backgroundColor: "white",
+                borderRadius: "20px 20px 0 0",
+                padding: "24px 24px 40px",
+                width: "100%",
+                maxWidth: "480px",
+                boxShadow: "0 -4px 32px rgba(0,0,0,0.15)",
+              }}
+            >
+              {/* Handle */}
+              <div
+                style={{
+                  width: "40px",
+                  height: "4px",
+                  borderRadius: "999px",
+                  backgroundColor: "#E5E7EB",
+                  margin: "0 auto 20px",
+                }}
+              />
+
+              <p
+                style={{
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  color: "var(--charcoal)",
+                  textAlign: "center",
+                  margin: "0 0 24px 0",
+                }}
+              >
+                Partilhar com {shareTarget.nome_noivo} &{" "}
+                {shareTarget.nome_noiva}
+              </p>
+
+              {/* Ícones */}
               <div
                 style={{
                   display: "flex",
-                  flexDirection: "column",
-                  gap: "20px",
+                  justifyContent: "center",
+                  gap: "32px",
+                  marginBottom: "24px",
                 }}
               >
-                {[
-                  {
-                    section: "Dados Principais",
-                    fields: [
-                      {
-                        key: "nome_noivo",
-                        label: "Nome do Noivo",
-                        type: "text",
-                      },
-                      {
-                        key: "nome_noiva",
-                        label: "Nome da Noiva",
-                        type: "text",
-                      },
-                      {
-                        key: "contacto_principal",
-                        label: "Contacto Principal",
-                        type: "tel",
-                      },
-                      { key: "email", label: "Email", type: "email" },
-                      { key: "morada", label: "Morada", type: "text" },
-                      {
-                        key: "data_evento",
-                        label: "Data do Evento",
-                        type: "date",
-                      },
-                      {
-                        key: "local_evento",
-                        label: "Local do Evento",
-                        type: "text",
-                      },
-                      {
-                        key: "numero_convidados",
-                        label: "Nº Convidados",
-                        type: "number",
-                      },
-                      {
-                        key: "hora_inicio",
-                        label: "Hora Início",
-                        type: "time",
-                      },
-                      {
-                        key: "hora_termino",
-                        label: "Hora Término",
-                        type: "time",
-                      },
-                      {
-                        key: "hora_montagem",
-                        label: "Hora Montagem",
-                        type: "time",
-                      },
-                      {
-                        key: "hora_limite_montagem",
-                        label: "Hora Limite Montagem",
-                        type: "time",
-                      },
-                      {
-                        key: "hora_recolha",
-                        label: "Hora Recolha",
-                        type: "time",
-                      },
-                      {
-                        key: "recolha_dia_seguinte",
-                        label: "Recolha Dia Seguinte",
-                        type: "text",
-                      },
-                    ],
-                  },
-                  {
-                    section: "Contacto no Dia",
-                    fields: [
-                      {
-                        key: "nome_responsavel",
-                        label: "Responsável",
-                        type: "text",
-                      },
-                      {
-                        key: "contacto_responsavel",
-                        label: "Contacto",
-                        type: "tel",
-                      },
-                      {
-                        key: "relacao_responsavel",
-                        label: "Relação",
-                        type: "text",
-                      },
-                    ],
-                  },
-                  {
-                    section: "Estilo e Cores",
-                    fields: [
-                      {
-                        key: "estilo_outro",
-                        label: "Outro Estilo",
-                        type: "text",
-                      },
-                      {
-                        key: "paleta_observacoes",
-                        label: "Observações Paleta",
-                        type: "textarea",
-                      },
-                    ],
-                  },
-                  {
-                    section: "Detalhes Decorativos",
-                    fields: [
-                      {
-                        key: "observacoes_cartoes",
-                        label: "Obs. Cartões",
-                        type: "textarea",
-                      },
-                      {
-                        key: "descricao_mesa_noivos",
-                        label: "Descrição Mesa Noivos",
-                        type: "textarea",
-                      },
-                      {
-                        key: "descricao_cenario",
-                        label: "Descrição Cenário",
-                        type: "textarea",
-                      },
-                      {
-                        key: "medidas_espaco",
-                        label: "Medidas / Limitações",
-                        type: "textarea",
-                      },
-                    ],
-                  },
-                  {
-                    section: "Convidados e Placa",
-                    fields: [
-                      {
-                        key: "numero_mesas",
-                        label: "Nº Mesas",
-                        type: "number",
-                      },
-                      {
-                        key: "formato_mesas",
-                        label: "Formato Mesas",
-                        type: "text",
-                      },
-                      {
-                        key: "lugares_por_mesa",
-                        label: "Lugares por Mesa",
-                        type: "number",
-                      },
-                      {
-                        key: "observacoes_mesas",
-                        label: "Obs. Mesas",
-                        type: "textarea",
-                      },
-                      {
-                        key: "texto_principal_placa",
-                        label: "Texto Principal Placa",
-                        type: "text",
-                      },
-                      {
-                        key: "texto_secundario_placa",
-                        label: "Texto Secundário Placa",
-                        type: "text",
-                      },
-                      {
-                        key: "notas_placa",
-                        label: "Notas Placa",
-                        type: "textarea",
-                      },
-                    ],
-                  },
-                  {
-                    section: "Logística",
-                    fields: [
-                      {
-                        key: "morada_exacta",
-                        label: "Morada Exacta",
-                        type: "textarea",
-                      },
-                      {
-                        key: "pessoa_abre_espaco",
-                        label: "Pessoa que Abre",
-                        type: "text",
-                      },
-                      {
-                        key: "contacto_pessoa_abre",
-                        label: "Contacto",
-                        type: "tel",
-                      },
-                      {
-                        key: "notas_acesso",
-                        label: "Notas Acesso",
-                        type: "textarea",
-                      },
-                      {
-                        key: "observacoes_gerais",
-                        label: "Observações Gerais",
-                        type: "textarea",
-                      },
-                    ],
-                  },
-                ].map(({ section, fields }) => (
-                  <div key={section}>
-                    <p
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: "600",
-                        color: "var(--gold)",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.08em",
-                        borderBottom: "1px solid var(--gold-light)",
-                        paddingBottom: "6px",
-                        marginBottom: "12px",
-                      }}
+                {/* WhatsApp */}
+                <button
+                  onClick={() => {
+                    const msg = encodeURIComponent(
+                      getShareMessage(shareTarget),
+                    );
+                    window.open(`https://wa.me/?text=${msg}`, "_blank");
+                    setShareTarget(null);
+                  }}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "8px",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "60px",
+                      height: "60px",
+                      borderRadius: "16px",
+                      backgroundColor: "#25D366",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <svg
+                      width="30"
+                      height="30"
+                      viewBox="0 0 24 24"
+                      fill="white"
                     >
-                      {section}
-                    </p>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "10px",
-                      }}
-                    >
-                      {fields.map(({ key, label, type }) => (
-                        <div key={key}>
-                          <label
-                            style={{
-                              fontSize: "11px",
-                              color: "var(--gray-mid)",
-                              textTransform: "uppercase",
-                              letterSpacing: "0.05em",
-                              display: "block",
-                              marginBottom: "4px",
-                            }}
-                          >
-                            {label}
-                          </label>
-                          {type === "textarea" ? (
-                            <textarea
-                              rows={2}
-                              value={editData[key] || ""}
-                              onChange={(e) =>
-                                setEditData((prev) => ({
-                                  ...prev,
-                                  [key]: e.target.value,
-                                }))
-                              }
-                              style={{
-                                width: "100%",
-                                padding: "8px 12px",
-                                borderRadius: "8px",
-                                border: "1.5px solid var(--gold-light)",
-                                fontSize: "13px",
-                                outline: "none",
-                                resize: "none",
-                                fontFamily: "Inter, sans-serif",
-                                boxSizing: "border-box",
-                              }}
-                            />
-                          ) : (
-                            <input
-                              type={type}
-                              value={editData[key] || ""}
-                              onChange={(e) =>
-                                setEditData((prev) => ({
-                                  ...prev,
-                                  [key]: e.target.value,
-                                }))
-                              }
-                              style={{
-                                width: "100%",
-                                padding: "8px 12px",
-                                borderRadius: "8px",
-                                border: "1.5px solid var(--gold-light)",
-                                fontSize: "13px",
-                                outline: "none",
-                                fontFamily: "Inter, sans-serif",
-                                boxSizing: "border-box",
-                              }}
-                            />
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+                    </svg>
                   </div>
-                ))}
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      color: "var(--charcoal)",
+                      fontWeight: "500",
+                    }}
+                  >
+                    WhatsApp
+                  </span>
+                </button>
 
-                <div
-                  style={{ display: "flex", gap: "10px", paddingTop: "8px" }}
+                {/* Instagram */}
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(getShareMessage(shareTarget));
+                    window.open(
+                      "https://www.instagram.com/direct/inbox/",
+                      "_blank",
+                    );
+                    setShareTarget(null);
+                  }}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "8px",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
                 >
-                  <button
-                    onClick={() => setEditMode(false)}
+                  <div
                     style={{
-                      flex: 1,
-                      padding: "11px",
-                      borderRadius: "10px",
-                      fontSize: "13px",
-                      border: "1.5px solid var(--gold-light)",
-                      color: "var(--gray-mid)",
-                      backgroundColor: "white",
-                      cursor: "pointer",
+                      width: "60px",
+                      height: "60px",
+                      borderRadius: "16px",
+                      background:
+                        "linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                     }}
                   >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={handleSave}
-                    disabled={saving}
+                    <svg
+                      width="30"
+                      height="30"
+                      viewBox="0 0 24 24"
+                      fill="white"
+                    >
+                      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" />
+                    </svg>
+                  </div>
+                  <span
                     style={{
-                      flex: 2,
-                      padding: "11px",
-                      borderRadius: "10px",
-                      fontSize: "13px",
-                      fontWeight: "600",
-                      cursor: saving ? "not-allowed" : "pointer",
-                      backgroundColor: saving
-                        ? "var(--gold-light)"
-                        : "var(--gold)",
-                      color: "white",
-                      border: "none",
-                      boxShadow: "0 4px 12px rgba(201,168,76,0.3)",
+                      fontSize: "12px",
+                      color: "var(--charcoal)",
+                      fontWeight: "500",
                     }}
                   >
-                    {saving ? "A guardar..." : "✓ Guardar alterações"}
-                  </button>
-                </div>
+                    Instagram
+                  </span>
+                </button>
+
+                {/* Copiar */}
+                <button
+                  onClick={() => {
+                    copyWithFeedback(
+                      getShareMessage(shareTarget),
+                      `msg-${shareTarget.id}`,
+                    );
+                    setTimeout(() => setShareTarget(null), 1500);
+                  }}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "8px",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "60px",
+                      height: "60px",
+                      borderRadius: "16px",
+                      backgroundColor:
+                        copiedId === `msg-${shareTarget.id}`
+                          ? "#22C55E"
+                          : "#F3F4F6",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      transition: "all 0.3s ease",
+                    }}
+                  >
+                    <svg
+                      width="26"
+                      height="26"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke={
+                        copiedId === `msg-${shareTarget.id}`
+                          ? "white"
+                          : "#6B7280"
+                      }
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      {copiedId === `msg-${shareTarget.id}` ? (
+                        <path d="M20 6L9 17l-5-5" />
+                      ) : (
+                        <>
+                          <rect x="9" y="9" width="13" height="13" rx="2" />
+                          <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+                        </>
+                      )}
+                    </svg>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: "500",
+                      transition: "all 0.3s",
+                      color:
+                        copiedId === `msg-${shareTarget.id}`
+                          ? "#22C55E"
+                          : "var(--charcoal)",
+                    }}
+                  >
+                    {copiedId === `msg-${shareTarget.id}`
+                      ? "Copiado!"
+                      : "Copiar"}
+                  </span>
+                </button>
               </div>
-            )}
-          </div>
-        </div>
-      )}
-      {/* Modal de partilha */}
-      {shareTarget && (
-        <div
-          onClick={() => setShareTarget(null)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 60,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "flex-end",
-            justifyContent: "center",
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              backgroundColor: "white",
-              borderRadius: "20px 20px 0 0",
-              padding: "24px 24px 40px",
-              width: "100%",
-              maxWidth: "480px",
-              boxShadow: "0 -4px 32px rgba(0,0,0,0.15)",
-            }}
-          >
-            {/* Handle */}
-            <div
-              style={{
-                width: "40px",
-                height: "4px",
-                borderRadius: "999px",
-                backgroundColor: "#E5E7EB",
-                margin: "0 auto 20px",
-              }}
-            />
 
-            <p
-              style={{
-                fontSize: "14px",
-                fontWeight: "600",
-                color: "var(--charcoal)",
-                textAlign: "center",
-                margin: "0 0 24px 0",
-              }}
-            >
-              Partilhar com {shareTarget.nome_noivo} & {shareTarget.nome_noiva}
-            </p>
-
-            {/* Ícones */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                gap: "32px",
-                marginBottom: "24px",
-              }}
-            >
-              {/* WhatsApp */}
-              <button
-                onClick={() => {
-                  const msg = encodeURIComponent(getShareMessage(shareTarget));
-                  window.open(`https://wa.me/?text=${msg}`, "_blank");
-                  setShareTarget(null);
-                }}
+              {/* Nota Instagram */}
+              <p
                 style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: "8px",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
+                  fontSize: "11px",
+                  color: "var(--gray-mid)",
+                  textAlign: "center",
+                  margin: 0,
                 }}
               >
-                <div
-                  style={{
-                    width: "60px",
-                    height: "60px",
-                    borderRadius: "16px",
-                    backgroundColor: "#25D366",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <svg width="30" height="30" viewBox="0 0 24 24" fill="white">
-                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
-                  </svg>
-                </div>
-                <span
-                  style={{
-                    fontSize: "12px",
-                    color: "var(--charcoal)",
-                    fontWeight: "500",
-                  }}
-                >
-                  WhatsApp
-                </span>
-              </button>
-
-              {/* Instagram */}
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(getShareMessage(shareTarget));
-                  window.open(
-                    "https://www.instagram.com/direct/inbox/",
-                    "_blank",
-                  );
-                  setShareTarget(null);
-                }}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: "8px",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                }}
-              >
-                <div
-                  style={{
-                    width: "60px",
-                    height: "60px",
-                    borderRadius: "16px",
-                    background:
-                      "linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <svg width="30" height="30" viewBox="0 0 24 24" fill="white">
-                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" />
-                  </svg>
-                </div>
-                <span
-                  style={{
-                    fontSize: "12px",
-                    color: "var(--charcoal)",
-                    fontWeight: "500",
-                  }}
-                >
-                  Instagram
-                </span>
-              </button>
-
-              {/* Copiar */}
-              <button
-                onClick={() => {
-                  copyWithFeedback(
-                    getShareMessage(shareTarget),
-                    `msg-${shareTarget.id}`,
-                  );
-                  setTimeout(() => setShareTarget(null), 1500);
-                }}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: "8px",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                }}
-              >
-                <div
-                  style={{
-                    width: "60px",
-                    height: "60px",
-                    borderRadius: "16px",
-                    backgroundColor:
-                      copiedId === `msg-${shareTarget.id}`
-                        ? "#22C55E"
-                        : "#F3F4F6",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    transition: "all 0.3s ease",
-                  }}
-                >
-                  <svg
-                    width="26"
-                    height="26"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke={
-                      copiedId === `msg-${shareTarget.id}` ? "white" : "#6B7280"
-                    }
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    {copiedId === `msg-${shareTarget.id}` ? (
-                      <path d="M20 6L9 17l-5-5" />
-                    ) : (
-                      <>
-                        <rect x="9" y="9" width="13" height="13" rx="2" />
-                        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-                      </>
-                    )}
-                  </svg>
-                </div>
-                <span
-                  style={{
-                    fontSize: "12px",
-                    fontWeight: "500",
-                    transition: "all 0.3s",
-                    color:
-                      copiedId === `msg-${shareTarget.id}`
-                        ? "#22C55E"
-                        : "var(--charcoal)",
-                  }}
-                >
-                  {copiedId === `msg-${shareTarget.id}` ? "Copiado!" : "Copiar"}
-                </span>
-              </button>
-            </div>
-
-            {/* Nota Instagram */}
-            <p
-              style={{
-                fontSize: "11px",
-                color: "var(--gray-mid)",
-                textAlign: "center",
-                margin: 0,
-              }}
-            >
-              Para o Instagram, a mensagem é copiada automaticamente — basta
-              colar no Direct.
-            </p>
-          </div>
-        </div>
-      )}
+                Para o Instagram, a mensagem é copiada automaticamente — basta
+                colar no Direct.
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
