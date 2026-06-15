@@ -22,7 +22,6 @@ export const createInvite = async ({
   dataEvento,
 }) => {
   let code, exists;
-
   // Garante que o código é único
   do {
     code = generateCode();
@@ -62,16 +61,6 @@ export const validateCode = async (code) => {
     .single();
 
   if (error || !data) return { valid: false, reason: "Código inválido" };
-
-  // Verifica se já expirou (dia seguinte ao evento)
-  if (data.data_evento) {
-    const [year, month, day] = data.data_evento.split("-").map(Number);
-    // Expira no fim do dia seguinte ao evento (hora local)
-    const expiryDate = new Date(year, month - 1, day + 2);
-    if (new Date() > expiryDate) {
-      return { valid: false, reason: "Este código já expirou" };
-    }
-  }
 
   return { valid: true, invite: data };
 };

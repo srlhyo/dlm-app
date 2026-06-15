@@ -196,7 +196,17 @@ export default function AdminPage() {
     const errors = {};
     if (!newInvite.nomeNoivo.trim()) errors.nomeNoivo = "Obrigatório";
     if (!newInvite.nomeNoiva.trim()) errors.nomeNoiva = "Obrigatório";
-    if (!newInvite.dataEvento) errors.dataEvento = "Obrigatório";
+    if (!newInvite.dataEvento) {
+      errors.dataEvento = "Obrigatório";
+    } else {
+      const [ano, mes, dia] = newInvite.dataEvento.split("-").map(Number);
+      const dataEvento = new Date(ano, mes - 1, dia);
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+      if (dataEvento < hoje) {
+        errors.dataEvento = "A data não pode ser no passado";
+      }
+    }
     if (Object.keys(errors).length > 0) {
       setNewInviteErrors(errors);
       return;
@@ -221,8 +231,8 @@ export default function AdminPage() {
   };
 
   const getShareMessage = (invite) => {
-    const url = window.location.origin;
-    return `Olá ${invite.nome_noivo} & ${invite.nome_noiva}! 💍\n\nO vosso questionário *Do Luxo à Mesa* está pronto.\n\nAcedam aqui: ${url}\n\nO vosso código de acesso é: *${invite.code}*\n\nPlaneamos cada detalhe. Criamos memórias inesquecíveis. ✨`;
+    const url = `${window.location.origin}/?codigo=${invite.code}`;
+    return `Olá ${invite.nome_noivo} & ${invite.nome_noiva}! 💍\n\nO vosso questionário *Do Luxo à Mesa* está pronto.\n\nÉ só clicar aqui para começar: ${url}\n\n(O vosso código de acesso é: *${invite.code}*)\n\nPlaneamos cada detalhe. Criamos memórias inesquecíveis. ✨`;
   };
 
   const copyWithFeedback = (text, id) => {
@@ -1181,6 +1191,7 @@ export default function AdminPage() {
                     </label>
                     <input
                       type="date"
+                      min={new Date().toISOString().split("T")[0]}
                       value={newInvite.dataEvento}
                       onChange={(e) => {
                         setNewInvite((prev) => ({

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { validateCode } from "../lib/invites";
 import { motion, AnimatePresence } from "framer-motion";
@@ -143,6 +143,15 @@ export default function FormEntryPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+
+  // Lê o código do link (?codigo=XXX) e pré-preenche o campo
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const codigoUrl = params.get("codigo");
+    if (codigoUrl) {
+      setCode(codigoUrl.toUpperCase().trim());
+    }
+  }, []);
 
   const handleSubmit = async () => {
     if (!code.trim()) {
