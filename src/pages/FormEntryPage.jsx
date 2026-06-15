@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { validateCode } from "../lib/invites";
+import { motion, AnimatePresence } from "framer-motion";
 import flores from "../assets/flores.png";
 
 function Ornament({ small = false }) {
@@ -191,7 +192,12 @@ export default function FormEntryPage() {
         }}
       >
         {/* Cabeçalho */}
-        <div style={{ textAlign: "center", marginBottom: "32px" }}>
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          style={{ textAlign: "center", marginBottom: "32px" }}
+        >
           <h1
             style={{
               fontSize: "clamp(22px, 5vw, 36px)",
@@ -256,10 +262,13 @@ export default function FormEntryPage() {
             />
           </div>
           <Ornament small />
-        </div>
+        </motion.div>
 
         {/* Card */}
-        <div
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut", delay: 0.1 }}
           style={{
             backgroundColor: "white",
             borderRadius: "20px",
@@ -382,20 +391,27 @@ export default function FormEntryPage() {
                   }}
                 />
               </div>
-              {error && (
-                <p
-                  style={{
-                    fontSize: "12px",
-                    color: "#EF4444",
-                    margin: "6px 0 0",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "4px",
-                  }}
-                >
-                  ⚠ {error}
-                </p>
-              )}
+              <AnimatePresence>
+                {error && (
+                  <motion.p
+                    initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                    animate={{ opacity: 1, height: "auto", marginTop: 6 }}
+                    exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                    transition={{ duration: 0.2 }}
+                    style={{
+                      fontSize: "12px",
+                      color: "#EF4444",
+                      margin: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      overflow: "hidden",
+                    }}
+                  >
+                    ⚠ {error}
+                  </motion.p>
+                )}
+              </AnimatePresence>
             </div>
           </div>
 
@@ -429,7 +445,7 @@ export default function FormEntryPage() {
               {loading ? "A verificar..." : "Entrar →"}
             </button>
           </div>
-        </div>
+        </motion.div>
 
         <div style={{ marginTop: "20px" }}>
           <Ornament />
