@@ -1,0 +1,62 @@
+import { motion } from "framer-motion";
+
+// Faixa visível apenas no ambiente de teste/desenvolvimento.
+// Mostra um banner no topo e uma moldura subtil à volta da página,
+// para nunca haver dúvida sobre em que ambiente se está.
+export default function EnvBanner() {
+  return (
+    <>
+      {/* Moldura à volta de toda a página */}
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          border: "3px solid #DC2626",
+          borderRadius: "2px",
+          pointerEvents: "none",
+          zIndex: 9998,
+        }}
+      />
+
+      {/* Banner no topo, ao centro */}
+      <motion.div
+        initial={{ y: -40, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+        style={{
+          position: "fixed",
+          top: 0,
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 9999,
+          backgroundColor: "#DC2626",
+          color: "white",
+          padding: "5px 18px",
+          borderRadius: "0 0 10px 10px",
+          fontSize: "11px",
+          fontWeight: "700",
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          fontFamily: "Inter, sans-serif",
+          boxShadow: "0 4px 14px rgba(220,38,38,0.35)",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          pointerEvents: "none",
+          whiteSpace: "nowrap",
+        }}
+      >
+        <span
+          style={{
+            width: "7px",
+            height: "7px",
+            borderRadius: "50%",
+            backgroundColor: "white",
+            display: "inline-block",
+          }}
+        />
+        Ambiente de Teste
+      </motion.div>
+    </>
+  );
+}
