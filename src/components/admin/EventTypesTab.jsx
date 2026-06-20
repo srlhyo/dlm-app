@@ -114,6 +114,7 @@ export default function EventTypesTab({ eventTypes, loading, onRefetch }) {
           questionário.
         </p>
         <button
+          id="tour-criar-tipo-evento"
           onClick={() => setShowChooser(true)}
           style={{
             padding: "10px 20px",
@@ -159,7 +160,10 @@ export default function EventTypesTab({ eventTypes, loading, onRefetch }) {
           Ainda não há tipos de evento criados.
         </p>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        <div
+          id="tour-lista-tipos-evento"
+          style={{ display: "flex", flexDirection: "column", gap: "12px" }}
+        >
           {eventTypes.map((et) => (
             <div
               key={et.id}

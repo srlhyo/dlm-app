@@ -13,6 +13,63 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const STATUS_OPTIONS = ["Recebido", "Em Preparação", "Confirmado", "Concluído"];
 
+// Mini-tour do Painel de Novo Convite — dispara a 1ª vez que o painel
+// abre. Como o painel arranca sempre vazio, a explicação foca-se no
+// mecanismo de escolha de campos, que é a parte menos óbvia.
+const NOVO_CONVITE_TOUR_STEPS = (temVariosTipos) => {
+  const passos = [];
+  if (temVariosTipos) {
+    passos.push({
+      element: "#tour-novo-convite-tipo",
+      popover: {
+        title: "Tipo de Evento",
+        description: "Escolhe primeiro o tipo de evento — os campos disponíveis mudam consoante a escolha.",
+      },
+    });
+  }
+  passos.push(
+    {
+      element: "#tour-campo-seletor",
+      popover: {
+        title: "Escolhe os campos",
+        description:
+          "O painel começa sempre vazio. Usa esta busca para adicionares só os campos que já souberes agora (ex: nomes, email, data) — podes remover qualquer um a qualquer momento.",
+      },
+    },
+    {
+      element: "#tour-criar-convite",
+      disableActiveInteraction: true,
+      popover: {
+        title: "Quando estiveres pronta",
+        description: "Cria o convite — o que preencheste aqui já vem pronto no formulário do casal/família.",
+      },
+    },
+  );
+  return passos;
+};
+
+// Mini-tour da tab Tipos de Evento — dispara a 1ª vez que se entra
+// nessa tab
+const TIPOS_EVENTO_TOUR_STEPS = [
+  {
+    element: "#tour-criar-tipo-evento",
+    disableActiveInteraction: true,
+    popover: {
+      title: "Criar um tipo novo",
+      description:
+        "Podes começar do zero, ou duplicar um tipo existente e só ajustar as diferenças — mais rápido na maior parte dos casos.",
+    },
+  },
+  {
+    element: "#tour-lista-tipos-evento",
+    popover: {
+      title: "Os teus tipos de evento",
+      description:
+        "Cada tipo aparece aqui, com o número de passos e campos. Os botões ✏️ Editar e 🗑 Remover ficam sempre disponíveis, mesmo depois de criado.",
+    },
+  },
+];
+
 // Passos do tour guiado do Admin — os "element" referem-se aos ids
 // adicionados na barra de navegação (ver render do cabeçalho)
 const ADMIN_TOUR_STEPS = [
@@ -261,6 +318,26 @@ export default function AdminPage() {
     }
   }, []);
 
+  // Mini-tour do Painel de Novo Convite — só na 1ª vez que se abre
+  useEffect(() => {
+    if (showNewInvite && !tourJaVista("novoConvite")) {
+      const temporizador = setTimeout(() => {
+        iniciarTour("novoConvite", NOVO_CONVITE_TOUR_STEPS(eventTypes.length > 1));
+      }, 400);
+      return () => clearTimeout(temporizador);
+    }
+  }, [showNewInvite]);
+
+  // Mini-tour da tab Tipos de Evento — só na 1ª vez que se entra lá
+  useEffect(() => {
+    if (activeTab === "tiposEvento" && !tourJaVista("tiposEvento")) {
+      const temporizador = setTimeout(() => {
+        iniciarTour("tiposEvento", TIPOS_EVENTO_TOUR_STEPS);
+      }, 400);
+      return () => clearTimeout(temporizador);
+    }
+  }, [activeTab]);
+
   useEffect(() => {
     fetchSubmissions();
     fetchInvites();
@@ -391,12 +468,8 @@ export default function AdminPage() {
     // a irmã escolhe; com só um, já vem pré-seleccionado)
     const eventTypeId = newInvite.eventTypeId;
     if (!eventTypeId) {
-      console.error(
-        "Nenhum tipo de evento disponível para associar ao convite.",
-      );
-      setNewInviteErrors({
-        geral: "Não foi possível criar o convite. Tenta novamente.",
-      });
+      console.error("Nenhum tipo de evento disponível para associar ao convite.");
+      setNewInviteErrors({ geral: "Não foi possível criar o convite. Tenta novamente." });
       return;
     }
 
@@ -1295,10 +1368,7 @@ export default function AdminPage() {
                   (et) => et.id === newInvite.eventTypeId,
                 );
                 const todosOsCampos = getAllFields(tipoActual);
-                const camposActivosInfo = getCamposActivosInfo(
-                  eventTypes,
-                  newInvite,
-                );
+                const camposActivosInfo = getCamposActivosInfo(eventTypes, newInvite);
                 const camposDisponiveis = todosOsCampos.filter(
                   (f) => !newInvite.camposAtivos.includes(f.id),
                 );
@@ -1343,7 +1413,7 @@ export default function AdminPage() {
                       </h3>
 
                       {eventTypes.length > 1 && (
-                        <div style={{ marginBottom: "14px" }}>
+                        <div id="tour-novo-convite-tipo" style={{ marginBottom: "14px" }}>
                           <label
                             style={{
                               fontSize: "11px",
@@ -1359,9 +1429,7 @@ export default function AdminPage() {
                           </label>
                           <select
                             value={newInvite.eventTypeId}
-                            onChange={(e) =>
-                              handleChangeEventType(e.target.value)
-                            }
+                            onChange={(e) => handleChangeEventType(e.target.value)}
                             style={{
                               width: "100%",
                               padding: "10px 14px",
@@ -1397,10 +1465,7 @@ export default function AdminPage() {
                           }}
                         >
                           {camposActivosInfo.map((field) => (
-                            <div
-                              key={field.id}
-                              style={{ position: "relative" }}
-                            >
+                            <div key={field.id} style={{ position: "relative" }}>
                               <p
                                 style={{
                                   fontSize: "10px",
@@ -1431,9 +1496,7 @@ export default function AdminPage() {
                               <FormField
                                 field={{ ...field, required: false }}
                                 value={newInvite.valores[field.id]}
-                                onChange={(id, val) =>
-                                  handleChangeValorCampo(id, val)
-                                }
+                                onChange={(id, val) => handleChangeValorCampo(id, val)}
                                 error={newInviteErrors[field.id]}
                                 onClearError={(id) =>
                                   setNewInviteErrors((prev) => {
@@ -1447,15 +1510,9 @@ export default function AdminPage() {
                           ))}
                         </div>
                       ) : (
-                        <p
-                          style={{
-                            fontSize: "12px",
-                            color: "var(--gray-mid)",
-                            margin: 0,
-                          }}
-                        >
-                          Ainda não escolheste nenhum campo — usa a busca em
-                          baixo para adicionar o que quiseres preencher já.
+                        <p style={{ fontSize: "12px", color: "var(--gray-mid)", margin: 0 }}>
+                          Ainda não escolheste nenhum campo — usa a busca em baixo
+                          para adicionar o que quiseres preencher já.
                         </p>
                       )}
                     </div>
@@ -1471,7 +1528,7 @@ export default function AdminPage() {
                         flexShrink: 0,
                       }}
                     >
-                      <div style={{ marginBottom: "14px" }}>
+                      <div id="tour-campo-seletor" style={{ marginBottom: "14px" }}>
                         <CampoSeletor
                           camposDisponiveis={camposDisponiveis}
                           onAdd={handleAddCampo}
@@ -1502,6 +1559,7 @@ export default function AdminPage() {
                           Cancelar
                         </button>
                         <button
+                          id="tour-criar-convite"
                           onClick={handleCreateInvite}
                           disabled={creatingInvite}
                           style={{
@@ -1782,8 +1840,8 @@ export default function AdminPage() {
                       }}
                     >
                       O convite de{" "}
-                      <strong>{getTituloConvite(inviteToDelete)}</strong> será
-                      removido. Esta ação não pode ser anulada.
+                      <strong>{getTituloConvite(inviteToDelete)}</strong>{" "}
+                      será removido. Esta ação não pode ser anulada.
                     </p>
                     <div style={{ display: "flex", gap: "10px" }}>
                       <button
