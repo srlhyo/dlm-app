@@ -1,5 +1,4 @@
 import { supabase } from "./supabase";
-
 // Gera um código legível e único — ex: DLM-X7K9-2025
 export const generateCode = () => {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -13,14 +12,8 @@ export const generateCode = () => {
   ).join("");
   return `DLM-${part1}-${part2}`;
 };
-
 // Cria um novo convite no Supabase
-export const createInvite = async ({
-  nomeNoivo,
-  nomeNoiva,
-  email,
-  dataEvento,
-}) => {
+export const createInvite = async ({ dataEvento, eventTypeId, respostas }) => {
   let code, exists;
   // Garante que o código é único
   do {
@@ -32,39 +25,52 @@ export const createInvite = async ({
       .single();
     exists = !!data;
   } while (exists);
-
   const { data, error } = await supabase
     .from("invites")
     .insert([
       {
         code,
-        nome_noivo: nomeNoivo,
-        nome_noiva: nomeNoiva,
-        email: email || null,
         data_evento: dataEvento || null,
+        event_type_id: eventTypeId,
+        respostas: respostas || {},
         status: "Pendente",
       },
     ])
     .select()
     .single();
-
   if (error) throw error;
   return data;
 };
 
+// Vai buscar todos os tipos de evento disponíveis
+// (para preencher o seletor ao criar um convite, e a lista no Admin)
+export const getEventTypes = async () => {
+  const { data, error } = await supabase
+    .from("event_types")
+    .select("id, nome, predefinido, steps")
+    .order("nome");
+  if (error) throw error;
+  return data;
+};
 // Valida um código e devolve o convite se válido
+// Inclui também o tipo de evento associado (nome + steps), para o
+// formulário saber que perguntas mostrar
 export const validateCode = async (code) => {
   const { data, error } = await supabase
     .from("invites")
-    .select("*")
+    .select("*, event_types(nome, steps)")
     .eq("code", code.toUpperCase().trim())
     .single();
-
   if (error || !data) return { valid: false, reason: "Código inválido" };
-
+  if (!data.event_types) {
+    return {
+      valid: false,
+      reason:
+        "Este convite não tem um tipo de evento associado. Contacta Do Luxo à Mesa.",
+    };
+  }
   return { valid: true, invite: data };
 };
-
 // Marca o convite como preenchido e liga à submissão
 export const markInviteUsed = async (inviteId, submissionId) => {
   await supabase

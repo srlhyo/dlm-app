@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { formSteps } from "../data/formSteps";
 import FormStep from "../components/form/FormStep";
 import { supabase } from "../lib/supabase";
 import { validateStep } from "../lib/validation";
@@ -213,16 +212,52 @@ export default function FormPage() {
       return;
     }
     const inv = JSON.parse(stored);
+    if (!inv.event_types || !inv.event_types.steps) {
+      // Convite sem tipo de evento associado — não há formulário para mostrar
+      navigate("/");
+      return;
+    }
     setInvite(inv);
     setFormData((prev) => ({
       ...prev,
-      nomeNoivo: inv.nome_noivo,
-      nomeNoiva: inv.nome_noiva,
+      dataEvento: inv.data_evento,
+      ...inv.respostas,
     }));
   }, []);
 
-  const totalSteps = formSteps.length;
-  const step = formSteps[currentStep - 1];
+  // Enquanto o convite ainda não foi lido do sessionStorage, mostra um
+  // ecrã simples em vez de tentar ler "steps" de algo que ainda não existe
+  if (!invite) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          backgroundColor: "var(--cream)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <p
+          style={{
+            fontSize: "13px",
+            color: "var(--gold)",
+            textTransform: "uppercase",
+            letterSpacing: "0.12em",
+            fontFamily: "Inter, sans-serif",
+          }}
+        >
+          A carregar o vosso questionário...
+        </p>
+      </div>
+    );
+  }
+
+  // Os passos do formulário vêm agora do tipo de evento do convite,
+  // em vez do ficheiro formSteps.js estático
+  const steps = invite.event_types.steps;
+  const totalSteps = steps.length;
+  const step = steps[currentStep - 1];
   const percentage = Math.round((currentStep / totalSteps) * 100);
 
   const handleChange = (fieldId, value) =>
@@ -268,50 +303,10 @@ export default function FormPage() {
     setSubmitting(true);
     setSubmitError(null);
     const payload = {
-      nome_noivo: formData.nomeNoivo,
-      nome_noiva: formData.nomeNoiva,
-      contacto_principal: formData.contactoPrincipal,
-      email: formData.email,
-      morada: formData.morada,
+      event_type_id: invite.event_type_id,
       data_evento: formData.dataEvento || null,
-      local_evento: formData.localEvento,
       numero_convidados: formData.numeroConvidados ? parseInt(formData.numeroConvidados) : null,
-      hora_inicio: formData.horaInicio || null,
-      hora_termino: formData.horaTermino || null,
-      hora_montagem: formData.horaMontagem || null,
-      hora_limite_montagem: formData.horaLimiteMontagem || null,
-      hora_recolha: formData.horaRecolha || null,
-      recolha_dia_seguinte: formData.recolhaDiaSeguinte,
-      nome_responsavel: formData.nomeResponsavel,
-      contacto_responsavel: formData.contactoResponsavel,
-      relacao_responsavel: formData.relacaoResponsavel,
-      estilo_evento: formData.estiloEvento || [],
-      estilo_outro: formData.estiloOutro,
-      paleta_cores: formData.paletaCores || [],
-      paleta_observacoes: formData.paletaObservacoes,
-      mesa_noivos: formData.mesaNoivos || [],
-      cartoes_pratos: formData.cartoesPratos,
-      observacoes_cartoes: formData.observacoesCartoes,
-      descricao_mesa_noivos: formData.descricaoMesaNoivos,
-      cenario_palco: formData.cenarioPalco || [],
-      descricao_cenario: formData.descricaoCenario,
-      medidas_espaco: formData.medidasEspaco,
-      centros_mesa: formData.centrosMesa || [],
-      tipo_flores: formData.tipoFlores || [],
-      numero_mesas: formData.numeroMesas ? parseInt(formData.numeroMesas) : null,
-      formato_mesas: formData.formatoMesas,
-      lugares_por_mesa: formData.lugaresporMesa ? parseInt(formData.lugaresporMesa) : null,
-      observacoes_mesas: formData.observacoesMesas,
-      texto_principal_placa: formData.textoPrincipalPlaca,
-      texto_secundario_placa: formData.textoSecundarioPlaca,
-      estilo_placa: formData.estiloPlaca || [],
-      notas_placa: formData.notasPlaca,
-      morada_exacta: formData.moradaExacta,
-      pessoa_abre_espaco: formData.pessoaAbreEspaco,
-      contacto_pessoa_abre: formData.contactoPessoaAbre,
-      acesso_local: formData.acessoLocal || [],
-      notas_acesso: formData.notasAcesso,
-      observacoes_gerais: formData.observacoesGerais,
+      respostas: formData,
     };
     try {
       const { data: newSubmission, error } = await supabase
@@ -507,7 +502,7 @@ export default function FormPage() {
             <Ornament small />
           </motion.div>
 
-          <ProgressStepper currentStep={currentStep} steps={formSteps} />
+          <ProgressStepper currentStep={currentStep} steps={steps} />
         </div>
 
         {/* Barra sticky — FORA do div de 560px para colar ao topo durante o scroll */}

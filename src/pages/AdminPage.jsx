@@ -2,10 +2,54 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts";
-import { createInvite } from "../lib/invites";
+import { createInvite, getEventTypes } from "../lib/invites";
+import { validateField } from "../lib/validation";
+import { normalizeSubmission } from "../lib/submissionFields";
+import EventTypesTab from "../components/admin/EventTypesTab";
+import CampoSeletor from "../components/admin/CampoSeletor";
+import FormField from "../components/form/FormField";
 import { motion, AnimatePresence } from "framer-motion";
 
 const STATUS_OPTIONS = ["Recebido", "Em Preparação", "Confirmado", "Concluído"];
+
+// Gera um título legível para um convite (ex: "André & Andreia"), a
+// partir do que a irmã escolheu preencher no Painel de Novo Convite —
+// já que os campos variam de convite para convite, juntamos tudo o que
+// houver, pela ordem em que foi preenchido
+function getTituloConvite(invite) {
+  const valores = Object.values(invite?.respostas || {})
+    .map((v) => (Array.isArray(v) ? v.join(", ") : v))
+    .filter((v) => typeof v === "string" && v.trim() !== "");
+  return valores.length > 0 ? valores.join(" & ") : "Convite sem nome";
+}
+
+// Junta os campos de todos os passos de um tipo de evento numa única
+// lista, guardando também o título do passo a que cada um pertence
+// (usado no Painel de Novo Convite, para a irmã escolher campos)
+function getAllFields(tipo) {
+  if (!tipo || !tipo.steps) return [];
+  return tipo.steps.flatMap((step) =>
+    (step.fields || []).map((f) => ({ ...f, stepTitle: step.title })),
+  );
+}
+
+// Todos os tipos de evento arrancam vazios no Painel de Novo Convite,
+// sem excepções — nem o Casamento tem campos por defeito. A irmã
+// escolhe sempre o que quer pelo campo de busca.
+function getDefaultCampos(tipo) {
+  return [];
+}
+
+// A partir do estado do painel, devolve a informação completa (label,
+// tipo, validações...) de cada campo activo — partilhado entre o render
+// e a validação ao criar o convite
+function getCamposActivosInfo(eventTypes, newInvite) {
+  const tipo = eventTypes.find((et) => et.id === newInvite.eventTypeId);
+  const todosOsCampos = getAllFields(tipo);
+  return newInvite.camposAtivos
+    .map((id) => todosOsCampos.find((f) => f.id === id))
+    .filter(Boolean);
+}
 
 const STATUS_COLORS = {
   Recebido: { bg: "#FEF9EC", color: "#C9A84C", border: "#E8D5A3" },
@@ -143,10 +187,9 @@ export default function AdminPage() {
   const [loadingInvites, setLoadingInvites] = useState(false);
   const [showNewInvite, setShowNewInvite] = useState(false);
   const [newInvite, setNewInvite] = useState({
-    nomeNoivo: "",
-    nomeNoiva: "",
-    email: "",
-    dataEvento: "",
+    eventTypeId: "",
+    camposAtivos: [],
+    valores: {},
   });
   const [newInviteErrors, setNewInviteErrors] = useState({});
   const [createdInvite, setCreatedInvite] = useState(null);
@@ -159,11 +202,14 @@ export default function AdminPage() {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [inviteToDelete, setInviteToDelete] = useState(null);
+  const [eventTypes, setEventTypes] = useState([]);
+  const [loadingEventTypes, setLoadingEventTypes] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchSubmissions();
     fetchInvites();
+    fetchEventTypes();
 
     const channel = supabase
       .channel("db-changes")
@@ -183,6 +229,14 @@ export default function AdminPage() {
           fetchInvites();
         },
       )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "event_types" },
+        (payload) => {
+          console.log("Novo tipo de evento:", payload);
+          fetchEventTypes();
+        },
+      )
       .subscribe((status) => {
         console.log("Realtime status:", status);
       });
@@ -192,37 +246,120 @@ export default function AdminPage() {
     };
   }, []);
 
-  const handleCreateInvite = async () => {
-    const errors = {};
-    if (!newInvite.nomeNoivo.trim()) errors.nomeNoivo = "Obrigatório";
-    if (!newInvite.nomeNoiva.trim()) errors.nomeNoiva = "Obrigatório";
-    if (!newInvite.dataEvento) {
-      errors.dataEvento = "Obrigatório";
-    } else {
-      const [ano, mes, dia] = newInvite.dataEvento.split("-").map(Number);
-      const dataEvento = new Date(ano, mes - 1, dia);
-      const hoje = new Date();
-      hoje.setHours(0, 0, 0, 0);
-      if (dataEvento < hoje) {
-        errors.dataEvento = "A data não pode ser no passado";
-      }
+  const fetchEventTypes = async () => {
+    setLoadingEventTypes(true);
+    try {
+      const types = await getEventTypes();
+      setEventTypes(types);
+      setNewInvite((prev) => {
+        if (prev.eventTypeId) return prev; // já inicializado, não interferir
+        const tipoDefault = types[0];
+        return {
+          ...prev,
+          eventTypeId: tipoDefault?.id || "",
+          camposAtivos: tipoDefault ? getDefaultCampos(tipoDefault) : [],
+        };
+      });
+    } catch (e) {
+      console.error("Erro ao ir buscar tipos de evento:", e);
     }
+    setLoadingEventTypes(false);
+  };
+
+  // Quando a irmã muda o tipo de evento no painel, os campos activos
+  // recomeçam do zero (os campos de um tipo não fazem sentido noutro)
+  const handleChangeEventType = (novoId) => {
+    const tipo = eventTypes.find((et) => et.id === novoId);
+    setNewInvite((prev) => ({
+      ...prev,
+      eventTypeId: novoId,
+      camposAtivos: getDefaultCampos(tipo),
+      valores: {},
+    }));
+    setNewInviteErrors({});
+  };
+
+  const handleAddCampo = (fieldId) => {
+    setNewInvite((prev) => ({
+      ...prev,
+      camposAtivos: [...prev.camposAtivos, fieldId],
+    }));
+  };
+
+  const handleRemoveCampo = (fieldId) => {
+    setNewInvite((prev) => {
+      const valoresSemEste = { ...prev.valores };
+      delete valoresSemEste[fieldId];
+      return {
+        ...prev,
+        camposAtivos: prev.camposAtivos.filter((id) => id !== fieldId),
+        valores: valoresSemEste,
+      };
+    });
+    setNewInviteErrors((prev) => {
+      const n = { ...prev };
+      delete n[fieldId];
+      return n;
+    });
+  };
+
+  const handleChangeValorCampo = (fieldId, valor) => {
+    setNewInvite((prev) => ({
+      ...prev,
+      valores: { ...prev.valores, [fieldId]: valor },
+    }));
+    setNewInviteErrors((prev) => {
+      if (!prev[fieldId]) return prev;
+      const n = { ...prev };
+      delete n[fieldId];
+      return n;
+    });
+  };
+
+  const handleCreateInvite = async () => {
+    // Valida o FORMATO dos campos que ela preencheu (ex: email inválido,
+    // data no passado) — mas nunca a obrigatoriedade, já que qualquer
+    // campo pode estar ausente do painel
+    const camposActivosInfo = getCamposActivosInfo(eventTypes, newInvite);
+    const errors = {};
+    camposActivosInfo.forEach((field) => {
+      const valor = newInvite.valores[field.id];
+      const erro = validateField({ ...field, required: false }, valor);
+      if (erro) errors[field.id] = erro;
+    });
     if (Object.keys(errors).length > 0) {
       setNewInviteErrors(errors);
+      return;
+    }
+
+    // Usa o tipo de evento escolhido no formulário (com mais de um tipo,
+    // a irmã escolhe; com só um, já vem pré-seleccionado)
+    const eventTypeId = newInvite.eventTypeId;
+    if (!eventTypeId) {
+      console.error(
+        "Nenhum tipo de evento disponível para associar ao convite.",
+      );
+      setNewInviteErrors({
+        geral: "Não foi possível criar o convite. Tenta novamente.",
+      });
       return;
     }
 
     setCreatingInvite(true);
     try {
       const invite = await createInvite({
-        nomeNoivo: newInvite.nomeNoivo,
-        nomeNoiva: newInvite.nomeNoiva,
-        email: newInvite.email,
-        dataEvento: newInvite.dataEvento,
+        dataEvento: newInvite.valores.dataEvento || null,
+        eventTypeId,
+        respostas: newInvite.valores,
       });
       setCreatedInvite(invite);
       setInvites((prev) => [invite, ...prev]);
-      setNewInvite({ nomeNoivo: "", nomeNoiva: "", email: "", dataEvento: "" });
+      const tipoActual = eventTypes.find((et) => et.id === eventTypeId);
+      setNewInvite({
+        eventTypeId,
+        camposAtivos: getDefaultCampos(tipoActual),
+        valores: {},
+      });
       setShowNewInvite(false);
     } catch (e) {
       console.error(e);
@@ -232,7 +369,7 @@ export default function AdminPage() {
 
   const getShareMessage = (invite) => {
     const url = `${window.location.origin}/?codigo=${invite.code}`;
-    return `Olá ${invite.nome_noivo} & ${invite.nome_noiva}! 💍\n\nO vosso questionário *Do Luxo à Mesa* está pronto.\n\nÉ só clicar aqui para começar: ${url}\n\n(O vosso código de acesso é: *${invite.code}*)\n\nPlaneamos cada detalhe. Criamos memórias inesquecíveis. ✨`;
+    return `Olá ${getTituloConvite(invite)}! 💍\n\nO vosso questionário *Do Luxo à Mesa* está pronto.\n\nÉ só clicar aqui para começar: ${url}\n\n(O vosso código de acesso é: *${invite.code}*)\n\nPlaneamos cada detalhe. Criamos memórias inesquecíveis. ✨`;
   };
 
   const copyWithFeedback = (text, id) => {
@@ -247,7 +384,7 @@ export default function AdminPage() {
       .from("submissions")
       .select("*")
       .order("data_evento", { ascending: true });
-    if (!error) setSubmissions(data);
+    if (!error) setSubmissions(data.map(normalizeSubmission));
     setLoading(false);
   };
 
@@ -562,6 +699,7 @@ export default function AdminPage() {
             { id: "clientes", label: "👥 Clientes" },
             { id: "convites", label: "🎟️ Convites" },
             { id: "dashboard", label: "📊 Dashboard" },
+            { id: "tiposEvento", label: "🗂️ Tipos de Evento" },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -957,8 +1095,7 @@ export default function AdminPage() {
                             margin: 0,
                           }}
                         >
-                          {createdInvite.nome_noivo} &{" "}
-                          {createdInvite.nome_noiva}
+                          {getTituloConvite(createdInvite)}
                         </p>
                       </div>
                       <button
@@ -1063,254 +1200,250 @@ export default function AdminPage() {
             </div>
 
             {/* Formulário novo convite */}
-            {showNewInvite && (
-              <div
-                style={{
-                  backgroundColor: "white",
-                  borderRadius: "16px",
-                  padding: "24px",
-                  boxShadow: "0 2px 16px rgba(0,0,0,0.06)",
-                  marginBottom: "20px",
-                  border: "1px solid var(--gold-light)",
-                }}
-              >
-                <h3
-                  style={{
-                    fontSize: "14px",
-                    color: "var(--charcoal)",
-                    margin: "0 0 20px 0",
-                    fontFamily: "Playfair Display, serif",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                  }}
-                >
-                  Novo Convite
-                </h3>
+            <style>{`
+              .painel-convite-scroll::-webkit-scrollbar { width: 6px; }
+              .painel-convite-scroll::-webkit-scrollbar-thumb {
+                background-color: var(--gold-light);
+                border-radius: 999px;
+              }
+              .painel-convite-scroll::-webkit-scrollbar-track { background: transparent; }
+            `}</style>
 
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: "14px",
-                    marginBottom: "14px",
-                  }}
-                >
-                  {[
-                    {
-                      key: "nomeNoivo",
-                      label: "Nome do Noivo",
-                      placeholder: "Ex: João Silva",
-                    },
-                    {
-                      key: "nomeNoiva",
-                      label: "Nome da Noiva",
-                      placeholder: "Ex: Maria Santos",
-                    },
-                  ].map(({ key, label, placeholder }) => (
-                    <div key={key}>
-                      <label
+            {showNewInvite &&
+              (() => {
+                const tipoActual = eventTypes.find(
+                  (et) => et.id === newInvite.eventTypeId,
+                );
+                const todosOsCampos = getAllFields(tipoActual);
+                const camposActivosInfo = getCamposActivosInfo(
+                  eventTypes,
+                  newInvite,
+                );
+                const camposDisponiveis = todosOsCampos.filter(
+                  (f) => !newInvite.camposAtivos.includes(f.id),
+                );
+
+                return (
+                  <div
+                    style={{
+                      backgroundColor: "white",
+                      borderRadius: "16px",
+                      boxShadow: "0 2px 16px rgba(0,0,0,0.06)",
+                      marginBottom: "20px",
+                      border: "1px solid var(--gold-light)",
+                      display: "flex",
+                      flexDirection: "column",
+                      maxHeight: "min(640px, 80vh)",
+                    }}
+                  >
+                    {/* Corpo — ganha scroll próprio quando há muitos campos.
+                        A barra de scroll é estilizada (mais fina, dourada)
+                        para ficar claro que esta zona desliza */}
+                    <div
+                      className="painel-convite-scroll"
+                      style={{
+                        padding: "24px",
+                        overflowY: "auto",
+                        flex: 1,
+                        scrollbarWidth: "thin",
+                        scrollbarColor: "var(--gold-light) transparent",
+                      }}
+                    >
+                      <h3
                         style={{
-                          fontSize: "11px",
-                          fontWeight: "600",
+                          fontSize: "14px",
+                          color: "var(--charcoal)",
+                          margin: "0 0 20px 0",
+                          fontFamily: "Playfair Display, serif",
                           textTransform: "uppercase",
-                          letterSpacing: "0.07em",
-                          color: newInviteErrors[key]
-                            ? "#EF4444"
-                            : "var(--charcoal)",
-                          display: "block",
-                          marginBottom: "6px",
+                          letterSpacing: "0.06em",
                         }}
                       >
-                        {label} *
-                      </label>
-                      <input
-                        type="text"
-                        value={newInvite[key]}
-                        placeholder={placeholder}
-                        onChange={(e) => {
-                          setNewInvite((prev) => ({
-                            ...prev,
-                            [key]: e.target.value,
-                          }));
-                          if (newInviteErrors[key])
-                            setNewInviteErrors((prev) => {
-                              const n = { ...prev };
-                              delete n[key];
-                              return n;
-                            });
-                        }}
-                        style={{
-                          width: "100%",
-                          padding: "10px 14px",
-                          borderRadius: "8px",
-                          border: `1.5px solid ${newInviteErrors[key] ? "#F87171" : "var(--gold-light)"}`,
-                          fontSize: "13px",
-                          outline: "none",
-                          fontFamily: "Inter, sans-serif",
-                          boxSizing: "border-box",
-                        }}
-                      />
-                      {newInviteErrors[key] && (
-                        <p
+                        Novo Convite
+                      </h3>
+
+                      {eventTypes.length > 1 && (
+                        <div style={{ marginBottom: "14px" }}>
+                          <label
+                            style={{
+                              fontSize: "11px",
+                              fontWeight: "600",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.07em",
+                              color: "var(--charcoal)",
+                              display: "block",
+                              marginBottom: "6px",
+                            }}
+                          >
+                            Tipo de Evento
+                          </label>
+                          <select
+                            value={newInvite.eventTypeId}
+                            onChange={(e) =>
+                              handleChangeEventType(e.target.value)
+                            }
+                            style={{
+                              width: "100%",
+                              padding: "10px 14px",
+                              borderRadius: "8px",
+                              border: "1.5px solid var(--gold-light)",
+                              fontSize: "13px",
+                              outline: "none",
+                              fontFamily: "Inter, sans-serif",
+                              boxSizing: "border-box",
+                            }}
+                          >
+                            {eventTypes.map((et) => (
+                              <option key={et.id} value={et.id}>
+                                {et.nome}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {/* Campos escolhidos pela irmã para este convite —
+                          variam por tipo de evento, e até de convite para
+                          convite. Não há nenhum campo fixo: tudo o que
+                          aparece aqui (incluindo a Data do Evento, quando
+                          o tipo de evento a tiver definida) pode ser
+                          removido. */}
+                      {camposActivosInfo.length > 0 ? (
+                        <div
                           style={{
-                            fontSize: "11px",
-                            color: "#EF4444",
-                            margin: "4px 0 0",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "16px",
                           }}
                         >
-                          ⚠ {newInviteErrors[key]}
+                          {camposActivosInfo.map((field) => (
+                            <div
+                              key={field.id}
+                              style={{ position: "relative" }}
+                            >
+                              <p
+                                style={{
+                                  fontSize: "10px",
+                                  color: "var(--gray-mid)",
+                                  margin: "0 0 2px 0",
+                                }}
+                              >
+                                {field.stepTitle}
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveCampo(field.id)}
+                                title="Remover campo"
+                                style={{
+                                  position: "absolute",
+                                  top: 0,
+                                  right: 0,
+                                  fontSize: "11px",
+                                  background: "none",
+                                  border: "none",
+                                  cursor: "pointer",
+                                  color: "var(--gray-mid)",
+                                  padding: "2px 4px",
+                                }}
+                              >
+                                ✕ remover
+                              </button>
+                              <FormField
+                                field={{ ...field, required: false }}
+                                value={newInvite.valores[field.id]}
+                                onChange={(id, val) =>
+                                  handleChangeValorCampo(id, val)
+                                }
+                                error={newInviteErrors[field.id]}
+                                onClearError={(id) =>
+                                  setNewInviteErrors((prev) => {
+                                    const n = { ...prev };
+                                    delete n[id];
+                                    return n;
+                                  })
+                                }
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p
+                          style={{
+                            fontSize: "12px",
+                            color: "var(--gray-mid)",
+                            margin: 0,
+                          }}
+                        >
+                          Ainda não escolheste nenhum campo — usa a busca em
+                          baixo para adicionar o que quiseres preencher já.
                         </p>
                       )}
                     </div>
-                  ))}
-                </div>
 
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: "14px",
-                    marginBottom: "20px",
-                  }}
-                >
-                  <div>
-                    <label
+                    {/* Rodapé — fica sempre visível, mesmo que o corpo
+                        acima tenha scroll */}
+                    <div
                       style={{
-                        fontSize: "11px",
-                        fontWeight: "600",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.07em",
-                        color: newInviteErrors.dataEvento
-                          ? "#EF4444"
-                          : "var(--charcoal)",
-                        display: "block",
-                        marginBottom: "6px",
+                        padding: "16px 24px",
+                        borderTop: "1px solid var(--gold-light)",
+                        backgroundColor: "#FBF7EF",
+                        borderRadius: "0 0 16px 16px",
+                        flexShrink: 0,
                       }}
                     >
-                      Data do Evento *
-                    </label>
-                    <input
-                      type="date"
-                      min={new Date().toISOString().split("T")[0]}
-                      value={newInvite.dataEvento}
-                      onChange={(e) => {
-                        setNewInvite((prev) => ({
-                          ...prev,
-                          dataEvento: e.target.value,
-                        }));
-                        if (newInviteErrors.dataEvento)
-                          setNewInviteErrors((prev) => {
-                            const n = { ...prev };
-                            delete n.dataEvento;
-                            return n;
-                          });
-                      }}
-                      style={{
-                        width: "100%",
-                        padding: "10px 14px",
-                        borderRadius: "8px",
-                        border: `1.5px solid ${newInviteErrors.dataEvento ? "#F87171" : "var(--gold-light)"}`,
-                        fontSize: "13px",
-                        outline: "none",
-                        fontFamily: "Inter, sans-serif",
-                        boxSizing: "border-box",
-                      }}
-                    />
-                    {newInviteErrors.dataEvento && (
-                      <p
+                      <div style={{ marginBottom: "14px" }}>
+                        <CampoSeletor
+                          camposDisponiveis={camposDisponiveis}
+                          onAdd={handleAddCampo}
+                        />
+                      </div>
+                      <div
                         style={{
-                          fontSize: "11px",
-                          color: "#EF4444",
-                          margin: "4px 0 0",
+                          display: "flex",
+                          gap: "10px",
+                          justifyContent: "flex-end",
                         }}
                       >
-                        ⚠ {newInviteErrors.dataEvento}
-                      </p>
-                    )}
+                        <button
+                          onClick={() => {
+                            setShowNewInvite(false);
+                            setNewInviteErrors({});
+                          }}
+                          style={{
+                            padding: "10px 20px",
+                            borderRadius: "8px",
+                            fontSize: "13px",
+                            border: "1.5px solid var(--gold-light)",
+                            color: "var(--gray-mid)",
+                            backgroundColor: "white",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={handleCreateInvite}
+                          disabled={creatingInvite}
+                          style={{
+                            padding: "10px 24px",
+                            borderRadius: "8px",
+                            fontSize: "13px",
+                            fontWeight: "600",
+                            cursor: "pointer",
+                            backgroundColor: creatingInvite
+                              ? "var(--gold-light)"
+                              : "var(--gold)",
+                            color: "white",
+                            border: "none",
+                          }}
+                        >
+                          {creatingInvite ? "A criar..." : "Criar Convite"}
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: "600",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.07em",
-                        color: "var(--charcoal)",
-                        display: "block",
-                        marginBottom: "6px",
-                      }}
-                    >
-                      Email (opcional)
-                    </label>
-                    <input
-                      type="email"
-                      value={newInvite.email}
-                      placeholder="Ex: joao.maria@email.com"
-                      onChange={(e) =>
-                        setNewInvite((prev) => ({
-                          ...prev,
-                          email: e.target.value,
-                        }))
-                      }
-                      style={{
-                        width: "100%",
-                        padding: "10px 14px",
-                        borderRadius: "8px",
-                        border: "1.5px solid var(--gold-light)",
-                        fontSize: "13px",
-                        outline: "none",
-                        fontFamily: "Inter, sans-serif",
-                        boxSizing: "border-box",
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "10px",
-                    justifyContent: "flex-end",
-                  }}
-                >
-                  <button
-                    onClick={() => {
-                      setShowNewInvite(false);
-                      setNewInviteErrors({});
-                    }}
-                    style={{
-                      padding: "10px 20px",
-                      borderRadius: "8px",
-                      fontSize: "13px",
-                      border: "1.5px solid var(--gold-light)",
-                      color: "var(--gray-mid)",
-                      backgroundColor: "white",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={handleCreateInvite}
-                    disabled={creatingInvite}
-                    style={{
-                      padding: "10px 24px",
-                      borderRadius: "8px",
-                      fontSize: "13px",
-                      fontWeight: "600",
-                      cursor: "pointer",
-                      backgroundColor: creatingInvite
-                        ? "var(--gold-light)"
-                        : "var(--gold)",
-                      color: "white",
-                      border: "none",
-                    }}
-                  >
-                    {creatingInvite ? "A criar..." : "Criar Convite"}
-                  </button>
-                </div>
-              </div>
-            )}
+                );
+              })()}
 
             {/* Lista de convites */}
             {loadingInvites ? (
@@ -1380,7 +1513,7 @@ export default function AdminPage() {
                             margin: "0 0 4px 0",
                           }}
                         >
-                          {invite.nome_noivo} & {invite.nome_noiva}
+                          {getTituloConvite(invite)}
                         </p>
                         <div
                           style={{
@@ -1569,11 +1702,8 @@ export default function AdminPage() {
                       }}
                     >
                       O convite de{" "}
-                      <strong>
-                        {inviteToDelete.nome_noivo} &{" "}
-                        {inviteToDelete.nome_noiva}
-                      </strong>{" "}
-                      será removido. Esta ação não pode ser anulada.
+                      <strong>{getTituloConvite(inviteToDelete)}</strong> será
+                      removido. Esta ação não pode ser anulada.
                     </p>
                     <div style={{ display: "flex", gap: "10px" }}>
                       <button
@@ -1684,8 +1814,7 @@ export default function AdminPage() {
                             margin: "0 0 2px 0",
                           }}
                         >
-                          {selectedInvite.nome_noivo} &{" "}
-                          {selectedInvite.nome_noiva}
+                          {getTituloConvite(selectedInvite)}
                         </p>
                         <p
                           style={{
@@ -2203,6 +2332,15 @@ export default function AdminPage() {
               )}
             </ChartCard>
           </motion.div>
+        )}
+
+        {/* ---- TAB TIPOS DE EVENTO ---- */}
+        {activeTab === "tiposEvento" && (
+          <EventTypesTab
+            eventTypes={eventTypes}
+            loading={loadingEventTypes}
+            onRefetch={fetchEventTypes}
+          />
         )}
       </div>
 
@@ -2952,8 +3090,7 @@ export default function AdminPage() {
                   margin: "0 0 24px 0",
                 }}
               >
-                Partilhar com {shareTarget.nome_noivo} &{" "}
-                {shareTarget.nome_noiva}
+                Partilhar com {getTituloConvite(shareTarget)}
               </p>
 
               {/* Ícones */}
