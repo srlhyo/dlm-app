@@ -1,0 +1,77 @@
+/* Tematização do driver.js (biblioteca de tours guiadas) com o visual
+   "Do Luxo à Mesa" — dourado, Playfair Display, cantos arredondados.
+   Os nomes das classes (.driver-popover-*) vêm da própria biblioteca;
+   .dlm-tour-popover é a classe que nós próprios passamos via
+   popoverClass, para isolar isto do resto da app. */
+
+.dlm-tour-popover.driver-popover {
+  border-radius: 16px;
+  border: 1px solid var(--gold-light);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.22);
+  padding: 20px;
+  max-width: 320px;
+}
+
+.dlm-tour-popover .driver-popover-title {
+  font-family: "Playfair Display", serif;
+  font-size: 15px;
+  color: var(--charcoal);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+}
+
+.dlm-tour-popover .driver-popover-description {
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  color: var(--gray-mid);
+  line-height: 1.6;
+}
+
+.dlm-tour-popover .driver-popover-progress-text {
+  font-family: "Inter", sans-serif;
+  font-size: 11px;
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.dlm-tour-popover .driver-popover-close-btn {
+  color: var(--gray-mid);
+  font-size: 16px;
+}
+.dlm-tour-popover .driver-popover-close-btn:hover {
+  color: var(--gold);
+}
+
+.dlm-tour-popover .driver-popover-footer button {
+  font-family: "Inter", sans-serif;
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  text-shadow: none;
+  border: none;
+  transition: all 0.2s;
+}
+
+.dlm-tour-popover .driver-popover-next-btn,
+.dlm-tour-popover .driver-popover-close-btn.driver-popover-next-btn {
+  background-color: var(--gold);
+  color: white;
+}
+.dlm-tour-popover .driver-popover-next-btn:hover {
+  background-color: var(--gold-dark);
+}
+
+.dlm-tour-popover .driver-popover-prev-btn {
+  background-color: white;
+  color: var(--gold);
+  border: 1.5px solid var(--gold-light) !important;
+}
+.dlm-tour-popover .driver-popover-prev-btn:hover {
+  background-color: #fbf7ef;
+}
+
+.dlm-tour-popover .driver-popover-arrow {
+  border-color: white;
+}

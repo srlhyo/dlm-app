@@ -8,9 +8,55 @@ import { normalizeSubmission } from "../lib/submissionFields";
 import EventTypesTab from "../components/admin/EventTypesTab";
 import CampoSeletor from "../components/admin/CampoSeletor";
 import FormField from "../components/form/FormField";
+import { iniciarTour, tourJaVista } from "../lib/tour";
 import { motion, AnimatePresence } from "framer-motion";
 
 const STATUS_OPTIONS = ["Recebido", "Em Preparação", "Confirmado", "Concluído"];
+
+// Passos do tour guiado do Admin — os "element" referem-se aos ids
+// adicionados na barra de navegação (ver render do cabeçalho)
+const ADMIN_TOUR_STEPS = [
+  {
+    element: "#tour-admin-nav",
+    popover: {
+      title: "Bem-vinda ao painel!",
+      description:
+        "Aqui geres tudo: clientes, convites, o panorama do negócio, e os tipos de evento que ofereces. Vamos dar uma volta rápida.",
+    },
+  },
+  {
+    element: "#tour-tab-clientes",
+    popover: {
+      title: "Clientes",
+      description:
+        "Todos os eventos confirmados aparecem aqui, com o estado de cada um (Recebido, Em Preparação, Confirmado, Concluído).",
+    },
+  },
+  {
+    element: "#tour-tab-convites",
+    popover: {
+      title: "Convites",
+      description:
+        "Cria e gere os convites que envias aos teus clientes — cada um com um código único para o questionário deles.",
+    },
+  },
+  {
+    element: "#tour-tab-dashboard",
+    popover: {
+      title: "Dashboard",
+      description:
+        "Uma visão geral do negócio: próximos eventos, estilos e paletas mais pedidos, e o que precisa da tua atenção.",
+    },
+  },
+  {
+    element: "#tour-tab-tiposEvento",
+    popover: {
+      title: "Tipos de Evento",
+      description:
+        "Aqui defines as perguntas de cada tipo de evento — Casamento, Batizado, ou o que precisares — sem programação.",
+    },
+  },
+];
 
 // Gera um título legível para um convite (ex: "André & Andreia"), a
 // partir do que a irmã escolheu preencher no Painel de Novo Convite —
@@ -205,6 +251,15 @@ export default function AdminPage() {
   const [eventTypes, setEventTypes] = useState([]);
   const [loadingEventTypes, setLoadingEventTypes] = useState(true);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!tourJaVista("admin")) {
+      const temporizador = setTimeout(() => {
+        iniciarTour("admin", ADMIN_TOUR_STEPS);
+      }, 700);
+      return () => clearTimeout(temporizador);
+    }
+  }, []);
 
   useEffect(() => {
     fetchSubmissions();
@@ -673,28 +728,52 @@ export default function AdminPage() {
               by Luxury Events
             </p>
           </div>
-          <button
-            onClick={handleLogout}
-            style={{
-              fontSize: "11px",
-              fontWeight: "600",
-              padding: "8px 20px",
-              borderRadius: "999px",
-              border: "1.5px solid var(--gold-light)",
-              color: "var(--gray-mid)",
-              backgroundColor: "white",
-              cursor: "pointer",
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              transition: "all 0.2s",
-            }}
-          >
-            Sair
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <button
+              onClick={() => iniciarTour("admin", ADMIN_TOUR_STEPS)}
+              title="Ver tour outra vez"
+              style={{
+                fontSize: "11px",
+                fontWeight: "600",
+                padding: "8px 16px",
+                borderRadius: "999px",
+                border: "1.5px solid var(--gold-light)",
+                color: "var(--gold)",
+                backgroundColor: "white",
+                cursor: "pointer",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                transition: "all 0.2s",
+              }}
+            >
+              ❓ Tour
+            </button>
+            <button
+              onClick={handleLogout}
+              style={{
+                fontSize: "11px",
+                fontWeight: "600",
+                padding: "8px 20px",
+                borderRadius: "999px",
+                border: "1.5px solid var(--gold-light)",
+                color: "var(--gray-mid)",
+                backgroundColor: "white",
+                cursor: "pointer",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                transition: "all 0.2s",
+              }}
+            >
+              Sair
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
-        <div style={{ maxWidth: "960px", margin: "0 auto", display: "flex" }}>
+        <div
+          id="tour-admin-nav"
+          style={{ maxWidth: "960px", margin: "0 auto", display: "flex" }}
+        >
           {[
             { id: "clientes", label: "👥 Clientes" },
             { id: "convites", label: "🎟️ Convites" },
@@ -703,6 +782,7 @@ export default function AdminPage() {
           ].map((tab) => (
             <button
               key={tab.id}
+              id={`tour-tab-${tab.id}`}
               onClick={() => setActiveTab(tab.id)}
               style={{
                 padding: "12px 20px",
