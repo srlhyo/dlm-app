@@ -265,7 +265,7 @@ function PathCard({ href, icon, label, desc, delay }) {
   );
 }
 
-const TEST_URL = "https://noivos-form-teste.netlify.app";
+const TEST_URL = "https://celebra-doluxoamesa-teste.netlify.app";
 
 export default function MaintenancePage() {
   const [sparkle, setSparkle] = useState(false);

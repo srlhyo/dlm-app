@@ -13,6 +13,10 @@ export const generateCode = () => {
   return `DLM-${part1}-${part2}`;
 };
 // Cria um novo convite no Supabase
+// "respostas" é um objecto genérico (ex: { nomeNoivo: "...", email: "..." })
+// com os campos que a irmã escolheu preencher no Painel de Novo Convite —
+// pode ter campos diferentes, dependendo do tipo de evento e do que ela
+// decidiu mostrar nesse momento.
 export const createInvite = async ({ dataEvento, eventTypeId, respostas }) => {
   let code, exists;
   // Garante que o código é único
@@ -58,7 +62,7 @@ export const getEventTypes = async () => {
 export const validateCode = async (code) => {
   const { data, error } = await supabase
     .from("invites")
-    .select("*, event_types(nome, steps)")
+    .select("*, event_types(nome, steps, icone)")
     .eq("code", code.toUpperCase().trim())
     .single();
   if (error || !data) return { valid: false, reason: "Código inválido" };

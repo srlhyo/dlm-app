@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import { createInvite, getEventTypes } from "../lib/invites";
 import { validateField } from "../lib/validation";
-import { normalizeSubmission } from "../lib/submissionFields";
+import { normalizeSubmission, getValorAtual } from "../lib/submissionFields";
 import EventTypesTab from "../components/admin/EventTypesTab";
 import CampoSeletor from "../components/admin/CampoSeletor";
 import FormField from "../components/form/FormField";
@@ -23,7 +23,8 @@ const NOVO_CONVITE_TOUR_STEPS = (temVariosTipos) => {
       element: "#tour-novo-convite-tipo",
       popover: {
         title: "Tipo de Evento",
-        description: "Escolhe primeiro o tipo de evento — os campos disponíveis mudam consoante a escolha.",
+        description:
+          "Escolhe primeiro o tipo de evento — os campos disponíveis mudam consoante a escolha.",
       },
     });
   }
@@ -41,7 +42,8 @@ const NOVO_CONVITE_TOUR_STEPS = (temVariosTipos) => {
       disableActiveInteraction: true,
       popover: {
         title: "Quando estiveres pronta",
-        description: "Cria o convite — o que preencheste aqui já vem pronto no formulário do casal/família.",
+        description:
+          "Cria o convite — o que preencheste aqui já vem pronto no formulário do casal/família.",
       },
     },
   );
@@ -116,14 +118,43 @@ const ADMIN_TOUR_STEPS = [
 ];
 
 // Gera um título legível para um convite (ex: "André & Andreia"), a
-// partir do que a irmã escolheu preencher no Painel de Novo Convite —
-// já que os campos variam de convite para convite, juntamos tudo o que
-// houver, pela ordem em que foi preenchido
-function getTituloConvite(invite) {
-  const valores = Object.values(invite?.respostas || {})
+// partir do que a irmã escolheu preencher no Painel de Novo Convite.
+// Duas correcções importantes:
+// 1. Se o convite já foi preenchido, usa os valores da SUBMISSÃO real
+//    (o casal pode ter corrigido algo), não o que ficou gravado na
+//    criação do convite.
+// 2. Só entram no título campos de texto simples (nomes) — datas,
+//    emails, telefones e números ficam de fora, não fazem sentido lá.
+function getTituloConvite(invite, submissions, eventTypes) {
+  const chaves = Object.keys(invite?.respostas || {});
+
+  let submissao = null;
+  if (invite?.submission_id && submissions) {
+    submissao = submissions.find((s) => s.id === invite.submission_id) || null;
+  }
+
+  const tipo = eventTypes?.find((et) => et.id === invite?.event_type_id);
+  const tiposPorCampo = {};
+  getAllFields(tipo).forEach((f) => {
+    tiposPorCampo[f.id] = f.type;
+  });
+
+  const valores = chaves
+    .filter((chave) => !tiposPorCampo[chave] || tiposPorCampo[chave] === "text")
+    .map((chave) =>
+      submissao ? getValorAtual(submissao, chave) : invite.respostas[chave],
+    )
     .map((v) => (Array.isArray(v) ? v.join(", ") : v))
-    .filter((v) => typeof v === "string" && v.trim() !== "");
-  return valores.length > 0 ? valores.join(" & ") : "Convite sem nome";
+    .filter((v) => typeof v === "string" && v.trim() !== "")
+    .slice(0, 2); // no máximo dois nomes — faz sentido para qualquer evento
+
+  if (valores.length > 0) return valores.join(" & ");
+
+  // Sem nenhum campo de texto preenchido — usa o tipo de evento + código,
+  // para nunca ficar com um card sem nada útil para identificar
+  return tipo
+    ? `${tipo.nome} · ${invite.code}`
+    : invite.code || "Convite sem nome";
 }
 
 // Junta os campos de todos os passos de um tipo de evento numa única
@@ -322,7 +353,10 @@ export default function AdminPage() {
   useEffect(() => {
     if (showNewInvite && !tourJaVista("novoConvite")) {
       const temporizador = setTimeout(() => {
-        iniciarTour("novoConvite", NOVO_CONVITE_TOUR_STEPS(eventTypes.length > 1));
+        iniciarTour(
+          "novoConvite",
+          NOVO_CONVITE_TOUR_STEPS(eventTypes.length > 1),
+        );
       }, 400);
       return () => clearTimeout(temporizador);
     }
@@ -468,8 +502,12 @@ export default function AdminPage() {
     // a irmã escolhe; com só um, já vem pré-seleccionado)
     const eventTypeId = newInvite.eventTypeId;
     if (!eventTypeId) {
-      console.error("Nenhum tipo de evento disponível para associar ao convite.");
-      setNewInviteErrors({ geral: "Não foi possível criar o convite. Tenta novamente." });
+      console.error(
+        "Nenhum tipo de evento disponível para associar ao convite.",
+      );
+      setNewInviteErrors({
+        geral: "Não foi possível criar o convite. Tenta novamente.",
+      });
       return;
     }
 
@@ -497,7 +535,9 @@ export default function AdminPage() {
 
   const getShareMessage = (invite) => {
     const url = `${window.location.origin}/?codigo=${invite.code}`;
-    return `Olá ${getTituloConvite(invite)}! 💍\n\nO vosso questionário *Do Luxo à Mesa* está pronto.\n\nÉ só clicar aqui para começar: ${url}\n\n(O vosso código de acesso é: *${invite.code}*)\n\nPlaneamos cada detalhe. Criamos memórias inesquecíveis. ✨`;
+    const tipo = eventTypes.find((et) => et.id === invite.event_type_id);
+    const emoji = tipo?.icone === "couple" ? "💍" : "✨";
+    return `Olá ${getTituloConvite(invite, submissions, eventTypes)}! ${emoji}\n\nO vosso questionário *Do Luxo à Mesa* está pronto.\n\nÉ só clicar aqui para começar: ${url}\n\n(O vosso código de acesso é: *${invite.code}*)\n\nPlaneamos cada detalhe. Criamos memórias inesquecíveis. ✨`;
   };
 
   const copyWithFeedback = (text, id) => {
@@ -1248,8 +1288,30 @@ export default function AdminPage() {
                             margin: 0,
                           }}
                         >
-                          {getTituloConvite(createdInvite)}
+                          {getTituloConvite(
+                            createdInvite,
+                            submissions,
+                            eventTypes,
+                          )}
                         </p>
+                        <span
+                          style={{
+                            display: "inline-block",
+                            marginTop: "6px",
+                            fontSize: "11px",
+                            fontWeight: "700",
+                            padding: "3px 12px",
+                            borderRadius: "999px",
+                            backgroundColor: "var(--gold)",
+                            color: "white",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.05em",
+                          }}
+                        >
+                          {eventTypes.find(
+                            (et) => et.id === createdInvite?.event_type_id,
+                          )?.nome || "Tipo de evento"}
+                        </span>
                       </div>
                       <button
                         onClick={() => setCreatedInvite(null)}
@@ -1368,7 +1430,10 @@ export default function AdminPage() {
                   (et) => et.id === newInvite.eventTypeId,
                 );
                 const todosOsCampos = getAllFields(tipoActual);
-                const camposActivosInfo = getCamposActivosInfo(eventTypes, newInvite);
+                const camposActivosInfo = getCamposActivosInfo(
+                  eventTypes,
+                  newInvite,
+                );
                 const camposDisponiveis = todosOsCampos.filter(
                   (f) => !newInvite.camposAtivos.includes(f.id),
                 );
@@ -1413,7 +1478,10 @@ export default function AdminPage() {
                       </h3>
 
                       {eventTypes.length > 1 && (
-                        <div id="tour-novo-convite-tipo" style={{ marginBottom: "14px" }}>
+                        <div
+                          id="tour-novo-convite-tipo"
+                          style={{ marginBottom: "14px" }}
+                        >
                           <label
                             style={{
                               fontSize: "11px",
@@ -1429,7 +1497,9 @@ export default function AdminPage() {
                           </label>
                           <select
                             value={newInvite.eventTypeId}
-                            onChange={(e) => handleChangeEventType(e.target.value)}
+                            onChange={(e) =>
+                              handleChangeEventType(e.target.value)
+                            }
                             style={{
                               width: "100%",
                               padding: "10px 14px",
@@ -1465,7 +1535,10 @@ export default function AdminPage() {
                           }}
                         >
                           {camposActivosInfo.map((field) => (
-                            <div key={field.id} style={{ position: "relative" }}>
+                            <div
+                              key={field.id}
+                              style={{ position: "relative" }}
+                            >
                               <p
                                 style={{
                                   fontSize: "10px",
@@ -1496,7 +1569,9 @@ export default function AdminPage() {
                               <FormField
                                 field={{ ...field, required: false }}
                                 value={newInvite.valores[field.id]}
-                                onChange={(id, val) => handleChangeValorCampo(id, val)}
+                                onChange={(id, val) =>
+                                  handleChangeValorCampo(id, val)
+                                }
                                 error={newInviteErrors[field.id]}
                                 onClearError={(id) =>
                                   setNewInviteErrors((prev) => {
@@ -1510,9 +1585,15 @@ export default function AdminPage() {
                           ))}
                         </div>
                       ) : (
-                        <p style={{ fontSize: "12px", color: "var(--gray-mid)", margin: 0 }}>
-                          Ainda não escolheste nenhum campo — usa a busca em baixo
-                          para adicionar o que quiseres preencher já.
+                        <p
+                          style={{
+                            fontSize: "12px",
+                            color: "var(--gray-mid)",
+                            margin: 0,
+                          }}
+                        >
+                          Ainda não escolheste nenhum campo — usa a busca em
+                          baixo para adicionar o que quiseres preencher já.
                         </p>
                       )}
                     </div>
@@ -1528,7 +1609,10 @@ export default function AdminPage() {
                         flexShrink: 0,
                       }}
                     >
-                      <div id="tour-campo-seletor" style={{ marginBottom: "14px" }}>
+                      <div
+                        id="tour-campo-seletor"
+                        style={{ marginBottom: "14px" }}
+                      >
                         <CampoSeletor
                           camposDisponiveis={camposDisponiveis}
                           onAdd={handleAddCampo}
@@ -1651,8 +1735,27 @@ export default function AdminPage() {
                             margin: "0 0 4px 0",
                           }}
                         >
-                          {getTituloConvite(invite)}
+                          {getTituloConvite(invite, submissions, eventTypes)}
                         </p>
+                        <span
+                          style={{
+                            display: "inline-block",
+                            marginBottom: "6px",
+                            fontSize: "10px",
+                            fontWeight: "700",
+                            padding: "2px 10px",
+                            borderRadius: "999px",
+                            backgroundColor: "#FEF9EC",
+                            color: "var(--gold)",
+                            border: "1px solid var(--gold-light)",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.05em",
+                          }}
+                        >
+                          {eventTypes.find(
+                            (et) => et.id === invite.event_type_id,
+                          )?.nome || "—"}
+                        </span>
                         <div
                           style={{
                             display: "flex",
@@ -1840,7 +1943,13 @@ export default function AdminPage() {
                       }}
                     >
                       O convite de{" "}
-                      <strong>{getTituloConvite(inviteToDelete)}</strong>{" "}
+                      <strong>
+                        {getTituloConvite(
+                          inviteToDelete,
+                          submissions,
+                          eventTypes,
+                        )}
+                      </strong>{" "}
                       será removido. Esta ação não pode ser anulada.
                     </p>
                     <div style={{ display: "flex", gap: "10px" }}>
@@ -1952,8 +2061,31 @@ export default function AdminPage() {
                             margin: "0 0 2px 0",
                           }}
                         >
-                          {getTituloConvite(selectedInvite)}
+                          {getTituloConvite(
+                            selectedInvite,
+                            submissions,
+                            eventTypes,
+                          )}
                         </p>
+                        <span
+                          style={{
+                            display: "inline-block",
+                            marginBottom: "4px",
+                            fontSize: "10px",
+                            fontWeight: "700",
+                            padding: "2px 10px",
+                            borderRadius: "999px",
+                            backgroundColor: "white",
+                            color: "var(--gold)",
+                            border: "1px solid var(--gold-light)",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.05em",
+                          }}
+                        >
+                          {eventTypes.find(
+                            (et) => et.id === selectedInvite?.event_type_id,
+                          )?.nome || "—"}
+                        </span>
                         <p
                           style={{
                             fontSize: "12px",
@@ -3228,7 +3360,8 @@ export default function AdminPage() {
                   margin: "0 0 24px 0",
                 }}
               >
-                Partilhar com {getTituloConvite(shareTarget)}
+                Partilhar com{" "}
+                {getTituloConvite(shareTarget, submissions, eventTypes)}
               </p>
 
               {/* Ícones */}

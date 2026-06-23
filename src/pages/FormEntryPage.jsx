@@ -48,8 +48,9 @@ function Ornament({ small = false }) {
   );
 }
 
-// Anel de noivado — ícone de linha dourado
-function RingIcon() {
+// Ícone neutro — serve para qualquer tipo de evento, já que nesta
+// página ainda não sabemos qual é (o código só é validado a seguir)
+function EventIcon() {
   return (
     <svg
       width="40"
@@ -58,41 +59,12 @@ function RingIcon() {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      {/* Diamante */}
       <path
-        d="M20 6 L15 11 L20 17 L25 11 Z"
+        d="M20 4 C20 4 21 14 26 17 C31 20 36 20 36 20 C36 20 26 21 22 26 C18 31 20 36 20 36 C20 36 19 26 14 23 C9 20 4 20 4 20 C4 20 14 19 18 14 C22 9 20 4 20 4Z"
         stroke="#C9A84C"
         strokeWidth="1.2"
         fill="#FBF7EF"
         strokeLinejoin="round"
-      />
-      <path d="M15 11 L25 11" stroke="#C9A84C" strokeWidth="1" />
-      <path
-        d="M17.5 8.5 L18.5 11 L20 8 L21.5 11 L22.5 8.5"
-        stroke="#C9A84C"
-        strokeWidth="0.7"
-        fill="none"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M18.5 11 L20 17 L21.5 11"
-        stroke="#C9A84C"
-        strokeWidth="0.7"
-        fill="none"
-      />
-      {/* Argola */}
-      <path
-        d="M12 24 A 8 8 0 1 0 28 24 A 8 8 0 1 0 12 24"
-        stroke="#C9A84C"
-        strokeWidth="1.3"
-        fill="none"
-      />
-      <path
-        d="M14.5 19 A 8 8 0 0 1 25.5 19"
-        stroke="#C9A84C"
-        strokeWidth="0.7"
-        fill="none"
-        opacity="0.45"
       />
     </svg>
   );
@@ -259,7 +231,7 @@ export default function FormEntryPage() {
                 whiteSpace: "nowrap",
               }}
             >
-              Questionário dos Noivos
+              Questionário do Evento
             </p>
             <div
               style={{
@@ -306,7 +278,7 @@ export default function FormEntryPage() {
                     justifyContent: "center",
                   }}
                 >
-                  <RingIcon />
+                  <EventIcon />
                 </div>
               </div>
               <h2

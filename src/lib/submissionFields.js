@@ -55,6 +55,32 @@ const FIELD_MAP = {
   observacoes_gerais: "observacoesGerais",
 };
 
+// Mapa inverso (campo camelCase → coluna antiga), construído a partir
+// do mapa acima — para ires da direcção contrária
+const FIELD_MAP_INVERSO = Object.fromEntries(
+  Object.entries(FIELD_MAP).map(([coluna, campo]) => [campo, coluna]),
+);
+
+// Dado o id de um campo (camelCase — o mesmo usado em "respostas" e nas
+// definições dos tipos de evento), devolve o valor mais actual dessa
+// submissão. Dá prioridade à coluna antiga quando ela foi editada à mão
+// (ex: pelo botão "Editar" na tab Clientes) — só cai para "respostas"
+// quando essa coluna não existe ou está vazia (tipos de evento novos,
+// ou nunca editados).
+export function getValorAtual(submissao, campoId) {
+  if (!submissao) return undefined;
+  const colunaAntiga = FIELD_MAP_INVERSO[campoId];
+  if (
+    colunaAntiga &&
+    submissao[colunaAntiga] !== null &&
+    submissao[colunaAntiga] !== undefined &&
+    submissao[colunaAntiga] !== ""
+  ) {
+    return submissao[colunaAntiga];
+  }
+  return submissao.respostas?.[campoId];
+}
+
 // Recebe uma submissão tal como vem do Supabase e devolve uma versão
 // "achatada": preenche as colunas antigas a partir de "respostas"
 // sempre que a coluna estiver vazia. Submissões antigas (sem

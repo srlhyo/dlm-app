@@ -213,6 +213,38 @@ function CoupleIcon() {
   );
 }
 
+// Ícone genérico — para qualquer tipo de evento que não seja Casamento
+function EventIcon() {
+  return (
+    <svg
+      width="40"
+      height="40"
+      viewBox="0 0 40 40"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M20 4 C20 4 21 14 26 17 C31 20 36 20 36 20 C36 20 26 21 22 26 C18 31 20 36 20 36 C20 36 19 26 14 23 C9 20 4 20 4 20 C4 20 14 19 18 14 C22 9 20 4 20 4Z"
+        stroke="#C9A84C"
+        strokeWidth="1.2"
+        fill="#FBF7EF"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+// Mapa entre o "icone" do tipo de evento e o ícone/emoji a mostrar.
+// Qualquer tipo de evento que não tenha icone="couple" cai no genérico.
+const ICONE_POR_TIPO = {
+  couple: { Icon: CoupleIcon, emoji: "💍" },
+};
+const ICONE_GENERICO = { Icon: EventIcon, emoji: "✨" };
+
+function getIconeDoTipo(eventTypes) {
+  return ICONE_POR_TIPO[eventTypes?.icone] || ICONE_GENERICO;
+}
+
 // Bouquet — imagem real do template
 function FlowerDecoration() {
   return (
@@ -423,6 +455,9 @@ export default function FormPage() {
   const totalSteps = steps.length;
   const step = steps[currentStep - 1];
   const percentage = Math.round((currentStep / totalSteps) * 100);
+  const { Icon: StepIcon, emoji: emojiObrigado } = getIconeDoTipo(
+    invite.event_types,
+  );
 
   const handleChange = (fieldId, value) =>
     setFormData((prev) => ({ ...prev, [fieldId]: value }));
@@ -532,7 +567,9 @@ export default function FormPage() {
             zIndex: 1,
           }}
         >
-          <div style={{ fontSize: "52px", marginBottom: "16px" }}>💍</div>
+          <div style={{ fontSize: "52px", marginBottom: "16px" }}>
+            {emojiObrigado}
+          </div>
           <h2
             style={{
               fontSize: "24px",
@@ -708,7 +745,7 @@ export default function FormPage() {
                   whiteSpace: "nowrap",
                 }}
               >
-                Questionário dos Noivos
+                Questionário de {invite.event_types.nome}
               </p>
               <div
                 style={{
@@ -880,7 +917,7 @@ export default function FormPage() {
                         flexShrink: 0,
                       }}
                     >
-                      <CoupleIcon />
+                      <StepIcon />
                     </div>
                     <div style={{ flex: 1, paddingTop: "2px" }}>
                       <h2
