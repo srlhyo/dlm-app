@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   DndContext,
+  DragOverlay,
   closestCenter,
   PointerSensor,
   KeyboardSensor,
@@ -476,7 +477,7 @@ function StepCard({
     <div
       ref={setStepNodeRef}
       style={{
-        transform: CSS.Transform.toString(transform),
+        transform: isDragging ? undefined : CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.4 : 1,
       }}
@@ -753,9 +754,22 @@ export default function EventTypeEditor({
       ),
     );
 
+  // Guarda uma versão "leve" do passo a ser arrastado — só para mostrar
+  // na pré-visualização flutuante, em vez do cartão inteiro (que pode
+  // ser enorme, se tiver muitos campos)
+  const [passoArrastado, setPassoArrastado] = useState(null);
+
+  const handleDragStart = (event) => {
+    const idx = steps.findIndex((s) => s.uid === event.active.id);
+    setPassoArrastado(
+      idx !== -1 ? { index: idx, title: steps[idx].title } : null,
+    );
+  };
+
   // O que acontece ao soltar um arrasto — distingue se foi um PASSO ou
   // um CAMPO que se moveu, e se um campo mudou (ou não) de passo
   const handleDragEnd = (event) => {
+    setPassoArrastado(null);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
@@ -935,6 +949,7 @@ export default function EventTypeEditor({
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
           >
             <SortableContext
@@ -966,6 +981,29 @@ export default function EventTypeEditor({
                 />
               ))}
             </SortableContext>
+
+            {/* Pré-visualização compacta enquanto se arrasta um PASSO —
+                em vez do cartão inteiro (que pode ser enorme) */}
+            <DragOverlay>
+              {passoArrastado ? (
+                <div
+                  style={{
+                    backgroundColor: "white",
+                    borderRadius: "12px",
+                    padding: "14px 18px",
+                    boxShadow: "0 10px 32px rgba(0,0,0,0.2)",
+                    border: "1.5px solid var(--gold)",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    color: "var(--charcoal)",
+                    fontFamily: "Inter, sans-serif",
+                  }}
+                >
+                  ⠿ Passo {passoArrastado.index + 1}
+                  {passoArrastado.title ? `: ${passoArrastado.title}` : ""}
+                </div>
+              ) : null}
+            </DragOverlay>
           </DndContext>
 
           <button
