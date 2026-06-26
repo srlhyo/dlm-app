@@ -52,6 +52,9 @@ h1, h2, h3 {
 
 /* ===== Ajustes mobile ===== */
 @media (max-width: 600px) {
+  html {
+    scroll-padding-top: 64px; /* altura aproximada da barra sticky, com margem */
+  }
   .form-card-body {
     padding: 20px 16px !important;
   }

@@ -94,6 +94,16 @@ function ErrorMessage({ error }) {
   );
 }
 
+// Depois do telemóvel fazer o seu próprio scroll automático ao focar um
+// campo (que por vezes esconde o campo por trás da barra sticky), damos
+// um pequeno tempo para o teclado abrir e corrigimos a posição nós
+// mesmos, centrando o campo na zona visível.
+function scrollCampoParaAVista(elemento) {
+  setTimeout(() => {
+    elemento.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, 300);
+}
+
 export default function FormField({
   field,
   value,
@@ -115,6 +125,7 @@ export default function FormField({
       e.target.closest(".field-wrapper").style.boxShadow =
         "0 0 0 3px rgba(201,168,76,0.1)";
     }
+    scrollCampoParaAVista(e.target);
   };
 
   const handleBlur = (e) => {
@@ -134,6 +145,7 @@ export default function FormField({
     overflow: "hidden",
     transition: "all 0.2s",
     boxShadow: hasError ? "0 0 0 3px rgba(248,113,113,0.1)" : "none",
+    scrollMarginTop: "64px",
   };
 
   const iconContainerStyle = {
@@ -232,6 +244,7 @@ export default function FormField({
             overflow: "hidden",
             transition: "all 0.2s",
             boxShadow: hasError ? "0 0 0 3px rgba(248,113,113,0.1)" : "none",
+            scrollMarginTop: "64px",
           }}
         >
           <textarea
@@ -248,6 +261,7 @@ export default function FormField({
                 e.target.closest("div").style.boxShadow =
                   "0 0 0 3px rgba(201,168,76,0.1)";
               }
+              scrollCampoParaAVista(e.target);
             }}
             onBlur={(e) => {
               if (!hasError) {
