@@ -1,5 +1,22 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  sortableKeyboardCoordinates,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { createEventType, updateEventType } from "../../lib/eventTypes";
 
 // ===== Opções de tipo de campo, em português, para a irmã escolher =====
@@ -15,8 +32,8 @@ const TYPE_OPTIONS = [
   { value: "checkbox", label: "Escolha múltipla (vários botões)" },
 ];
 
-// ===== Identificadores únicos só para React saber distinguir cada linha =====
-// (não têm nada a ver com o "id" final gravado na base de dados)
+// ===== Identificadores únicos só para React/dnd-kit saberem distinguir
+// cada linha (não têm nada a ver com o "id" final gravado na BD) =====
 let uidSeq = 0;
 const makeUid = () => `tmp_${Date.now()}_${uidSeq++}`;
 
@@ -86,6 +103,8 @@ function generateUniqueFieldId(label, idsJaUsados) {
 }
 
 // ===== Transformar a forma "de edição" na forma final, pronta a gravar =====
+// (a ordem final é sempre a ordem actual de "steps"/"fields" no estado —
+// por isso reordenar por arrastar já chega aqui reflectido, sem mais nada)
 function buildStepsForSave(steps) {
   const idsJaUsados = [];
   return steps.map((step, stepIndex) => ({
@@ -194,6 +213,32 @@ const deleteIconBtnStyle = {
   flexShrink: 0,
 };
 
+// ===== Pega de arrastar — usada tanto para passos como para campos =====
+function DragHandle({ attributes, listeners, title }) {
+  return (
+    <button
+      type="button"
+      {...attributes}
+      {...listeners}
+      title={title}
+      style={{
+        cursor: "grab",
+        background: "none",
+        border: "none",
+        color: "var(--gray-mid)",
+        fontSize: "18px",
+        padding: "6px 4px",
+        flexShrink: 0,
+        touchAction: "none",
+        lineHeight: 1,
+        alignSelf: "flex-start",
+      }}
+    >
+      ⠿
+    </button>
+  );
+}
+
 // ===== Uma opção (radio/checkbox) =====
 function OptionRow({ value, onChange, onRemove, index }) {
   return (
@@ -215,6 +260,7 @@ function OptionRow({ value, onChange, onRemove, index }) {
 // ===== Um campo, dentro de um passo =====
 function FieldRow({
   field,
+  dragHandle,
   onUpdate,
   onRemove,
   onTypeChange,
@@ -246,8 +292,10 @@ function FieldRow({
           gap: "8px",
           flexWrap: "wrap",
           marginBottom: "10px",
+          alignItems: "center",
         }}
       >
+        {dragHandle}
         <input
           type="text"
           value={field.label}
@@ -360,7 +408,43 @@ function FieldRow({
   );
 }
 
-// ===== Um passo, com a sua lista de campos =====
+// ===== Envolve o FieldRow para o tornar arrastável =====
+function SortableFieldRow(props) {
+  const { field } = props;
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: field.uid });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+      }}
+    >
+      <FieldRow
+        {...props}
+        dragHandle={
+          <DragHandle
+            attributes={attributes}
+            listeners={listeners}
+            title="Arrastar para mover o campo (até para outro passo)"
+          />
+        }
+      />
+    </div>
+  );
+}
+
+// ===== Um passo, com a sua lista de campos — arrastável, e também
+// recebe campos arrastados de outros passos =====
 function StepCard({
   step,
   stepIndex,
@@ -374,98 +458,145 @@ function StepCard({
   onAddOption,
   onRemoveOption,
 }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setStepNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: step.uid });
+
+  // Zona onde um campo pode ser largado — mesmo que o passo esteja vazio
+  const { setNodeRef: setDropZoneRef, isOver } = useDroppable({
+    id: `dropzone-${step.uid}`,
+  });
+
   return (
     <div
+      ref={setStepNodeRef}
       style={{
-        backgroundColor: "white",
-        borderRadius: "16px",
-        padding: "18px",
-        marginBottom: "16px",
-        boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
-        border: "1px solid var(--gold-light)",
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
       }}
     >
       <div
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          gap: "12px",
-          marginBottom: "14px",
+          backgroundColor: "white",
+          borderRadius: "16px",
+          padding: "18px",
+          marginBottom: "16px",
+          boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
+          border: "1px solid var(--gold-light)",
         }}
       >
-        <div style={{ flex: 1 }}>
-          <p
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            gap: "8px",
+            marginBottom: "14px",
+          }}
+        >
+          <DragHandle
+            attributes={attributes}
+            listeners={listeners}
+            title="Arrastar para reordenar o passo"
+          />
+          <div style={{ flex: 1 }}>
+            <p
+              style={{
+                fontSize: "10px",
+                fontWeight: "700",
+                color: "var(--gold)",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                margin: "0 0 6px 0",
+              }}
+            >
+              Passo {stepIndex + 1}
+            </p>
+            <input
+              type="text"
+              value={step.title}
+              onChange={(e) => onUpdateStep({ title: e.target.value })}
+              placeholder="Título do passo (ex: Dados do Bebé)"
+              style={{
+                ...inputBaseStyle,
+                fontWeight: "600",
+                marginBottom: "8px",
+              }}
+            />
+            <input
+              type="text"
+              value={step.subtitle}
+              onChange={(e) => onUpdateStep({ subtitle: e.target.value })}
+              placeholder="Subtítulo, opcional"
+              style={inputBaseStyle}
+            />
+          </div>
+          <button
+            onClick={onRemoveStep}
+            style={deleteIconBtnStyle}
+            title="Remover passo"
+          >
+            🗑
+          </button>
+        </div>
+
+        <SortableContext
+          items={step.fields.map((f) => f.uid)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div
+            ref={setDropZoneRef}
             style={{
-              fontSize: "10px",
-              fontWeight: "700",
-              color: "var(--gold)",
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              margin: "0 0 6px 0",
+              display: "flex",
+              flexDirection: "column",
+              gap: "14px",
+              minHeight: "12px",
+              borderRadius: "10px",
+              outline: isOver ? "2px dashed var(--gold)" : "none",
+              outlineOffset: "4px",
+              transition: "outline 0.15s",
             }}
           >
-            Passo {stepIndex + 1}
-          </p>
-          <input
-            type="text"
-            value={step.title}
-            onChange={(e) => onUpdateStep({ title: e.target.value })}
-            placeholder="Título do passo (ex: Dados do Bebé)"
-            style={{
-              ...inputBaseStyle,
-              fontWeight: "600",
-              marginBottom: "8px",
-            }}
-          />
-          <input
-            type="text"
-            value={step.subtitle}
-            onChange={(e) => onUpdateStep({ subtitle: e.target.value })}
-            placeholder="Subtítulo, opcional"
-            style={inputBaseStyle}
-          />
-        </div>
+            {step.fields.map((field) => (
+              <SortableFieldRow
+                key={field.uid}
+                field={field}
+                onUpdate={(changes) => onUpdateField(field.uid, changes)}
+                onRemove={() => onRemoveField(field.uid)}
+                onTypeChange={(newType) => onTypeChange(field.uid, newType)}
+                onUpdateOption={(idx, val) =>
+                  onUpdateOption(field.uid, idx, val)
+                }
+                onAddOption={() => onAddOption(field.uid)}
+                onRemoveOption={(idx) => onRemoveOption(field.uid, idx)}
+              />
+            ))}
+          </div>
+        </SortableContext>
+
         <button
-          onClick={onRemoveStep}
-          style={deleteIconBtnStyle}
-          title="Remover passo"
+          onClick={onAddField}
+          style={{
+            marginTop: "12px",
+            padding: "8px 16px",
+            borderRadius: "999px",
+            fontSize: "12px",
+            fontWeight: "600",
+            border: "1.5px solid var(--gold)",
+            color: "var(--gold)",
+            backgroundColor: "white",
+            cursor: "pointer",
+          }}
         >
-          🗑
+          + Adicionar Campo
         </button>
       </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-        {step.fields.map((field) => (
-          <FieldRow
-            key={field.uid}
-            field={field}
-            onUpdate={(changes) => onUpdateField(field.uid, changes)}
-            onRemove={() => onRemoveField(field.uid)}
-            onTypeChange={(newType) => onTypeChange(field.uid, newType)}
-            onUpdateOption={(idx, val) => onUpdateOption(field.uid, idx, val)}
-            onAddOption={() => onAddOption(field.uid)}
-            onRemoveOption={(idx) => onRemoveOption(field.uid, idx)}
-          />
-        ))}
-      </div>
-
-      <button
-        onClick={onAddField}
-        style={{
-          marginTop: "12px",
-          padding: "8px 16px",
-          borderRadius: "999px",
-          fontSize: "12px",
-          fontWeight: "600",
-          border: "1.5px solid var(--gold)",
-          color: "var(--gold)",
-          backgroundColor: "white",
-          cursor: "pointer",
-        }}
-      >
-        + Adicionar Campo
-      </button>
     </div>
   );
 }
@@ -483,6 +614,15 @@ export default function EventTypeEditor({
   const [steps, setSteps] = useState(initialSteps || blankEditingSteps());
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState(null);
+
+  // Um pequeno limiar de distância evita que um simples clique (ex: no
+  // campo de texto) seja confundido com o início de um arrasto
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
 
   const updateStep = (stepUid, changes) =>
     setSteps((prev) =>
@@ -613,6 +753,56 @@ export default function EventTypeEditor({
       ),
     );
 
+  // O que acontece ao soltar um arrasto — distingue se foi um PASSO ou
+  // um CAMPO que se moveu, e se um campo mudou (ou não) de passo
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const isStepDrag = steps.some((s) => s.uid === active.id);
+    if (isStepDrag) {
+      setSteps((prev) => {
+        const oldIndex = prev.findIndex((s) => s.uid === active.id);
+        const newIndex = prev.findIndex((s) => s.uid === over.id);
+        if (oldIndex === -1 || newIndex === -1) return prev;
+        return arrayMove(prev, oldIndex, newIndex);
+      });
+      return;
+    }
+
+    // É um campo — descobre de que passo veio, e para que passo vai
+    setSteps((prev) => {
+      const origemIndex = prev.findIndex((s) =>
+        s.fields.some((f) => f.uid === active.id),
+      );
+      if (origemIndex === -1) return prev;
+
+      // "over" pode ser outro campo, ou a zona de largar (vazia) de um passo
+      let destinoIndex = prev.findIndex((s) =>
+        s.fields.some((f) => f.uid === over.id),
+      );
+      if (destinoIndex === -1) {
+        destinoIndex = prev.findIndex((s) => `dropzone-${s.uid}` === over.id);
+      }
+      if (destinoIndex === -1) return prev;
+
+      const novo = prev.map((s) => ({ ...s, fields: [...s.fields] }));
+      const campoIndex = novo[origemIndex].fields.findIndex(
+        (f) => f.uid === active.id,
+      );
+      const [campo] = novo[origemIndex].fields.splice(campoIndex, 1);
+
+      let posicaoDestino = novo[destinoIndex].fields.findIndex(
+        (f) => f.uid === over.id,
+      );
+      if (posicaoDestino === -1) {
+        posicaoDestino = novo[destinoIndex].fields.length;
+      }
+      novo[destinoIndex].fields.splice(posicaoDestino, 0, campo);
+      return novo;
+    });
+  };
+
   const handleSave = async () => {
     const problemas = validar(nome, steps);
     if (problemas.length > 0) {
@@ -731,30 +921,52 @@ export default function EventTypeEditor({
             />
           </div>
 
-          {steps.map((step, stepIndex) => (
-            <StepCard
-              key={step.uid}
-              step={step}
-              stepIndex={stepIndex}
-              onUpdateStep={(changes) => updateStep(step.uid, changes)}
-              onRemoveStep={() => removeStep(step.uid)}
-              onAddField={() => addField(step.uid)}
-              onUpdateField={(fieldUid, changes) =>
-                updateField(step.uid, fieldUid, changes)
-              }
-              onRemoveField={(fieldUid) => removeField(step.uid, fieldUid)}
-              onTypeChange={(fieldUid, newType) =>
-                handleTypeChange(step.uid, fieldUid, newType)
-              }
-              onUpdateOption={(fieldUid, idx, val) =>
-                updateOption(step.uid, fieldUid, idx, val)
-              }
-              onAddOption={(fieldUid) => addOption(step.uid, fieldUid)}
-              onRemoveOption={(fieldUid, idx) =>
-                removeOption(step.uid, fieldUid, idx)
-              }
-            />
-          ))}
+          <p
+            style={{
+              fontSize: "11px",
+              color: "var(--gray-mid)",
+              margin: "0 0 14px 0",
+            }}
+          >
+            ⠿ Arrasta pela pega para reordenar passos e campos — um campo pode
+            ser arrastado para outro passo.
+          </p>
+
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={steps.map((s) => s.uid)}
+              strategy={verticalListSortingStrategy}
+            >
+              {steps.map((step, stepIndex) => (
+                <StepCard
+                  key={step.uid}
+                  step={step}
+                  stepIndex={stepIndex}
+                  onUpdateStep={(changes) => updateStep(step.uid, changes)}
+                  onRemoveStep={() => removeStep(step.uid)}
+                  onAddField={() => addField(step.uid)}
+                  onUpdateField={(fieldUid, changes) =>
+                    updateField(step.uid, fieldUid, changes)
+                  }
+                  onRemoveField={(fieldUid) => removeField(step.uid, fieldUid)}
+                  onTypeChange={(fieldUid, newType) =>
+                    handleTypeChange(step.uid, fieldUid, newType)
+                  }
+                  onUpdateOption={(fieldUid, idx, val) =>
+                    updateOption(step.uid, fieldUid, idx, val)
+                  }
+                  onAddOption={(fieldUid) => addOption(step.uid, fieldUid)}
+                  onRemoveOption={(fieldUid, idx) =>
+                    removeOption(step.uid, fieldUid, idx)
+                  }
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
 
           <button
             onClick={addStep}
