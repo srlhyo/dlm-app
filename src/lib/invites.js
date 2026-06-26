@@ -65,12 +65,25 @@ export const validateCode = async (code) => {
     .select("*, event_types(nome, steps, icone)")
     .eq("code", code.toUpperCase().trim())
     .single();
-  if (error || !data) return { valid: false, reason: "Código inválido" };
+  if (error || !data) {
+    return {
+      valid: false,
+      reason:
+        "Código inválido. Verifica o código que recebeste e tenta novamente.",
+    };
+  }
   if (!data.event_types) {
     return {
       valid: false,
       reason:
         "Este convite não tem um tipo de evento associado. Contacta Do Luxo à Mesa.",
+    };
+  }
+  if (data.status === "Preenchido") {
+    return {
+      valid: false,
+      reason:
+        "Este questionário já foi submetido. Se precisares de alterar alguma resposta, contacta Do Luxo à Mesa.",
     };
   }
   return { valid: true, invite: data };

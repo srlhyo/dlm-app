@@ -2119,58 +2119,78 @@ export default function AdminPage() {
                       </button>
                     </div>
 
-                    {/* Mensagem */}
-                    <div
-                      style={{
-                        backgroundColor: "white",
-                        borderRadius: "10px",
-                        padding: "14px 18px",
-                        marginBottom: "14px",
-                        border: "1px solid #BBF7D0",
-                      }}
-                    >
+                    {/* Mensagem — só faz sentido enquanto o convite ainda não foi preenchido */}
+                    {selectedInvite.status !== "Preenchido" ? (
+                      <>
+                        <div
+                          style={{
+                            backgroundColor: "white",
+                            borderRadius: "10px",
+                            padding: "14px 18px",
+                            marginBottom: "14px",
+                            border: "1px solid #BBF7D0",
+                          }}
+                        >
+                          <p
+                            style={{
+                              fontSize: "10px",
+                              color: "#6B7280",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.08em",
+                              margin: "0 0 8px 0",
+                            }}
+                          >
+                            Mensagem para partilhar
+                          </p>
+                          <p
+                            style={{
+                              fontSize: "13px",
+                              color: "var(--charcoal)",
+                              margin: 0,
+                              lineHeight: "1.6",
+                              whiteSpace: "pre-line",
+                            }}
+                          >
+                            {getShareMessage(selectedInvite)}
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={() => setShareTarget(selectedInvite)}
+                          style={{
+                            width: "100%",
+                            padding: "12px",
+                            borderRadius: "10px",
+                            fontSize: "13px",
+                            fontWeight: "600",
+                            cursor: "pointer",
+                            backgroundColor: "var(--gold)",
+                            color: "white",
+                            border: "none",
+                            boxShadow: "0 4px 12px rgba(201,168,76,0.35)",
+                            transition: "all 0.2s",
+                          }}
+                        >
+                          ↗ Partilhar
+                        </button>
+                      </>
+                    ) : (
                       <p
                         style={{
-                          fontSize: "10px",
-                          color: "#6B7280",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.08em",
-                          margin: "0 0 8px 0",
-                        }}
-                      >
-                        Mensagem para partilhar
-                      </p>
-                      <p
-                        style={{
-                          fontSize: "13px",
-                          color: "var(--charcoal)",
+                          fontSize: "12px",
+                          color: "#166534",
+                          backgroundColor: "white",
+                          border: "1px solid #BBF7D0",
+                          borderRadius: "10px",
+                          padding: "14px 18px",
                           margin: 0,
                           lineHeight: "1.6",
-                          whiteSpace: "pre-line",
                         }}
                       >
-                        {getShareMessage(selectedInvite)}
+                        ✓ Este convite já foi preenchido. O link deixou de
+                        funcionar, e já não há nada para partilhar.
                       </p>
-                    </div>
-
-                    <button
-                      onClick={() => setShareTarget(selectedInvite)}
-                      style={{
-                        width: "100%",
-                        padding: "12px",
-                        borderRadius: "10px",
-                        fontSize: "13px",
-                        fontWeight: "600",
-                        cursor: "pointer",
-                        backgroundColor: "var(--gold)",
-                        color: "white",
-                        border: "none",
-                        boxShadow: "0 4px 12px rgba(201,168,76,0.35)",
-                        transition: "all 0.2s",
-                      }}
-                    >
-                      ↗ Partilhar
-                    </button>
+                    )}
                   </motion.div>
                 </motion.div>
               )}

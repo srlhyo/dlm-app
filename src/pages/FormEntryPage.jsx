@@ -136,11 +136,7 @@ export default function FormEntryPage() {
     const result = await validateCode(code);
 
     if (!result.valid) {
-      setError(
-        result.reason === "Este código já expirou"
-          ? "Este código já expirou. Contacta Do Luxo à Mesa para mais informações."
-          : "Código inválido. Verifica o código que recebeste e tenta novamente.",
-      );
+      setError(result.reason);
       setLoading(false);
       return;
     }
