@@ -4,6 +4,7 @@ import {
   DndContext,
   DragOverlay,
   closestCenter,
+  pointerWithin,
   PointerSensor,
   KeyboardSensor,
   useSensor,
@@ -20,7 +21,6 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { createEventType, updateEventType } from "../../lib/eventTypes";
 
-// ===== Opções de tipo de campo, em português, para a irmã escolher =====
 const TYPE_OPTIONS = [
   { value: "text", label: "Texto curto" },
   { value: "textarea", label: "Texto longo (várias linhas)" },
@@ -33,13 +33,15 @@ const TYPE_OPTIONS = [
   { value: "checkbox", label: "Escolha múltipla (vários botões)" },
 ];
 
-// ===== Identificadores únicos só para React/dnd-kit saberem distinguir
-// cada linha (não têm nada a ver com o "id" final gravado na BD) =====
 let uidSeq = 0;
 const makeUid = () => `tmp_${Date.now()}_${uidSeq++}`;
+// Prefixos para os ids do dnd-kit — evita colisões entre steps/fields/options
+const STEP_PREFIX = "step__";
+const FIELD_PREFIX = "field__";
+const OPT_PREFIX = "opt__";
+const DROPZONE_PREFIX = "dropzone__";
+const OPTZONE_PREFIX = "optzone__"; // zona de largar opções num campo diferente
 
-// ===== Transformar um tipo de evento já gravado (ex: Casamento) na forma
-// "de edição" usada por este editor — usado quando se duplica um tipo =====
 export function toEditingSteps(steps) {
   return (steps || []).map((step) => ({
     uid: makeUid(),
@@ -51,19 +53,17 @@ export function toEditingSteps(steps) {
       type: field.type || "text",
       required: !!field.required,
       placeholder: field.placeholder || "",
-      options: field.options ? [...field.options] : [],
+      options: (field.options || []).map((o) => ({ uid: makeUid(), value: o })),
       validatePositive: field.validate === "positive",
       validateFutureDate: field.validate === "futureDate",
     })),
   }));
 }
 
-// ===== Ponto de partida para "Começar em branco" =====
 export function blankEditingSteps() {
   return [{ uid: makeUid(), title: "Passo 1", subtitle: "", fields: [] }];
 }
 
-// ===== Gerar uma mensagem de erro sensata, sem a irmã ter de a escrever =====
 function buildErrorMsg(validate) {
   if (validate === "phone")
     return "Introduz um número de telefone válido (ex: 912 345 678)";
@@ -73,11 +73,10 @@ function buildErrorMsg(validate) {
   return "Este campo é obrigatório";
 }
 
-// ===== Gerar um id técnico (camelCase) a partir do label, sem colisões =====
 function toCamelId(label) {
   const palavras = label
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // remove acentos
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-zA-Z0-9 ]/g, "")
     .trim()
     .split(/\s+/)
@@ -103,20 +102,16 @@ function generateUniqueFieldId(label, idsJaUsados) {
   return id;
 }
 
-// ===== Transformar a forma "de edição" na forma final, pronta a gravar =====
-// (a ordem final é sempre a ordem actual de "steps"/"fields" no estado —
-// por isso reordenar por arrastar já chega aqui reflectido, sem mais nada)
 function buildStepsForSave(steps) {
   const idsJaUsados = [];
   return steps.map((step, stepIndex) => ({
     id: stepIndex + 1,
     title: step.title.trim(),
     subtitle: step.subtitle.trim(),
-    icon: "user", // não é usado visualmente, mantém-se só por consistência
+    icon: "user",
     fields: step.fields.map((field) => {
       const id = generateUniqueFieldId(field.label, idsJaUsados);
       idsJaUsados.push(id);
-
       let validate;
       if (field.type === "tel") validate = "phone";
       else if (field.type === "email") validate = "email";
@@ -124,7 +119,6 @@ function buildStepsForSave(steps) {
         validate = "positive";
       else if (field.type === "date" && field.validateFutureDate)
         validate = "futureDate";
-
       const campoFinal = {
         id,
         label: field.label.trim(),
@@ -132,13 +126,12 @@ function buildStepsForSave(steps) {
         required: field.required,
         errorMsg: buildErrorMsg(validate),
       };
-      if (field.placeholder && field.placeholder.trim()) {
+      if (field.placeholder && field.placeholder.trim())
         campoFinal.placeholder = field.placeholder.trim();
-      }
       if (validate) campoFinal.validate = validate;
       if (["radio", "checkbox"].includes(field.type)) {
         campoFinal.options = field.options
-          .map((o) => o.trim())
+          .map((o) => o.value.trim())
           .filter((o) => o !== "");
       }
       return campoFinal;
@@ -146,7 +139,6 @@ function buildStepsForSave(steps) {
   }));
 }
 
-// ===== Validar antes de gravar =====
 function validar(nome, steps) {
   const problemas = [];
   if (!nome.trim()) problemas.push("Dá um nome ao tipo de evento.");
@@ -162,19 +154,17 @@ function validar(nome, steps) {
       if (!f.label.trim())
         problemas.push(`Há um campo sem nome no passo "${s.title || i + 1}".`);
       if (["radio", "checkbox"].includes(f.type)) {
-        const validas = f.options.filter((o) => o.trim() !== "");
-        if (validas.length === 0) {
+        const validas = f.options.filter((o) => o.value.trim() !== "");
+        if (validas.length === 0)
           problemas.push(
             `O campo "${f.label || "sem nome"}" precisa de pelo menos uma opção.`,
           );
-        }
       }
     });
   });
   return problemas;
 }
 
-// ===== Estilos partilhados =====
 const inputBaseStyle = {
   width: "100%",
   padding: "10px 14px",
@@ -214,7 +204,6 @@ const deleteIconBtnStyle = {
   flexShrink: 0,
 };
 
-// ===== Pega de arrastar — usada tanto para passos como para campos =====
 function DragHandle({ attributes, listeners, title }) {
   return (
     <button
@@ -240,14 +229,48 @@ function DragHandle({ attributes, listeners, title }) {
   );
 }
 
-// ===== Uma opção (radio/checkbox) =====
-function OptionRow({ value, onChange, onRemove, index }) {
+// ===== Opção arrastável (radio/checkbox) =====
+function SortableOption({
+  opt,
+  index,
+  fieldUid,
+  fieldType,
+  onChangeValue,
+  onRemove,
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: `${OPT_PREFIX}${opt.uid}`,
+    data: { fieldUid, fieldType },
+  });
+
   return (
-    <div style={{ display: "flex", gap: "6px", marginBottom: "6px" }}>
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+        display: "flex",
+        gap: "6px",
+        marginBottom: "6px",
+      }}
+    >
+      <DragHandle
+        attributes={attributes}
+        listeners={listeners}
+        title="Arrastar opção"
+      />
       <input
         type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+        value={opt.value}
+        onChange={(e) => onChangeValue(e.target.value)}
         placeholder={`Opção ${index + 1}`}
         style={{ ...inputBaseStyle, flex: 1 }}
       />
@@ -258,16 +281,113 @@ function OptionRow({ value, onChange, onRemove, index }) {
   );
 }
 
+// ===== Zona de opções de um campo — arrastável e aceita opções de outros campos do mesmo tipo =====
+function OptionsZone({
+  field,
+  draggingFieldOrOpt,
+  onUpdateOption,
+  onRemoveOption,
+  onAddOption,
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `${OPTZONE_PREFIX}${field.uid}`,
+  });
+  return (
+    <div style={{ marginTop: "10px" }}>
+      <p
+        style={{
+          fontSize: "10px",
+          fontWeight: "600",
+          textTransform: "uppercase",
+          letterSpacing: "0.06em",
+          color: "var(--gray-mid)",
+          margin: "0 0 6px 0",
+        }}
+      >
+        Opções
+      </p>
+      {!draggingFieldOrOpt ? (
+        <SortableContext
+          items={field.options.map((o) => `${OPT_PREFIX}${o.uid}`)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div
+            ref={setNodeRef}
+            style={{
+              minHeight: "12px",
+              borderRadius: "8px",
+              outline: isOver ? "2px dashed var(--gold)" : "none",
+              outlineOffset: "3px",
+              transition: "outline 0.15s",
+            }}
+          >
+            {field.options.map((opt, idx) => (
+              <SortableOption
+                key={opt.uid}
+                opt={opt}
+                index={idx}
+                fieldUid={field.uid}
+                fieldType={field.type}
+                onChangeValue={(val) => onUpdateOption(idx, val)}
+                onRemove={() => onRemoveOption(idx)}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      ) : (
+        field.options.map((opt, idx) => (
+          <div
+            key={opt.uid}
+            style={{ display: "flex", gap: "6px", marginBottom: "6px" }}
+          >
+            <div style={{ width: "30px" }} />
+            <input
+              type="text"
+              value={opt.value}
+              onChange={(e) => onUpdateOption(idx, e.target.value)}
+              placeholder={`Opção ${idx + 1}`}
+              style={{ ...inputBaseStyle, flex: 1 }}
+            />
+            <button
+              onClick={() => onRemoveOption(idx)}
+              style={deleteIconBtnStyle}
+            >
+              ✕
+            </button>
+          </div>
+        ))
+      )}
+      <button
+        onClick={onAddOption}
+        style={{
+          padding: "6px 14px",
+          borderRadius: "999px",
+          fontSize: "11px",
+          fontWeight: "600",
+          border: "1px solid var(--gold-light)",
+          color: "var(--gold)",
+          backgroundColor: "white",
+          cursor: "pointer",
+        }}
+      >
+        + Adicionar Opção
+      </button>
+    </div>
+  );
+}
+
 // ===== Um campo, dentro de um passo =====
 function FieldRow({
   field,
   dragHandle,
+  draggingFieldOrOpt,
   onUpdate,
   onRemove,
   onTypeChange,
   onUpdateOption,
   onAddOption,
   onRemoveOption,
+  onMoveOptions,
 }) {
   const showPlaceholder = [
     "text",
@@ -343,7 +463,6 @@ function FieldRow({
           Tem de ser um número positivo (maior que zero)
         </label>
       )}
-
       {field.type === "date" && (
         <label style={checkboxLabelStyle}>
           <input
@@ -354,64 +473,29 @@ function FieldRow({
           Esta data não pode ser no passado (ex: data do evento)
         </label>
       )}
-
       {showPlaceholder && (
         <input
           type="text"
           value={field.placeholder}
           onChange={(e) => onUpdate({ placeholder: e.target.value })}
-          placeholder="Texto de exemplo, opcional (ex: Ex: João Silva)"
+          placeholder="Texto de exemplo, opcional"
           style={{ ...inputBaseStyle, marginTop: "8px" }}
         />
       )}
-
       {showOptions && (
-        <div style={{ marginTop: "10px" }}>
-          <p
-            style={{
-              fontSize: "10px",
-              fontWeight: "600",
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-              color: "var(--gray-mid)",
-              margin: "0 0 6px 0",
-            }}
-          >
-            Opções
-          </p>
-          {field.options.map((opt, idx) => (
-            <OptionRow
-              key={idx}
-              index={idx}
-              value={opt}
-              onChange={(val) => onUpdateOption(idx, val)}
-              onRemove={() => onRemoveOption(idx)}
-            />
-          ))}
-          <button
-            onClick={onAddOption}
-            style={{
-              padding: "6px 14px",
-              borderRadius: "999px",
-              fontSize: "11px",
-              fontWeight: "600",
-              border: "1px solid var(--gold-light)",
-              color: "var(--gold)",
-              backgroundColor: "white",
-              cursor: "pointer",
-            }}
-          >
-            + Adicionar Opção
-          </button>
-        </div>
+        <OptionsZone
+          field={field}
+          draggingFieldOrOpt={draggingFieldOrOpt}
+          onUpdateOption={onUpdateOption}
+          onRemoveOption={onRemoveOption}
+          onAddOption={onAddOption}
+        />
       )}
     </div>
   );
 }
 
-// ===== Envolve o FieldRow para o tornar arrastável =====
-function SortableFieldRow(props) {
-  const { field } = props;
+function SortableFieldRow({ field, stepUid, draggingType, ...rest }) {
   const {
     attributes,
     listeners,
@@ -419,7 +503,7 @@ function SortableFieldRow(props) {
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: field.uid });
+  } = useSortable({ id: `${FIELD_PREFIX}${field.uid}`, data: { stepUid } });
 
   return (
     <div
@@ -431,24 +515,26 @@ function SortableFieldRow(props) {
       }}
     >
       <FieldRow
-        {...props}
+        field={field}
+        draggingFieldOrOpt={draggingType === "field"}
         dragHandle={
           <DragHandle
             attributes={attributes}
             listeners={listeners}
-            title="Arrastar para mover o campo (até para outro passo)"
+            title="Arrastar campo (pode mover para outro passo)"
           />
         }
+        {...rest}
       />
     </div>
   );
 }
 
-// ===== Um passo, com a sua lista de campos — arrastável, e também
-// recebe campos arrastados de outros passos =====
+// ===== Um passo =====
 function StepCard({
   step,
   stepIndex,
+  draggingType,
   onUpdateStep,
   onRemoveStep,
   onAddField,
@@ -458,24 +544,28 @@ function StepCard({
   onUpdateOption,
   onAddOption,
   onRemoveOption,
+  onMoveOptions,
 }) {
   const {
     attributes,
     listeners,
-    setNodeRef: setStepNodeRef,
+    setNodeRef: setStepRef,
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: step.uid });
+  } = useSortable({ id: `${STEP_PREFIX}${step.uid}` });
 
-  // Zona onde um campo pode ser largado — mesmo que o passo esteja vazio
-  const { setNodeRef: setDropZoneRef, isOver } = useDroppable({
-    id: `dropzone-${step.uid}`,
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
+    id: `${DROPZONE_PREFIX}${step.uid}`,
   });
+
+  const combineRefs = (el) => {
+    setStepRef(el);
+  };
 
   return (
     <div
-      ref={setStepNodeRef}
+      ref={combineRefs}
       style={{
         transform: isDragging ? undefined : CSS.Transform.toString(transform),
         transition,
@@ -501,11 +591,16 @@ function StepCard({
             marginBottom: "14px",
           }}
         >
-          <DragHandle
-            attributes={attributes}
-            listeners={listeners}
-            title="Arrastar para reordenar o passo"
-          />
+          {/* Pega do passo — só visível quando NÃO está a arrastar um campo/opção */}
+          {draggingType !== "field" && draggingType !== "option" ? (
+            <DragHandle
+              attributes={attributes}
+              listeners={listeners}
+              title="Arrastar para reordenar o passo"
+            />
+          ) : (
+            <div style={{ width: "30px", flexShrink: 0 }} />
+          )}
           <div style={{ flex: 1 }}>
             <p
               style={{
@@ -547,27 +642,61 @@ function StepCard({
           </button>
         </div>
 
-        <SortableContext
-          items={step.fields.map((f) => f.uid)}
-          strategy={verticalListSortingStrategy}
-        >
+        {/* Só activa o SortableContext dos campos quando não está a arrastar um passo */}
+        {draggingType !== "step" ? (
+          <SortableContext
+            items={step.fields.map((f) => `${FIELD_PREFIX}${f.uid}`)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div
+              ref={setDropRef}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "14px",
+                minHeight: "12px",
+                borderRadius: "10px",
+                outline:
+                  isOver && draggingType === "field"
+                    ? "2px dashed var(--gold)"
+                    : "none",
+                outlineOffset: "4px",
+                transition: "outline 0.15s",
+              }}
+            >
+              {step.fields.map((field) => (
+                <SortableFieldRow
+                  key={field.uid}
+                  field={field}
+                  stepUid={step.uid}
+                  draggingType={draggingType}
+                  onUpdate={(changes) => onUpdateField(field.uid, changes)}
+                  onRemove={() => onRemoveField(field.uid)}
+                  onTypeChange={(newType) => onTypeChange(field.uid, newType)}
+                  onUpdateOption={(idx, val) =>
+                    onUpdateOption(field.uid, idx, val)
+                  }
+                  onAddOption={() => onAddOption(field.uid)}
+                  onRemoveOption={(idx) => onRemoveOption(field.uid, idx)}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        ) : (
           <div
-            ref={setDropZoneRef}
             style={{
               display: "flex",
               flexDirection: "column",
               gap: "14px",
               minHeight: "12px",
-              borderRadius: "10px",
-              outline: isOver ? "2px dashed var(--gold)" : "none",
-              outlineOffset: "4px",
-              transition: "outline 0.15s",
             }}
           >
             {step.fields.map((field) => (
-              <SortableFieldRow
+              <FieldRow
                 key={field.uid}
                 field={field}
+                draggingFieldOrOpt={false}
+                dragHandle={<div style={{ width: "30px", flexShrink: 0 }} />}
                 onUpdate={(changes) => onUpdateField(field.uid, changes)}
                 onRemove={() => onRemoveField(field.uid)}
                 onTypeChange={(newType) => onTypeChange(field.uid, newType)}
@@ -579,7 +708,7 @@ function StepCard({
               />
             ))}
           </div>
-        </SortableContext>
+        )}
 
         <button
           onClick={onAddField}
@@ -615,9 +744,10 @@ export default function EventTypeEditor({
   const [steps, setSteps] = useState(initialSteps || blankEditingSteps());
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState(null);
+  // O que está a ser arrastado agora — controla quais contextos ficam activos
+  const [draggingType, setDraggingType] = useState(null); // "step" | "field" | "option" | null
+  const [draggingPreview, setDraggingPreview] = useState(null); // texto para o DragOverlay
 
-  // Um pequeno limiar de distância evita que um simples clique (ex: no
-  // campo de texto) seja confundido com o início de um arrasto
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, {
@@ -702,7 +832,9 @@ export default function EventTypeEditor({
   const handleTypeChange = (stepUid, fieldUid, newType) =>
     updateField(stepUid, fieldUid, {
       type: newType,
-      options: ["radio", "checkbox"].includes(newType) ? [""] : [],
+      options: ["radio", "checkbox"].includes(newType)
+        ? [{ uid: makeUid(), value: "" }]
+        : [],
     });
 
   const updateOption = (stepUid, fieldUid, idx, value) =>
@@ -717,7 +849,9 @@ export default function EventTypeEditor({
                   ? f
                   : {
                       ...f,
-                      options: f.options.map((o, i) => (i === idx ? value : o)),
+                      options: f.options.map((o, i) =>
+                        i === idx ? { ...o, value } : o,
+                      ),
                     },
               ),
             },
@@ -732,7 +866,12 @@ export default function EventTypeEditor({
           : {
               ...s,
               fields: s.fields.map((f) =>
-                f.uid !== fieldUid ? f : { ...f, options: [...f.options, ""] },
+                f.uid !== fieldUid
+                  ? f
+                  : {
+                      ...f,
+                      options: [...f.options, { uid: makeUid(), value: "" }],
+                    },
               ),
             },
       ),
@@ -754,67 +893,185 @@ export default function EventTypeEditor({
       ),
     );
 
-  // Guarda uma versão "leve" do passo a ser arrastado — só para mostrar
-  // na pré-visualização flutuante, em vez do cartão inteiro (que pode
-  // ser enorme, se tiver muitos campos)
-  const [passoArrastado, setPassoArrastado] = useState(null);
-
-  const handleDragStart = (event) => {
-    const idx = steps.findIndex((s) => s.uid === event.active.id);
-    setPassoArrastado(
-      idx !== -1 ? { index: idx, title: steps[idx].title } : null,
-    );
+  const handleDragStart = ({ active }) => {
+    const activeId = active.id;
+    if (String(activeId).startsWith(STEP_PREFIX)) {
+      const stepUid = String(activeId).replace(STEP_PREFIX, "");
+      const idx = steps.findIndex((s) => s.uid === stepUid);
+      setDraggingType("step");
+      setDraggingPreview(
+        idx !== -1
+          ? `Passo ${idx + 1}${steps[idx].title ? `: ${steps[idx].title}` : ""}`
+          : "Passo",
+      );
+    } else if (String(activeId).startsWith(FIELD_PREFIX)) {
+      const fieldUid = String(activeId).replace(FIELD_PREFIX, "");
+      let label = "Campo";
+      steps.forEach((s) => {
+        const f = s.fields.find((f) => f.uid === fieldUid);
+        if (f) label = f.label || "Campo sem nome";
+      });
+      setDraggingType("field");
+      setDraggingPreview(label);
+    } else if (String(activeId).startsWith(OPT_PREFIX)) {
+      const optUid = String(activeId).replace(OPT_PREFIX, "");
+      let optValue = "";
+      steps.forEach((s) => {
+        s.fields.forEach((f) => {
+          const opt = f.options.find((o) => o.uid === optUid);
+          if (opt) optValue = opt.value || "Opção sem nome";
+        });
+      });
+      setDraggingType("option");
+      setDraggingPreview(optValue || null);
+    }
   };
 
-  // O que acontece ao soltar um arrasto — distingue se foi um PASSO ou
-  // um CAMPO que se moveu, e se um campo mudou (ou não) de passo
-  const handleDragEnd = (event) => {
-    setPassoArrastado(null);
-    const { active, over } = event;
+  const handleDragEnd = ({ active, over }) => {
+    const tipo = draggingType;
+    setDraggingType(null);
+    setDraggingPreview(null);
     if (!over || active.id === over.id) return;
 
-    const isStepDrag = steps.some((s) => s.uid === active.id);
-    if (isStepDrag) {
+    const activeId = String(active.id);
+    const overId = String(over.id);
+
+    if (tipo === "step") {
+      const fromUid = activeId.replace(STEP_PREFIX, "");
+      const toUid = overId.replace(STEP_PREFIX, "");
       setSteps((prev) => {
-        const oldIndex = prev.findIndex((s) => s.uid === active.id);
-        const newIndex = prev.findIndex((s) => s.uid === over.id);
-        if (oldIndex === -1 || newIndex === -1) return prev;
-        return arrayMove(prev, oldIndex, newIndex);
+        const from = prev.findIndex((s) => s.uid === fromUid);
+        const to = prev.findIndex((s) => s.uid === toUid);
+        if (from === -1 || to === -1) return prev;
+        return arrayMove(prev, from, to);
       });
       return;
     }
 
-    // É um campo — descobre de que passo veio, e para que passo vai
-    setSteps((prev) => {
-      const origemIndex = prev.findIndex((s) =>
-        s.fields.some((f) => f.uid === active.id),
-      );
-      if (origemIndex === -1) return prev;
+    if (tipo === "field") {
+      const fieldUid = activeId.replace(FIELD_PREFIX, "");
+      setSteps((prev) => {
+        const origemIdx = prev.findIndex((s) =>
+          s.fields.some((f) => f.uid === fieldUid),
+        );
+        if (origemIdx === -1) return prev;
 
-      // "over" pode ser outro campo, ou a zona de largar (vazia) de um passo
-      let destinoIndex = prev.findIndex((s) =>
-        s.fields.some((f) => f.uid === over.id),
-      );
-      if (destinoIndex === -1) {
-        destinoIndex = prev.findIndex((s) => `dropzone-${s.uid}` === over.id);
-      }
-      if (destinoIndex === -1) return prev;
+        let destinoIdx = prev.findIndex((s) =>
+          s.fields.some((f) => `${FIELD_PREFIX}${f.uid}` === overId),
+        );
+        if (destinoIdx === -1) {
+          destinoIdx = prev.findIndex(
+            (s) => `${DROPZONE_PREFIX}${s.uid}` === overId,
+          );
+        }
+        if (destinoIdx === -1) return prev;
 
-      const novo = prev.map((s) => ({ ...s, fields: [...s.fields] }));
-      const campoIndex = novo[origemIndex].fields.findIndex(
-        (f) => f.uid === active.id,
-      );
-      const [campo] = novo[origemIndex].fields.splice(campoIndex, 1);
+        const novo = prev.map((s) => ({ ...s, fields: [...s.fields] }));
+        const campoIdx = novo[origemIdx].fields.findIndex(
+          (f) => f.uid === fieldUid,
+        );
+        const [campo] = novo[origemIdx].fields.splice(campoIdx, 1);
 
-      let posicaoDestino = novo[destinoIndex].fields.findIndex(
-        (f) => f.uid === over.id,
-      );
-      if (posicaoDestino === -1) {
-        posicaoDestino = novo[destinoIndex].fields.length;
-      }
-      novo[destinoIndex].fields.splice(posicaoDestino, 0, campo);
-      return novo;
-    });
+        let posDestino = novo[destinoIdx].fields.findIndex(
+          (f) => `${FIELD_PREFIX}${f.uid}` === overId,
+        );
+        if (posDestino === -1) posDestino = novo[destinoIdx].fields.length;
+        novo[destinoIdx].fields.splice(posDestino, 0, campo);
+        return novo;
+      });
+      return;
+    }
+
+    if (tipo === "option") {
+      const optUid = activeId.replace(OPT_PREFIX, "");
+      // Tipo do campo de origem (guardado no data do useSortable)
+      const srcFieldType = active.data?.current?.fieldType;
+
+      setSteps((prev) => {
+        // Encontrar origem
+        let srcStepIdx = -1,
+          srcFieldIdx = -1,
+          srcOptIdx = -1;
+        prev.forEach((s, si) => {
+          s.fields.forEach((f, fi) => {
+            const oi = f.options.findIndex((o) => o.uid === optUid);
+            if (oi !== -1) {
+              srcStepIdx = si;
+              srcFieldIdx = fi;
+              srcOptIdx = oi;
+            }
+          });
+        });
+        if (srcStepIdx === -1) return prev;
+
+        // Encontrar destino — pode ser outra opção (OPT_PREFIX) ou zona vazia (OPTZONE_PREFIX)
+        let dstStepIdx = -1,
+          dstFieldIdx = -1,
+          dstOptIdx = -1;
+        if (overId.startsWith(OPT_PREFIX)) {
+          const overOptUid = overId.replace(OPT_PREFIX, "");
+          prev.forEach((s, si) => {
+            s.fields.forEach((f, fi) => {
+              const oi = f.options.findIndex((o) => o.uid === overOptUid);
+              if (oi !== -1) {
+                dstStepIdx = si;
+                dstFieldIdx = fi;
+                dstOptIdx = oi;
+              }
+            });
+          });
+        } else if (overId.startsWith(OPTZONE_PREFIX)) {
+          const overFieldUid = overId.replace(OPTZONE_PREFIX, "");
+          prev.forEach((s, si) => {
+            s.fields.forEach((f, fi) => {
+              if (f.uid === overFieldUid) {
+                dstStepIdx = si;
+                dstFieldIdx = fi;
+                dstOptIdx = -1;
+              }
+            });
+          });
+        }
+        if (dstStepIdx === -1) return prev;
+
+        // Só permite mover para campos do mesmo tipo (radio→radio, checkbox→checkbox)
+        const dstField = prev[dstStepIdx].fields[dstFieldIdx];
+        if (dstField.type !== srcFieldType) return prev;
+
+        const novo = prev.map((s) => ({
+          ...s,
+          fields: s.fields.map((f) => ({ ...f, options: [...f.options] })),
+        }));
+
+        const isMesmoCampo =
+          srcStepIdx === dstStepIdx && srcFieldIdx === dstFieldIdx;
+        if (isMesmoCampo) {
+          if (dstOptIdx === -1 || dstOptIdx === srcOptIdx) return prev;
+          novo[srcStepIdx].fields[srcFieldIdx].options = arrayMove(
+            novo[srcStepIdx].fields[srcFieldIdx].options,
+            srcOptIdx,
+            dstOptIdx,
+          );
+        } else {
+          // Move para outro campo
+          const [opt] = novo[srcStepIdx].fields[srcFieldIdx].options.splice(
+            srcOptIdx,
+            1,
+          );
+          const insertAt =
+            dstOptIdx === -1
+              ? novo[dstStepIdx].fields[dstFieldIdx].options.length
+              : dstOptIdx;
+          novo[dstStepIdx].fields[dstFieldIdx].options.splice(insertAt, 0, opt);
+        }
+        return novo;
+      });
+    }
+  };
+
+  const handleDragCancel = () => {
+    setDraggingType(null);
+    setDraggingPreview(null);
   };
 
   const handleSave = async () => {
@@ -942,18 +1199,21 @@ export default function EventTypeEditor({
               margin: "0 0 14px 0",
             }}
           >
-            ⠿ Arrasta pela pega para reordenar passos e campos — um campo pode
-            ser arrastado para outro passo.
+            ⠿ Arrasta pela pega para reordenar passos, campos e opções. Um campo
+            pode ser arrastado para outro passo.
           </p>
 
           <DndContext
             sensors={sensors}
-            collisionDetection={closestCenter}
+            collisionDetection={
+              draggingType === "step" ? pointerWithin : closestCenter
+            }
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
           >
             <SortableContext
-              items={steps.map((s) => s.uid)}
+              items={steps.map((s) => `${STEP_PREFIX}${s.uid}`)}
               strategy={verticalListSortingStrategy}
             >
               {steps.map((step, stepIndex) => (
@@ -961,6 +1221,7 @@ export default function EventTypeEditor({
                   key={step.uid}
                   step={step}
                   stepIndex={stepIndex}
+                  draggingType={draggingType}
                   onUpdateStep={(changes) => updateStep(step.uid, changes)}
                   onRemoveStep={() => removeStep(step.uid)}
                   onAddField={() => addField(step.uid)}
@@ -982,10 +1243,8 @@ export default function EventTypeEditor({
               ))}
             </SortableContext>
 
-            {/* Pré-visualização compacta enquanto se arrasta um PASSO —
-                em vez do cartão inteiro (que pode ser enorme) */}
             <DragOverlay>
-              {passoArrastado ? (
+              {draggingPreview ? (
                 <div
                   style={{
                     backgroundColor: "white",
@@ -999,8 +1258,7 @@ export default function EventTypeEditor({
                     fontFamily: "Inter, sans-serif",
                   }}
                 >
-                  ⠿ Passo {passoArrastado.index + 1}
-                  {passoArrastado.title ? `: ${passoArrastado.title}` : ""}
+                  ⠿ {draggingPreview}
                 </div>
               ) : null}
             </DragOverlay>

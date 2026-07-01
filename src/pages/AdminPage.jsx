@@ -340,6 +340,24 @@ export default function AdminPage() {
   const [loadingEventTypes, setLoadingEventTypes] = useState(true);
   const navigate = useNavigate();
 
+  // Abre o formulário para a irmã preencher ela própria —
+  // compõe o objecto de convite completo (com event_types) a partir
+  // do que já está em memória, e navega para o formulário como
+  // se fosse o casal/família a abri-lo
+  const handlePreencherFormulario = (invite) => {
+    const tipo = eventTypes.find((et) => et.id === invite.event_type_id);
+    if (!tipo) {
+      alert("Tipo de evento não encontrado. Tenta recarregar a página.");
+      return;
+    }
+    const inviteCompleto = {
+      ...invite,
+      event_types: { nome: tipo.nome, steps: tipo.steps, icone: tipo.icone },
+    };
+    sessionStorage.setItem("dlm_invite", JSON.stringify(inviteCompleto));
+    navigate("/formulario");
+  };
+
   useEffect(() => {
     if (!tourJaVista("admin")) {
       const temporizador = setTimeout(() => {
@@ -1816,45 +1834,73 @@ export default function AdminPage() {
                           {invite.status}
                         </span>
                         {isPendente && (
-                          <button
-                            className="btn-compact"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setInviteToDelete(invite);
-                            }}
-                            title="Remover convite"
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "6px",
-                              padding: "6px 12px",
-                              borderRadius: "8px",
-                              border: "1px solid #FECACA",
-                              backgroundColor: "#FEF2F2",
-                              color: "#DC2626",
-                              cursor: "pointer",
-                              fontSize: "12px",
-                              fontWeight: "500",
-                              transition: "all 0.2s",
-                              flexShrink: 0,
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            <svg
-                              width="14"
-                              height="14"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="#DC2626"
-                              strokeWidth="1.6"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
+                          <>
+                            <button
+                              className="btn-compact"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePreencherFormulario(invite);
+                              }}
+                              title="Preencher o formulário"
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                padding: "6px 12px",
+                                borderRadius: "8px",
+                                border: "1px solid var(--gold-light)",
+                                backgroundColor: "#FEF9EC",
+                                color: "var(--gold)",
+                                cursor: "pointer",
+                                fontSize: "12px",
+                                fontWeight: "500",
+                                transition: "all 0.2s",
+                                flexShrink: 0,
+                                whiteSpace: "nowrap",
+                              }}
                             >
-                              <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
-                              <path d="M10 11v6M14 11v6" />
-                            </svg>
-                            Remover
-                          </button>
+                              ✏️ Preencher
+                            </button>
+                            <button
+                              className="btn-compact"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setInviteToDelete(invite);
+                              }}
+                              title="Remover convite"
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                padding: "6px 12px",
+                                borderRadius: "8px",
+                                border: "1px solid #FECACA",
+                                backgroundColor: "#FEF2F2",
+                                color: "#DC2626",
+                                cursor: "pointer",
+                                fontSize: "12px",
+                                fontWeight: "500",
+                                transition: "all 0.2s",
+                                flexShrink: 0,
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              <svg
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="#DC2626"
+                                strokeWidth="1.6"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+                                <path d="M10 11v6M14 11v6" />
+                              </svg>
+                              Remover
+                            </button>
+                          </>
                         )}
                       </div>
                     </motion.div>
@@ -2401,6 +2447,146 @@ export default function AdminPage() {
                 </div>
               </div>
             )}
+
+            {/* ===== ZONA 2.5 — Por tipo de evento ===== */}
+            {(() => {
+              // Cruza submissions com eventTypes para contar quantos eventos
+              // existem por tipo — só mostra tipos com pelo menos 1 evento.
+              // Tipos sem nenhum evento não aparecem (não polui o dashboard).
+              const contagemPorTipo = eventTypes
+                .map((et) => ({
+                  id: et.id,
+                  nome: et.nome,
+                  total: submissions.filter((s) => s.event_type_id === et.id)
+                    .length,
+                }))
+                .filter((et) => et.total > 0)
+                .sort((a, b) => b.total - a.total);
+
+              if (contagemPorTipo.length === 0) return null;
+
+              const totalEventos = contagemPorTipo.reduce(
+                (s, et) => s + et.total,
+                0,
+              );
+
+              return (
+                <div style={{ marginBottom: "20px" }}>
+                  <p
+                    style={{
+                      fontSize: "10px",
+                      fontWeight: "700",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.12em",
+                      color: "var(--gray-mid)",
+                      margin: "0 0 12px 0",
+                    }}
+                  >
+                    Eventos por Tipo
+                  </p>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(2, 1fr)",
+                      gap: "10px",
+                    }}
+                  >
+                    {contagemPorTipo.map((et, i) => {
+                      const percentagem =
+                        totalEventos > 0
+                          ? Math.round((et.total / totalEventos) * 100)
+                          : 0;
+                      const isPrincipal = i < 4; // destaque para os 4 com mais eventos
+
+                      return (
+                        <div
+                          key={et.id}
+                          style={{
+                            backgroundColor: "white",
+                            borderRadius: "14px",
+                            padding: "16px 18px",
+                            boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
+                            border: isPrincipal
+                              ? "1px solid var(--gold-light)"
+                              : "1px solid #F0EDE8",
+                          }}
+                        >
+                          <p
+                            style={{
+                              fontSize: "11px",
+                              color: "var(--gray-mid)",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.08em",
+                              margin: "0 0 4px 0",
+                              fontWeight: "500",
+                            }}
+                          >
+                            {et.nome}
+                          </p>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "baseline",
+                              gap: "6px",
+                              marginBottom: "10px",
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: isPrincipal ? "28px" : "22px",
+                                fontWeight: "700",
+                                fontFamily: "Playfair Display, serif",
+                                color: "var(--gold)",
+                                lineHeight: 1,
+                              }}
+                            >
+                              {et.total}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: "11px",
+                                color: "var(--gray-mid)",
+                              }}
+                            >
+                              {et.total === 1 ? "evento" : "eventos"}
+                            </span>
+                          </div>
+                          {/* Barra de proporção */}
+                          <div
+                            style={{
+                              height: "4px",
+                              borderRadius: "999px",
+                              backgroundColor: "#F5ECD7",
+                              overflow: "hidden",
+                            }}
+                          >
+                            <div
+                              style={{
+                                height: "100%",
+                                width: `${percentagem}%`,
+                                backgroundColor: "var(--gold)",
+                                borderRadius: "999px",
+                                transition: "width 0.5s ease",
+                              }}
+                            />
+                          </div>
+                          <p
+                            style={{
+                              fontSize: "10px",
+                              color: "var(--gold-light)",
+                              margin: "4px 0 0 0",
+                              textAlign: "right",
+                            }}
+                          >
+                            {percentagem}% do total
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* ===== ZONA 3 — Tendências do negócio ===== */}
 
