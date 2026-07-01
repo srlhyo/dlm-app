@@ -7,6 +7,8 @@ import { validateField } from "../lib/validation";
 import { normalizeSubmission, getValorAtual } from "../lib/submissionFields";
 import EventTypesTab from "../components/admin/EventTypesTab";
 import CampoSeletor from "../components/admin/CampoSeletor";
+import CalendarioTab from "../components/admin/CalendarioTab";
+import OperacionalTab from "../components/admin/OperacionalTab";
 import FormField from "../components/form/FormField";
 import { iniciarTour, tourJaVista } from "../lib/tour";
 import { motion, AnimatePresence } from "framer-motion";
@@ -105,6 +107,14 @@ const ADMIN_TOUR_STEPS = [
       title: "Dashboard",
       description:
         "Uma visão geral do negócio: próximos eventos, estilos e paletas mais pedidos, e o que precisa da tua atenção.",
+    },
+  },
+  {
+    element: "#tour-tab-calendario",
+    popover: {
+      title: "Calendário",
+      description:
+        "Vê todos os eventos do mês numa grelha. Percebe rapidamente que dias estão livres ou ocupados, e clica num evento para abrir a ficha completa.",
     },
   },
   {
@@ -909,7 +919,9 @@ export default function AdminPage() {
             { id: "clientes", label: "👥 Clientes" },
             { id: "convites", label: "🎟️ Convites" },
             { id: "dashboard", label: "📊 Dashboard" },
+            { id: "calendario", label: "📅 Calendário" },
             { id: "tiposEvento", label: "🗂️ Tipos de Evento" },
+            { id: "operacional", label: "📋 Operacional" },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -2811,12 +2823,23 @@ export default function AdminPage() {
         )}
 
         {/* ---- TAB TIPOS DE EVENTO ---- */}
+        {activeTab === "calendario" && (
+          <CalendarioTab
+            submissions={submissions}
+            eventTypes={eventTypes}
+            onSelectSubmission={(s) => setSelected(s)}
+          />
+        )}
+
         {activeTab === "tiposEvento" && (
           <EventTypesTab
             eventTypes={eventTypes}
             loading={loadingEventTypes}
             onRefetch={fetchEventTypes}
           />
+        )}
+        {activeTab === "operacional" && (
+          <OperacionalTab submissions={submissions} />
         )}
       </div>
 
