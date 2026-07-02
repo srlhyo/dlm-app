@@ -4,18 +4,24 @@ import { supabase } from "../lib/supabase";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts";
 import { createInvite, getEventTypes } from "../lib/invites";
 import { validateField } from "../lib/validation";
-import { normalizeSubmission, getValorAtual } from "../lib/submissionFields";
+import {
+  normalizeSubmission,
+  getValorAtual,
+  getResumoSubmissao,
+} from "../lib/submissionFields";
 import EventTypesTab from "../components/admin/EventTypesTab";
 import CampoSeletor from "../components/admin/CampoSeletor";
+import SubmissionDrawer from "../components/admin/SubmissionDrawer";
 import CalendarioTab from "../components/admin/CalendarioTab";
 import OperacionalTab from "../components/admin/OperacionalTab";
+import { getReservas } from "../lib/reservas";
 import FormField from "../components/form/FormField";
 import { iniciarTour, tourJaVista } from "../lib/tour";
 import { motion, AnimatePresence } from "framer-motion";
 
 const STATUS_OPTIONS = ["Recebido", "Em Preparação", "Confirmado", "Concluído"];
 
-// Mini-tour do Painel de Novo Convite — dispara a 1ª vez que o painel
+// Mini-tour do Painel de Novo Questionário — dispara a 1ª vez que o painel
 // abre. Como o painel arranca sempre vazio, a explicação foca-se no
 // mecanismo de escolha de campos, que é a parte menos óbvia.
 const NOVO_CONVITE_TOUR_STEPS = (temVariosTipos) => {
@@ -127,12 +133,12 @@ const ADMIN_TOUR_STEPS = [
   },
 ];
 
-// Gera um título legível para um convite (ex: "André & Andreia"), a
-// partir do que a irmã escolheu preencher no Painel de Novo Convite.
+// Gera um título legível para um questionário (ex: "André & Andreia"), a
+// partir do que a irmã escolheu preencher no Painel de Novo Questionário.
 // Duas correcções importantes:
-// 1. Se o convite já foi preenchido, usa os valores da SUBMISSÃO real
+// 1. Se o uestionário já foi preenchido, usa os valores da SUBMISSÃO real
 //    (o casal pode ter corrigido algo), não o que ficou gravado na
-//    criação do convite.
+//    criação do uestionário.
 // 2. Só entram no título campos de texto simples (nomes) — datas,
 //    emails, telefones e números ficam de fora, não fazem sentido lá.
 function getTituloConvite(invite, submissions, eventTypes) {
@@ -164,12 +170,12 @@ function getTituloConvite(invite, submissions, eventTypes) {
   // para nunca ficar com um card sem nada útil para identificar
   return tipo
     ? `${tipo.nome} · ${invite.code}`
-    : invite.code || "Convite sem nome";
+    : invite.code || "Questionário sem nome";
 }
 
 // Junta os campos de todos os passos de um tipo de evento numa única
 // lista, guardando também o título do passo a que cada um pertence
-// (usado no Painel de Novo Convite, para a irmã escolher campos)
+// (usado no Painel de Novo Questionário, para a irmã escolher campos)
 function getAllFields(tipo) {
   if (!tipo || !tipo.steps) return [];
   return tipo.steps.flatMap((step) =>
@@ -177,7 +183,7 @@ function getAllFields(tipo) {
   );
 }
 
-// Todos os tipos de evento arrancam vazios no Painel de Novo Convite,
+// Todos os tipos de evento arrancam vazios no Painel de Novo Questionário,
 // sem excepções — nem o Casamento tem campos por defeito. A irmã
 // escolhe sempre o que quer pelo campo de busca.
 function getDefaultCampos(tipo) {
@@ -186,7 +192,7 @@ function getDefaultCampos(tipo) {
 
 // A partir do estado do painel, devolve a informação completa (label,
 // tipo, validações...) de cada campo activo — partilhado entre o render
-// e a validação ao criar o convite
+// e a validação ao criar o questionário
 function getCamposActivosInfo(eventTypes, newInvite) {
   const tipo = eventTypes.find((et) => et.id === newInvite.eventTypeId);
   const todosOsCampos = getAllFields(tipo);
@@ -334,24 +340,25 @@ export default function AdminPage() {
     eventTypeId: "",
     camposAtivos: [],
     valores: {},
+    reservaId: null,
   });
+  const [reservaContexto, setReservaContexto] = useState(null);
   const [newInviteErrors, setNewInviteErrors] = useState({});
   const [createdInvite, setCreatedInvite] = useState(null);
   const [creatingInvite, setCreatingInvite] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
   const [selectedInvite, setSelectedInvite] = useState(null);
   const [shareTarget, setShareTarget] = useState(null);
-  const [editMode, setEditMode] = useState(false);
-  const [editData, setEditData] = useState({});
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [inviteToDelete, setInviteToDelete] = useState(null);
   const [eventTypes, setEventTypes] = useState([]);
   const [loadingEventTypes, setLoadingEventTypes] = useState(true);
+  const [reservas, setReservas] = useState([]);
   const navigate = useNavigate();
 
   // Abre o formulário para a irmã preencher ela própria —
-  // compõe o objecto de convite completo (com event_types) a partir
+  // compõe o objecto de questionário completo (com event_types) a partir
   // do que já está em memória, e navega para o formulário como
   // se fosse o casal/família a abri-lo
   const handlePreencherFormulario = (invite) => {
@@ -366,6 +373,42 @@ export default function AdminPage() {
     };
     sessionStorage.setItem("dlm_invite", JSON.stringify(inviteCompleto));
     navigate("/formulario");
+  };
+
+  // Chamado pela Agenda quando a irmã clica "Tornar cliente" numa reserva.
+  // Muda para a tab Questionários, abre o painel pré-preenchido e carimba
+  // o convite com o id da reserva.
+  //
+  // O nome da cliente NÃO é pré-preenchido num campo (não sabemos para que
+  // campo do modelo iria) — aparece só como referência na nota do topo.
+  // A data é pré-preenchida SE o modelo tiver um campo do tipo "date":
+  // procuramos esse campo pelo seu type e usamos o id REAL dele (os ids
+  // são gerados a partir do label, ex: "Data do Evento" -> "dataDoEvento",
+  // por isso não podem ser adivinhados).
+  const handleCriarQuestionarioDeReserva = (reserva) => {
+    const tipoId = reserva.event_type_id || eventTypes[0]?.id || "";
+    const tipo = eventTypes.find((et) => et.id === tipoId);
+
+    // procurar o primeiro campo de data no modelo escolhido
+    const campoData = getAllFields(tipo).find((f) => f.type === "date");
+
+    const valores = {};
+    const camposAtivos = [];
+    if (campoData && reserva.data_evento) {
+      valores[campoData.id] = reserva.data_evento;
+      camposAtivos.push(campoData.id); // sem isto, o campo não aparece no painel
+    }
+
+    setActiveTab("convites");
+    setReservaContexto(reserva);
+    setNewInvite({
+      eventTypeId: tipoId,
+      camposAtivos,
+      valores,
+      reservaId: reserva.id,
+    });
+    setShowNewInvite(true);
+    setCreatedInvite(null);
   };
 
   useEffect(() => {
@@ -402,6 +445,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     fetchSubmissions();
+    fetchReservas();
     fetchInvites();
     fetchEventTypes();
 
@@ -458,6 +502,15 @@ export default function AdminPage() {
       console.error("Erro ao ir buscar tipos de evento:", e);
     }
     setLoadingEventTypes(false);
+  };
+
+  const fetchReservas = async () => {
+    try {
+      const data = await getReservas();
+      setReservas(data);
+    } catch (e) {
+      console.error("Erro ao ir buscar reservas:", e);
+    }
   };
 
   // Quando a irmã muda o tipo de evento no painel, os campos activos
@@ -545,6 +598,7 @@ export default function AdminPage() {
         dataEvento: newInvite.valores.dataEvento || null,
         eventTypeId,
         respostas: newInvite.valores,
+        reservaId: newInvite.reservaId || null,
       });
       setCreatedInvite(invite);
       setInvites((prev) => [invite, ...prev]);
@@ -553,7 +607,9 @@ export default function AdminPage() {
         eventTypeId,
         camposAtivos: getDefaultCampos(tipoActual),
         valores: {},
+        reservaId: null,
       });
+      setReservaContexto(null);
       setShowNewInvite(false);
     } catch (e) {
       console.error(e);
@@ -604,76 +660,6 @@ export default function AdminPage() {
     );
     if (selected?.id === id)
       setSelected((prev) => ({ ...prev, status: newStatus }));
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    const { error } = await supabase
-      .from("submissions")
-      .update(editData)
-      .eq("id", selected.id);
-
-    if (!error) {
-      setSubmissions((prev) =>
-        prev.map((s) => (s.id === selected.id ? { ...s, ...editData } : s)),
-      );
-      setSelected((prev) => ({ ...prev, ...editData }));
-      setEditMode(false);
-    } else {
-      console.error(error);
-      alert("Erro ao guardar. Tenta novamente.");
-    }
-    setSaving(false);
-  };
-
-  const handleEditOpen = () => {
-    setEditData({
-      nome_noivo: selected.nome_noivo || "",
-      nome_noiva: selected.nome_noiva || "",
-      contacto_principal: selected.contacto_principal || "",
-      email: selected.email || "",
-      morada: selected.morada || "",
-      data_evento: selected.data_evento || "",
-      local_evento: selected.local_evento || "",
-      numero_convidados: selected.numero_convidados || "",
-      hora_inicio: selected.hora_inicio || "",
-      hora_termino: selected.hora_termino || "",
-      hora_montagem: selected.hora_montagem || "",
-      hora_limite_montagem: selected.hora_limite_montagem || "",
-      hora_recolha: selected.hora_recolha || "",
-      recolha_dia_seguinte: selected.recolha_dia_seguinte || "",
-      nome_responsavel: selected.nome_responsavel || "",
-      contacto_responsavel: selected.contacto_responsavel || "",
-      relacao_responsavel: selected.relacao_responsavel || "",
-      estilo_evento: selected.estilo_evento || [],
-      estilo_outro: selected.estilo_outro || "",
-      paleta_cores: selected.paleta_cores || [],
-      paleta_observacoes: selected.paleta_observacoes || "",
-      mesa_noivos: selected.mesa_noivos || [],
-      cartoes_pratos: selected.cartoes_pratos || "",
-      observacoes_cartoes: selected.observacoes_cartoes || "",
-      descricao_mesa_noivos: selected.descricao_mesa_noivos || "",
-      cenario_palco: selected.cenario_palco || [],
-      descricao_cenario: selected.descricao_cenario || "",
-      medidas_espaco: selected.medidas_espaco || "",
-      centros_mesa: selected.centros_mesa || [],
-      tipo_flores: selected.tipo_flores || [],
-      numero_mesas: selected.numero_mesas || "",
-      formato_mesas: selected.formato_mesas || "",
-      lugares_por_mesa: selected.lugares_por_mesa || "",
-      observacoes_mesas: selected.observacoes_mesas || "",
-      texto_principal_placa: selected.texto_principal_placa || "",
-      texto_secundario_placa: selected.texto_secundario_placa || "",
-      estilo_placa: selected.estilo_placa || [],
-      notas_placa: selected.notas_placa || "",
-      morada_exacta: selected.morada_exacta || "",
-      pessoa_abre_espaco: selected.pessoa_abre_espaco || "",
-      contacto_pessoa_abre: selected.contacto_pessoa_abre || "",
-      acesso_local: selected.acesso_local || [],
-      notas_acesso: selected.notas_acesso || "",
-      observacoes_gerais: selected.observacoes_gerais || "",
-    });
-    setEditMode(true);
   };
 
   const handleLogout = async () => {
@@ -917,11 +903,11 @@ export default function AdminPage() {
         >
           {[
             { id: "clientes", label: "👥 Clientes" },
-            { id: "convites", label: "🎟️ Convites" },
-            { id: "dashboard", label: "📊 Dashboard" },
-            { id: "calendario", label: "📅 Calendário" },
-            { id: "tiposEvento", label: "🗂️ Tipos de Evento" },
-            { id: "operacional", label: "📋 Operacional" },
+            { id: "convites", label: "📋 Questionários" },
+            { id: "calendario", label: "📅 Agenda" },
+            { id: "operacional", label: "📦 Logística" },
+            { id: "tiposEvento", label: "🗂️ Modelos de Evento" },
+            { id: "dashboard", label: "📊 Visão Geral" },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -1193,28 +1179,33 @@ export default function AdminPage() {
                         borderLeft: `4px solid ${colors.color}`,
                       }}
                     >
-                      <div>
-                        <p
-                          style={{
-                            fontSize: "15px",
-                            fontWeight: "500",
-                            color: "var(--charcoal)",
-                            margin: "0 0 4px 0",
-                          }}
-                        >
-                          {s.nome_noivo || "—"} & {s.nome_noiva || "—"}
-                        </p>
-                        <p
-                          style={{
-                            fontSize: "13px",
-                            color: "var(--gray-mid)",
-                            margin: 0,
-                          }}
-                        >
-                          {formatDate(s.data_evento)} ·{" "}
-                          {s.local_evento || "Local não definido"}
-                        </p>
-                      </div>
+                      {(() => {
+                        const resumo = getResumoSubmissao(s, eventTypes);
+                        return (
+                          <div>
+                            <p
+                              style={{
+                                fontSize: "15px",
+                                fontWeight: "500",
+                                color: "var(--charcoal)",
+                                margin: "0 0 4px 0",
+                              }}
+                            >
+                              {resumo.titulo}
+                            </p>
+                            <p
+                              style={{
+                                fontSize: "13px",
+                                color: "var(--gray-mid)",
+                                margin: 0,
+                              }}
+                            >
+                              {formatDate(resumo.data)} ·{" "}
+                              {s.local_evento || "Local não definido"}
+                            </p>
+                          </div>
+                        );
+                      })()}
                       <div
                         style={{
                           display: "flex",
@@ -1415,7 +1406,7 @@ export default function AdminPage() {
               )}
             </AnimatePresence>
 
-            {/* Botão novo convite */}
+            {/* Botão novo Questionário */}
             <div
               style={{
                 display: "flex",
@@ -1440,11 +1431,11 @@ export default function AdminPage() {
                   boxShadow: "0 4px 12px rgba(201,168,76,0.3)",
                 }}
               >
-                + Novo Convite
+                + Novo Questionário
               </button>
             </div>
 
-            {/* Formulário novo convite */}
+            {/* Formulário novo Questionário */}
             <style>{`
               .painel-convite-scroll::-webkit-scrollbar { width: 6px; }
               .painel-convite-scroll::-webkit-scrollbar-thumb {
@@ -1504,8 +1495,45 @@ export default function AdminPage() {
                           letterSpacing: "0.06em",
                         }}
                       >
-                        Novo Convite
+                        Novo Questionário
                       </h3>
+
+                      {reservaContexto && (
+                        <div
+                          style={{
+                            backgroundColor: "#FBF7EF",
+                            border: "1px solid var(--gold-light)",
+                            borderRadius: "10px",
+                            padding: "12px 14px",
+                            marginBottom: "16px",
+                          }}
+                        >
+                          <p
+                            style={{
+                              fontSize: "10px",
+                              color: "var(--gray-mid)",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.06em",
+                              margin: "0 0 4px 0",
+                            }}
+                          >
+                            A criar para a reserva de
+                          </p>
+                          <p
+                            style={{
+                              fontSize: "14px",
+                              fontWeight: "600",
+                              color: "var(--charcoal)",
+                              margin: 0,
+                            }}
+                          >
+                            {reservaContexto.nome_cliente}
+                            {reservaContexto.contacto
+                              ? ` · ${reservaContexto.contacto}`
+                              : ""}
+                          </p>
+                        </div>
+                      )}
 
                       {eventTypes.length > 1 && (
                         <div
@@ -2827,7 +2855,10 @@ export default function AdminPage() {
           <CalendarioTab
             submissions={submissions}
             eventTypes={eventTypes}
+            reservas={reservas}
             onSelectSubmission={(s) => setSelected(s)}
+            onReservasChange={fetchReservas}
+            onCriarQuestionario={handleCriarQuestionarioDeReserva}
           />
         )}
 
@@ -2843,698 +2874,19 @@ export default function AdminPage() {
         )}
       </div>
 
-      {/* Drawer */}
-      <AnimatePresence>
-        {selected && (
-          <motion.div
-            onClick={() => setSelected(null)}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 50,
-              backgroundColor: "rgba(0,0,0,0.35)",
-              display: "flex",
-              justifyContent: "flex-end",
-            }}
-          >
-            <motion.div
-              onClick={(e) => e.stopPropagation()}
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ duration: 0.32, ease: [0.32, 0.72, 0, 1] }}
-              style={{
-                backgroundColor: "white",
-                width: "100%",
-                maxWidth: "480px",
-                height: "100%",
-                overflowY: "auto",
-                padding: "28px 24px",
-                boxShadow: "-4px 0 24px rgba(0,0,0,0.1)",
-              }}
-            >
-              <div style={{ marginBottom: "24px" }}>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                    marginBottom: "24px",
-                  }}
-                >
-                  <div>
-                    <h2
-                      style={{
-                        fontSize: "20px",
-                        color: "var(--charcoal)",
-                        margin: "0 0 4px 0",
-                        fontFamily: "Playfair Display, serif",
-                      }}
-                    >
-                      {selected.nome_noivo} & {selected.nome_noiva}
-                    </h2>
-                    <p
-                      style={{
-                        fontSize: "13px",
-                        color: "var(--gray-mid)",
-                        margin: 0,
-                      }}
-                    >
-                      {formatDate(selected.data_evento)}
-                    </p>
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: "8px",
-                      alignItems: "center",
-                    }}
-                  >
-                    {!editMode && (
-                      <button
-                        onClick={handleEditOpen}
-                        style={{
-                          padding: "7px 16px",
-                          borderRadius: "8px",
-                          fontSize: "12px",
-                          fontWeight: "500",
-                          cursor: "pointer",
-                          border: "1.5px solid var(--gold)",
-                          color: "var(--gold)",
-                          backgroundColor: "white",
-                          transition: "all 0.2s",
-                        }}
-                      >
-                        ✏️ Editar
-                      </button>
-                    )}
-                    <button
-                      onClick={() => {
-                        setSelected(null);
-                        setEditMode(false);
-                      }}
-                      style={{
-                        fontSize: "20px",
-                        color: "var(--gray-mid)",
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                      }}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
+      <SubmissionDrawer
+        selected={selected}
+        eventTypes={eventTypes}
+        onClose={() => setSelected(null)}
+        onStatusChange={handleStatusChange}
+        onSaved={(atualizada) => {
+          setSubmissions((prev) =>
+            prev.map((s) => (s.id === atualizada.id ? atualizada : s)),
+          );
+          setSelected(atualizada);
+        }}
+      />
 
-                {/* Botão briefing */}
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <button
-                    onClick={() =>
-                      window.open(`/briefing/${selected.id}`, "_blank")
-                    }
-                    style={{
-                      flex: 1,
-                      padding: "9px 12px",
-                      borderRadius: "10px",
-                      fontSize: "12px",
-                      fontWeight: "500",
-                      cursor: "pointer",
-                      transition: "all 0.2s",
-                      backgroundColor: "var(--gold)",
-                      color: "white",
-                      border: "none",
-                    }}
-                  >
-                    📄 Ver Briefing
-                  </button>
-                </div>
-              </div>
-
-              <div style={{ marginBottom: "28px" }}>
-                <p
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: "600",
-                    color: "var(--gray-mid)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
-                    marginBottom: "10px",
-                  }}
-                >
-                  Estado do Evento
-                </p>
-                <div className="filter-wrap">
-                  <div
-                    className="h-scroll"
-                    style={{ gap: "8px", paddingRight: "32px" }}
-                  >
-                    {STATUS_OPTIONS.map((status) => {
-                      const colors = STATUS_COLORS[status];
-                      const isActive = selected.status === status;
-                      return (
-                        <button
-                          key={status}
-                          onClick={() =>
-                            handleStatusChange(selected.id, status)
-                          }
-                          style={{
-                            padding: "6px 14px",
-                            borderRadius: "999px",
-                            fontSize: "12px",
-                            whiteSpace: "nowrap",
-                            border: `1px solid ${colors.border}`,
-                            backgroundColor: isActive
-                              ? colors.color
-                              : colors.bg,
-                            color: isActive ? "white" : colors.color,
-                            cursor: "pointer",
-                            transition: "all 0.2s",
-                          }}
-                        >
-                          {status}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              {/* Modo leitura */}
-              {!editMode && (
-                <>
-                  <Section title="Dados Principais">
-                    <DetailRow
-                      label="Contacto"
-                      value={selected.contacto_principal}
-                    />
-                    <DetailRow label="Email" value={selected.email} />
-                    <DetailRow label="Morada" value={selected.morada} />
-                    <DetailRow
-                      label="Local do Evento"
-                      value={selected.local_evento}
-                    />
-                    <DetailRow
-                      label="Nº Convidados"
-                      value={selected.numero_convidados}
-                    />
-                    <DetailRow
-                      label="Hora Início"
-                      value={selected.hora_inicio}
-                    />
-                    <DetailRow
-                      label="Hora Término"
-                      value={selected.hora_termino}
-                    />
-                    <DetailRow
-                      label="Hora Montagem"
-                      value={selected.hora_montagem}
-                    />
-                    <DetailRow
-                      label="Hora Limite Montagem"
-                      value={selected.hora_limite_montagem}
-                    />
-                    <DetailRow
-                      label="Hora Recolha"
-                      value={selected.hora_recolha}
-                    />
-                    <DetailRow
-                      label="Recolha Dia Seguinte"
-                      value={selected.recolha_dia_seguinte}
-                    />
-                  </Section>
-                  <Section title="Contacto no Dia">
-                    <DetailRow
-                      label="Responsável"
-                      value={selected.nome_responsavel}
-                    />
-                    <DetailRow
-                      label="Contacto"
-                      value={selected.contacto_responsavel}
-                    />
-                    <DetailRow
-                      label="Relação"
-                      value={selected.relacao_responsavel}
-                    />
-                  </Section>
-                  <Section title="Estilo e Cores">
-                    <DetailRow
-                      label="Estilo"
-                      value={selected.estilo_evento?.join(", ")}
-                    />
-                    <DetailRow
-                      label="Outro Estilo"
-                      value={selected.estilo_outro}
-                    />
-                    <DetailRow
-                      label="Paleta de Cores"
-                      value={selected.paleta_cores?.join(", ")}
-                    />
-                    <DetailRow
-                      label="Observações Paleta"
-                      value={selected.paleta_observacoes}
-                    />
-                  </Section>
-                  <Section title="Detalhes Decorativos">
-                    <DetailRow
-                      label="Mesa dos Noivos"
-                      value={selected.mesa_noivos?.join(", ")}
-                    />
-                    <DetailRow
-                      label="Cartões nos Pratos"
-                      value={selected.cartoes_pratos}
-                    />
-                    <DetailRow
-                      label="Obs. Cartões"
-                      value={selected.observacoes_cartoes}
-                    />
-                    <DetailRow
-                      label="Descrição Mesa Noivos"
-                      value={selected.descricao_mesa_noivos}
-                    />
-                    <DetailRow
-                      label="Cenário de Palco"
-                      value={selected.cenario_palco?.join(", ")}
-                    />
-                    <DetailRow
-                      label="Descrição Cenário"
-                      value={selected.descricao_cenario}
-                    />
-                    <DetailRow
-                      label="Medidas / Limitações"
-                      value={selected.medidas_espaco}
-                    />
-                  </Section>
-                  <Section title="Convidados e Placa">
-                    <DetailRow
-                      label="Centros de Mesa"
-                      value={selected.centros_mesa?.join(", ")}
-                    />
-                    <DetailRow
-                      label="Tipo de Flores"
-                      value={selected.tipo_flores?.join(", ")}
-                    />
-                    <DetailRow label="Nº Mesas" value={selected.numero_mesas} />
-                    <DetailRow
-                      label="Formato Mesas"
-                      value={selected.formato_mesas}
-                    />
-                    <DetailRow
-                      label="Lugares por Mesa"
-                      value={selected.lugares_por_mesa}
-                    />
-                    <DetailRow
-                      label="Obs. Mesas"
-                      value={selected.observacoes_mesas}
-                    />
-                    <DetailRow
-                      label="Texto Principal Placa"
-                      value={selected.texto_principal_placa}
-                    />
-                    <DetailRow
-                      label="Texto Secundário Placa"
-                      value={selected.texto_secundario_placa}
-                    />
-                    <DetailRow
-                      label="Estilo Placa"
-                      value={selected.estilo_placa?.join(", ")}
-                    />
-                    <DetailRow
-                      label="Notas Placa"
-                      value={selected.notas_placa}
-                    />
-                  </Section>
-                  <Section title="Logística">
-                    <DetailRow
-                      label="Morada Exacta"
-                      value={selected.morada_exacta}
-                    />
-                    <DetailRow
-                      label="Pessoa que Abre"
-                      value={selected.pessoa_abre_espaco}
-                    />
-                    <DetailRow
-                      label="Contacto"
-                      value={selected.contacto_pessoa_abre}
-                    />
-                    <DetailRow
-                      label="Acesso Local"
-                      value={selected.acesso_local?.join(", ")}
-                    />
-                    <DetailRow
-                      label="Notas Acesso"
-                      value={selected.notas_acesso}
-                    />
-                    <DetailRow
-                      label="Observações Gerais"
-                      value={selected.observacoes_gerais}
-                    />
-                  </Section>
-                </>
-              )}
-
-              {/* Modo edição */}
-              {editMode && (
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "20px",
-                  }}
-                >
-                  {[
-                    {
-                      section: "Dados Principais",
-                      fields: [
-                        {
-                          key: "nome_noivo",
-                          label: "Nome do Noivo",
-                          type: "text",
-                        },
-                        {
-                          key: "nome_noiva",
-                          label: "Nome da Noiva",
-                          type: "text",
-                        },
-                        {
-                          key: "contacto_principal",
-                          label: "Contacto Principal",
-                          type: "tel",
-                        },
-                        { key: "email", label: "Email", type: "email" },
-                        { key: "morada", label: "Morada", type: "text" },
-                        {
-                          key: "data_evento",
-                          label: "Data do Evento",
-                          type: "date",
-                        },
-                        {
-                          key: "local_evento",
-                          label: "Local do Evento",
-                          type: "text",
-                        },
-                        {
-                          key: "numero_convidados",
-                          label: "Nº Convidados",
-                          type: "number",
-                        },
-                        {
-                          key: "hora_inicio",
-                          label: "Hora Início",
-                          type: "time",
-                        },
-                        {
-                          key: "hora_termino",
-                          label: "Hora Término",
-                          type: "time",
-                        },
-                        {
-                          key: "hora_montagem",
-                          label: "Hora Montagem",
-                          type: "time",
-                        },
-                        {
-                          key: "hora_limite_montagem",
-                          label: "Hora Limite Montagem",
-                          type: "time",
-                        },
-                        {
-                          key: "hora_recolha",
-                          label: "Hora Recolha",
-                          type: "time",
-                        },
-                        {
-                          key: "recolha_dia_seguinte",
-                          label: "Recolha Dia Seguinte",
-                          type: "text",
-                        },
-                      ],
-                    },
-                    {
-                      section: "Contacto no Dia",
-                      fields: [
-                        {
-                          key: "nome_responsavel",
-                          label: "Responsável",
-                          type: "text",
-                        },
-                        {
-                          key: "contacto_responsavel",
-                          label: "Contacto",
-                          type: "tel",
-                        },
-                        {
-                          key: "relacao_responsavel",
-                          label: "Relação",
-                          type: "text",
-                        },
-                      ],
-                    },
-                    {
-                      section: "Estilo e Cores",
-                      fields: [
-                        {
-                          key: "estilo_outro",
-                          label: "Outro Estilo",
-                          type: "text",
-                        },
-                        {
-                          key: "paleta_observacoes",
-                          label: "Observações Paleta",
-                          type: "textarea",
-                        },
-                      ],
-                    },
-                    {
-                      section: "Detalhes Decorativos",
-                      fields: [
-                        {
-                          key: "observacoes_cartoes",
-                          label: "Obs. Cartões",
-                          type: "textarea",
-                        },
-                        {
-                          key: "descricao_mesa_noivos",
-                          label: "Descrição Mesa Noivos",
-                          type: "textarea",
-                        },
-                        {
-                          key: "descricao_cenario",
-                          label: "Descrição Cenário",
-                          type: "textarea",
-                        },
-                        {
-                          key: "medidas_espaco",
-                          label: "Medidas / Limitações",
-                          type: "textarea",
-                        },
-                      ],
-                    },
-                    {
-                      section: "Convidados e Placa",
-                      fields: [
-                        {
-                          key: "numero_mesas",
-                          label: "Nº Mesas",
-                          type: "number",
-                        },
-                        {
-                          key: "formato_mesas",
-                          label: "Formato Mesas",
-                          type: "text",
-                        },
-                        {
-                          key: "lugares_por_mesa",
-                          label: "Lugares por Mesa",
-                          type: "number",
-                        },
-                        {
-                          key: "observacoes_mesas",
-                          label: "Obs. Mesas",
-                          type: "textarea",
-                        },
-                        {
-                          key: "texto_principal_placa",
-                          label: "Texto Principal Placa",
-                          type: "text",
-                        },
-                        {
-                          key: "texto_secundario_placa",
-                          label: "Texto Secundário Placa",
-                          type: "text",
-                        },
-                        {
-                          key: "notas_placa",
-                          label: "Notas Placa",
-                          type: "textarea",
-                        },
-                      ],
-                    },
-                    {
-                      section: "Logística",
-                      fields: [
-                        {
-                          key: "morada_exacta",
-                          label: "Morada Exacta",
-                          type: "textarea",
-                        },
-                        {
-                          key: "pessoa_abre_espaco",
-                          label: "Pessoa que Abre",
-                          type: "text",
-                        },
-                        {
-                          key: "contacto_pessoa_abre",
-                          label: "Contacto",
-                          type: "tel",
-                        },
-                        {
-                          key: "notas_acesso",
-                          label: "Notas Acesso",
-                          type: "textarea",
-                        },
-                        {
-                          key: "observacoes_gerais",
-                          label: "Observações Gerais",
-                          type: "textarea",
-                        },
-                      ],
-                    },
-                  ].map(({ section, fields }) => (
-                    <div key={section}>
-                      <p
-                        style={{
-                          fontSize: "11px",
-                          fontWeight: "600",
-                          color: "var(--gold)",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.08em",
-                          borderBottom: "1px solid var(--gold-light)",
-                          paddingBottom: "6px",
-                          marginBottom: "12px",
-                        }}
-                      >
-                        {section}
-                      </p>
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: "10px",
-                        }}
-                      >
-                        {fields.map(({ key, label, type }) => (
-                          <div key={key}>
-                            <label
-                              style={{
-                                fontSize: "11px",
-                                color: "var(--gray-mid)",
-                                textTransform: "uppercase",
-                                letterSpacing: "0.05em",
-                                display: "block",
-                                marginBottom: "4px",
-                              }}
-                            >
-                              {label}
-                            </label>
-                            {type === "textarea" ? (
-                              <textarea
-                                rows={2}
-                                value={editData[key] || ""}
-                                onChange={(e) =>
-                                  setEditData((prev) => ({
-                                    ...prev,
-                                    [key]: e.target.value,
-                                  }))
-                                }
-                                style={{
-                                  width: "100%",
-                                  padding: "8px 12px",
-                                  borderRadius: "8px",
-                                  border: "1.5px solid var(--gold-light)",
-                                  fontSize: "13px",
-                                  outline: "none",
-                                  resize: "none",
-                                  fontFamily: "Inter, sans-serif",
-                                  boxSizing: "border-box",
-                                }}
-                              />
-                            ) : (
-                              <input
-                                type={type}
-                                value={editData[key] || ""}
-                                onChange={(e) =>
-                                  setEditData((prev) => ({
-                                    ...prev,
-                                    [key]: e.target.value,
-                                  }))
-                                }
-                                style={{
-                                  width: "100%",
-                                  padding: "8px 12px",
-                                  borderRadius: "8px",
-                                  border: "1.5px solid var(--gold-light)",
-                                  fontSize: "13px",
-                                  outline: "none",
-                                  fontFamily: "Inter, sans-serif",
-                                  boxSizing: "border-box",
-                                }}
-                              />
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-
-                  <div
-                    style={{ display: "flex", gap: "10px", paddingTop: "8px" }}
-                  >
-                    <button
-                      onClick={() => setEditMode(false)}
-                      style={{
-                        flex: 1,
-                        padding: "11px",
-                        borderRadius: "10px",
-                        fontSize: "13px",
-                        border: "1.5px solid var(--gold-light)",
-                        color: "var(--gray-mid)",
-                        backgroundColor: "white",
-                        cursor: "pointer",
-                      }}
-                    >
-                      Cancelar
-                    </button>
-                    <button
-                      onClick={handleSave}
-                      disabled={saving}
-                      style={{
-                        flex: 2,
-                        padding: "11px",
-                        borderRadius: "10px",
-                        fontSize: "13px",
-                        fontWeight: "600",
-                        cursor: saving ? "not-allowed" : "pointer",
-                        backgroundColor: saving
-                          ? "var(--gold-light)"
-                          : "var(--gold)",
-                        color: "white",
-                        border: "none",
-                        boxShadow: "0 4px 12px rgba(201,168,76,0.3)",
-                      }}
-                    >
-                      {saving ? "A guardar..." : "✓ Guardar alterações"}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
       {/* Modal de partilha */}
       <AnimatePresence>
         {shareTarget && (

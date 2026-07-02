@@ -31,6 +31,7 @@ const TYPE_OPTIONS = [
   { value: "time", label: "Hora" },
   { value: "radio", label: "Escolha única (um botão)" },
   { value: "checkbox", label: "Escolha múltipla (vários botões)" },
+  { value: "paleta", label: "Paleta de Cores 🎨" },
 ];
 
 let uidSeq = 0;

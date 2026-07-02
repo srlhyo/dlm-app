@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ICONS } from "../Icons";
+import SeletorPaleta from "../admin/SeletorPaleta";
 
 function Tooltip({ text }) {
   const [visible, setVisible] = useState(false);
@@ -379,6 +380,20 @@ export default function FormField({
             );
           })}
         </div>
+        <ErrorMessage error={error} />
+      </div>
+    );
+  }
+
+  // paleta de cores (catálogo visual clicável)
+  if (field.type === "paleta") {
+    return (
+      <div>
+        <Label />
+        <SeletorPaleta
+          value={value}
+          onChange={(novo) => handleChange(field.id, novo)}
+        />
         <ErrorMessage error={error} />
       </div>
     );

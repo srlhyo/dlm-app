@@ -491,6 +491,24 @@ export default function FormPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // Encontra o valor do primeiro campo de um dado TYPE no modelo (ex:
+  // "date"), usando o id real do campo (gerado do label). Para a data,
+  // isto é fiável — o calendário e o dashboard lêem da coluna data_evento.
+  const valorPorTipo = (tipo) => {
+    for (const s of steps) {
+      for (const f of s.fields || []) {
+        if (
+          f.type === tipo &&
+          formData[f.id] != null &&
+          formData[f.id] !== ""
+        ) {
+          return formData[f.id];
+        }
+      }
+    }
+    return null;
+  };
+
   const handleSubmit = async () => {
     const stepErrors = validateStep(step, formData);
     if (Object.keys(stepErrors).length > 0) {
@@ -501,12 +519,24 @@ export default function FormPage() {
     }
     setSubmitting(true);
     setSubmitError(null);
+
+    // Deriva a data a partir do campo do tipo "date" do modelo (pelo id
+    // real), em vez de assumir o id fixo "dataEvento". Assim qualquer
+    // modelo grava a data na coluna data_evento que o calendário lê.
+    // O nº de convidados NÃO é adivinhado por tipo (um modelo pode ter
+    // vários campos numéricos): mantém-se o id conhecido do Casamento,
+    // ficando null quando não existir — melhor vazio que um número errado.
+    const dataDoEvento = valorPorTipo("date") || formData.dataEvento || null;
+    const numeroConvidados = formData.numeroConvidados
+      ? parseInt(formData.numeroConvidados, 10)
+      : null;
+
     const payload = {
       event_type_id: invite.event_type_id,
-      data_evento: formData.dataEvento || null,
-      numero_convidados: formData.numeroConvidados
-        ? parseInt(formData.numeroConvidados)
-        : null,
+      data_evento: dataDoEvento,
+      numero_convidados: Number.isNaN(numeroConvidados)
+        ? null
+        : numeroConvidados,
       respostas: formData,
     };
     try {

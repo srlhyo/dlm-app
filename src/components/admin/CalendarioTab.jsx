@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
+import ReservaModal from "./ReservaModal";
+import { agruparReservasPorDia } from "../../lib/reservas";
+import { getResumoSubmissao } from "../../lib/submissionFields";
 
 const DIAS_SEMANA = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 const MESES = [
@@ -25,17 +28,12 @@ const STATUS_CORES = {
   Concluído: { bg: "#F9FAFB", border: "#E5E7EB", texto: "#6B7280" },
 };
 
-function getTituloSubmissao(s, eventTypes) {
-  // Tenta nome das colunas antigas, depois de respostas
-  const nomePrimeiro =
-    s.nome_noivo || s.respostas?.nomeNoivo || s.respostas?.nomeContacto || null;
-  const nomeSegundo = s.nome_noiva || s.respostas?.nomeNoiva || null;
-  if (nomePrimeiro && nomeSegundo) return `${nomePrimeiro} & ${nomeSegundo}`;
-  if (nomePrimeiro) return nomePrimeiro;
+// Cor das reservas provisórias — cinza-dourado esbatido e tracejado,
+// para se distinguir num relance dos eventos reais (que têm cor sólida)
+const RESERVA_COR = { bg: "#FBF7EF", border: "#D8C9A0", texto: "#A07830" };
 
-  // Fallback: tipo + estado
-  const tipo = eventTypes?.find((et) => et.id === s.event_type_id);
-  return tipo ? tipo.nome : "Evento";
+function getTituloSubmissao(s, eventTypes) {
+  return getResumoSubmissao(s, eventTypes).titulo;
 }
 
 function getTipoNome(s, eventTypes) {
@@ -56,17 +54,29 @@ function buildGrid(ano, mes) {
   return grid;
 }
 
+// Constrói a chave 'YYYY-MM-DD' de um dia do mês em vista.
+function chaveDia(ano, mes, dia) {
+  const mm = String(mes + 1).padStart(2, "0");
+  const dd = String(dia).padStart(2, "0");
+  return `${ano}-${mm}-${dd}`;
+}
+
 export default function CalendarioTab({
   submissions,
   eventTypes,
+  reservas = [],
   onSelectSubmission,
+  onReservasChange,
+  onCriarQuestionario,
 }) {
   const hoje = new Date();
   const [viewDate, setViewDate] = useState(
     new Date(hoje.getFullYear(), hoje.getMonth(), 1),
   );
-  // Popup de dia: { dia, eventos } ou null
+  // Popup de dia: { dia, eventos, reservasDia } ou null
   const [popupDia, setPopupDia] = useState(null);
+  // Modal de reserva: { dataInicial } (criar) ou { reserva } (editar) ou null
+  const [modalReserva, setModalReserva] = useState(null);
 
   const ano = viewDate.getFullYear();
   const mes = viewDate.getMonth();
@@ -78,16 +88,45 @@ export default function CalendarioTab({
   // Agrupa as submissões por dia do mês actual
   const eventosPorDia = {};
   submissions.forEach((s) => {
-    if (!s.data_evento) return;
-    const d = new Date(s.data_evento);
+    // Usa a data do resumo — apanha eventos cuja data só está em
+    // "respostas" (modelos onde a coluna data_evento ficou vazia).
+    const dataEvento = getResumoSubmissao(s, eventTypes).data;
+    if (!dataEvento) return;
+    const d = new Date(dataEvento);
     if (d.getFullYear() !== ano || d.getMonth() !== mes) return;
     const dia = d.getUTCDate();
     if (!eventosPorDia[dia]) eventosPorDia[dia] = [];
     eventosPorDia[dia].push(s);
   });
 
+  // Agrupa as reservas por dia (chave 'YYYY-MM-DD'), depois filtra pelo mês
+  const reservasPorChave = agruparReservasPorDia(reservas);
+  const reservasPorDia = {};
+  Object.entries(reservasPorChave).forEach(([chave, lista]) => {
+    const [a, m, d] = chave.split("-").map(Number);
+    if (a === ano && m - 1 === mes) reservasPorDia[d] = lista;
+  });
+
   const totalEventosMes = Object.values(eventosPorDia).flat().length;
-  const diasOcupados = Object.keys(eventosPorDia).length;
+  const totalReservasMes = Object.values(reservasPorDia).flat().length;
+  const diasOcupados = new Set([
+    ...Object.keys(eventosPorDia),
+    ...Object.keys(reservasPorDia),
+  ]).size;
+
+  // Após criar/editar/remover uma reserva, pede ao pai para recarregar.
+  const recarregar = () => {
+    if (onReservasChange) onReservasChange();
+    setModalReserva(null);
+  };
+
+  // Conversão em cliente: fecha o modal e abre a criação do questionário
+  // já pré-preenchido e carimbado com esta reserva (tratado no AdminPage).
+  // Quando o questionário for submetido, a reserva converte-se sozinha.
+  const handleConverter = (reserva) => {
+    setModalReserva(null);
+    if (onCriarQuestionario) onCriarQuestionario(reserva);
+  };
 
   return (
     <motion.div
@@ -161,7 +200,7 @@ export default function CalendarioTab({
         </div>
 
         {/* Resumo rápido do mês */}
-        <div style={{ display: "flex", gap: "12px" }}>
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
           <div
             style={{
               fontSize: "12px",
@@ -175,7 +214,22 @@ export default function CalendarioTab({
             <span style={{ fontWeight: "700", color: "var(--gold)" }}>
               {totalEventosMes}
             </span>{" "}
-            {totalEventosMes === 1 ? "evento" : "eventos"} este mês
+            {totalEventosMes === 1 ? "evento" : "eventos"}
+          </div>
+          <div
+            style={{
+              fontSize: "12px",
+              color: "var(--gray-mid)",
+              backgroundColor: "white",
+              borderRadius: "8px",
+              padding: "6px 14px",
+              border: "1px solid var(--gold-light)",
+            }}
+          >
+            <span style={{ fontWeight: "700", color: "var(--gold-dark)" }}>
+              {totalReservasMes}
+            </span>{" "}
+            {totalReservasMes === 1 ? "reserva" : "reservas"}
           </div>
           <div
             style={{
@@ -223,6 +277,21 @@ export default function CalendarioTab({
             </span>
           </div>
         ))}
+        {/* Legenda das reservas */}
+        <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+          <div
+            style={{
+              width: "10px",
+              height: "10px",
+              borderRadius: "50%",
+              backgroundColor: RESERVA_COR.bg,
+              border: `1.5px dashed ${RESERVA_COR.border}`,
+            }}
+          />
+          <span style={{ fontSize: "10px", color: "var(--gray-mid)" }}>
+            Reserva (provisória)
+          </span>
+        </div>
       </div>
 
       {/* Grelha do calendário */}
@@ -283,53 +352,101 @@ export default function CalendarioTab({
               mes === hoje.getMonth() &&
               ano === hoje.getFullYear();
             const eventos = eventosPorDia[dia] || [];
+            const reservasDia = reservasPorDia[dia] || [];
             const temEventos = eventos.length > 0;
-            const visiveis = eventos.slice(0, 2);
-            const extra = eventos.length - visiveis.length;
+            const temReservas = reservasDia.length > 0;
+            // Mostra até 2 itens no total (eventos primeiro, depois reservas)
+            const itens = [
+              ...eventos.map((e) => ({ tipo: "evento", dados: e })),
+              ...reservasDia.map((r) => ({ tipo: "reserva", dados: r })),
+            ];
+            const visiveis = itens.slice(0, 2);
+            const extra = itens.length - visiveis.length;
 
             return (
               <div
                 key={dia}
+                className="dia-calendario"
                 style={{
                   minHeight: "90px",
                   borderRight: "1px solid #F0E6D0",
                   borderBottom: "1px solid #F0E6D0",
                   padding: "8px 6px",
-                  backgroundColor: temEventos ? "#FFFDF5" : "white",
+                  backgroundColor:
+                    temEventos || temReservas ? "#FFFDF5" : "white",
                   position: "relative",
                   transition: "background-color 0.15s",
                 }}
               >
-                {/* Número do dia */}
+                {/* Cabeçalho do dia: número + botão de reserva */}
                 <div
                   style={{
-                    width: "26px",
-                    height: "26px",
-                    borderRadius: "50%",
-                    backgroundColor: ehHoje ? "var(--gold)" : "transparent",
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "center",
+                    justifyContent: "space-between",
                     marginBottom: "4px",
-                    flexShrink: 0,
                   }}
                 >
-                  <span
+                  <div
                     style={{
-                      fontSize: "12px",
-                      fontWeight: ehHoje || temEventos ? "700" : "400",
-                      color: ehHoje
-                        ? "white"
-                        : temEventos
-                          ? "var(--gold-dark)"
-                          : "var(--gray-mid)",
+                      width: "26px",
+                      height: "26px",
+                      borderRadius: "50%",
+                      backgroundColor: ehHoje ? "var(--gold)" : "transparent",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
                     }}
                   >
-                    {dia}
-                  </span>
+                    <span
+                      style={{
+                        fontSize: "12px",
+                        fontWeight:
+                          ehHoje || temEventos || temReservas ? "700" : "400",
+                        color: ehHoje
+                          ? "white"
+                          : temEventos || temReservas
+                            ? "var(--gold-dark)"
+                            : "var(--gray-mid)",
+                      }}
+                    >
+                      {dia}
+                    </span>
+                  </div>
+
+                  {/* Botão "+" para reservar este dia */}
+                  <button
+                    className="btn-reservar-dia"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setModalReserva({
+                        dataInicial: chaveDia(ano, mes, dia),
+                      });
+                    }}
+                    title="Reservar este dia"
+                    style={{
+                      width: "20px",
+                      height: "20px",
+                      borderRadius: "50%",
+                      border: "1px solid var(--gold-light)",
+                      backgroundColor: "white",
+                      color: "var(--gold)",
+                      cursor: "pointer",
+                      fontSize: "13px",
+                      lineHeight: 1,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: 0,
+                      flexShrink: 0,
+                    }}
+                  >
+                    +
+                  </button>
                 </div>
 
-                {/* Eventos */}
+                {/* Itens do dia (eventos + reservas) */}
                 <div
                   style={{
                     display: "flex",
@@ -337,24 +454,85 @@ export default function CalendarioTab({
                     gap: "3px",
                   }}
                 >
-                  {visiveis.map((s) => {
-                    const cores =
-                      STATUS_CORES[s.status] || STATUS_CORES["Recebido"];
-                    const titulo = getTituloSubmissao(s, eventTypes);
-                    const tipo = getTipoNome(s, eventTypes);
+                  {visiveis.map((item, idx) => {
+                    if (item.tipo === "evento") {
+                      const s = item.dados;
+                      const cores =
+                        STATUS_CORES[s.status] || STATUS_CORES["Recebido"];
+                      const titulo = getTituloSubmissao(s, eventTypes);
+                      const tipo = getTipoNome(s, eventTypes);
+                      return (
+                        <button
+                          key={`ev-${s.id}`}
+                          onClick={() => onSelectSubmission(s)}
+                          title={`${titulo}${tipo ? ` · ${tipo}` : ""} · ${s.status}`}
+                          style={{
+                            display: "block",
+                            width: "100%",
+                            textAlign: "left",
+                            padding: "3px 6px",
+                            borderRadius: "5px",
+                            backgroundColor: cores.bg,
+                            border: `1px solid ${cores.border}`,
+                            cursor: "pointer",
+                            transition: "opacity 0.15s",
+                          }}
+                          onMouseEnter={(e) =>
+                            (e.currentTarget.style.opacity = "0.75")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.currentTarget.style.opacity = "1")
+                          }
+                        >
+                          <p
+                            style={{
+                              fontSize: "10px",
+                              fontWeight: "600",
+                              color: cores.texto,
+                              margin: 0,
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {titulo}
+                          </p>
+                          {tipo && (
+                            <p
+                              style={{
+                                fontSize: "9px",
+                                color: cores.texto,
+                                margin: 0,
+                                opacity: 0.75,
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                            >
+                              {tipo}
+                            </p>
+                          )}
+                        </button>
+                      );
+                    }
+                    // reserva
+                    const r = item.dados;
                     return (
                       <button
-                        key={s.id}
-                        onClick={() => onSelectSubmission(s)}
-                        title={`${titulo}${tipo ? ` · ${tipo}` : ""} · ${s.status}`}
+                        key={`res-${r.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setModalReserva({ reserva: r });
+                        }}
+                        title={`Reserva · ${r.nome_cliente}`}
                         style={{
                           display: "block",
                           width: "100%",
                           textAlign: "left",
                           padding: "3px 6px",
                           borderRadius: "5px",
-                          backgroundColor: cores.bg,
-                          border: `1px solid ${cores.border}`,
+                          backgroundColor: RESERVA_COR.bg,
+                          border: `1px dashed ${RESERVA_COR.border}`,
                           cursor: "pointer",
                           transition: "opacity 0.15s",
                         }}
@@ -369,30 +547,26 @@ export default function CalendarioTab({
                           style={{
                             fontSize: "10px",
                             fontWeight: "600",
-                            color: cores.texto,
+                            color: RESERVA_COR.texto,
                             margin: 0,
                             whiteSpace: "nowrap",
                             overflow: "hidden",
                             textOverflow: "ellipsis",
+                            fontStyle: "italic",
                           }}
                         >
-                          {titulo}
+                          {r.nome_cliente}
                         </p>
-                        {tipo && (
-                          <p
-                            style={{
-                              fontSize: "9px",
-                              color: cores.texto,
-                              margin: 0,
-                              opacity: 0.75,
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                            }}
-                          >
-                            {tipo}
-                          </p>
-                        )}
+                        <p
+                          style={{
+                            fontSize: "9px",
+                            color: RESERVA_COR.texto,
+                            margin: 0,
+                            opacity: 0.75,
+                          }}
+                        >
+                          reserva
+                        </p>
                       </button>
                     );
                   })}
@@ -400,7 +574,7 @@ export default function CalendarioTab({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        setPopupDia({ dia, eventos });
+                        setPopupDia({ dia, eventos, reservasDia });
                       }}
                       style={{
                         fontSize: "9px",
@@ -436,10 +610,11 @@ export default function CalendarioTab({
           marginTop: "12px",
         }}
       >
-        Clica num evento para abrir a ficha completa.
+        Clica num evento para abrir a ficha, ou no <strong>+</strong> de um dia
+        para criar uma reserva.
       </p>
 
-      {/* Popup — todos os eventos de um dia */}
+      {/* Popup — todos os itens de um dia */}
       {popupDia && (
         <div
           onClick={() => setPopupDia(null)}
@@ -508,7 +683,7 @@ export default function CalendarioTab({
               </button>
             </div>
 
-            {/* Lista de todos os eventos do dia */}
+            {/* Lista de eventos + reservas do dia */}
             <div
               style={{
                 padding: "12px",
@@ -524,7 +699,7 @@ export default function CalendarioTab({
                 const tipo = getTipoNome(s, eventTypes);
                 return (
                   <button
-                    key={s.id}
+                    key={`pev-${s.id}`}
                     onClick={() => {
                       setPopupDia(null);
                       onSelectSubmission(s);
@@ -589,6 +764,54 @@ export default function CalendarioTab({
                   </button>
                 );
               })}
+
+              {/* Reservas do dia */}
+              {popupDia.reservasDia.map((r) => (
+                <button
+                  key={`pres-${r.id}`}
+                  onClick={() => {
+                    setPopupDia(null);
+                    setModalReserva({ reserva: r });
+                  }}
+                  style={{
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "10px 14px",
+                    borderRadius: "10px",
+                    backgroundColor: RESERVA_COR.bg,
+                    border: `1px dashed ${RESERVA_COR.border}`,
+                    cursor: "pointer",
+                    transition: "opacity 0.15s",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.75")}
+                  onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+                >
+                  <p
+                    style={{
+                      fontSize: "13px",
+                      fontWeight: "600",
+                      color: RESERVA_COR.texto,
+                      margin: "0 0 2px 0",
+                      fontStyle: "italic",
+                    }}
+                  >
+                    {r.nome_cliente}
+                  </p>
+                  <span
+                    style={{
+                      fontSize: "10px",
+                      padding: "1px 8px",
+                      borderRadius: "999px",
+                      backgroundColor: "white",
+                      color: RESERVA_COR.texto,
+                      border: `1px dashed ${RESERVA_COR.border}`,
+                      fontWeight: "500",
+                    }}
+                  >
+                    Reserva
+                  </span>
+                </button>
+              ))}
             </div>
 
             <div
@@ -604,12 +827,25 @@ export default function CalendarioTab({
                   margin: 0,
                 }}
               >
-                {popupDia.eventos.length}{" "}
-                {popupDia.eventos.length === 1 ? "evento" : "eventos"} neste dia
+                {popupDia.eventos.length + popupDia.reservasDia.length} no total
+                neste dia
               </p>
             </div>
           </motion.div>
         </div>
+      )}
+
+      {/* Modal de reserva (criar ou editar) */}
+      {modalReserva && (
+        <ReservaModal
+          dataInicial={modalReserva.dataInicial}
+          reserva={modalReserva.reserva}
+          eventTypes={eventTypes}
+          onGuardar={recarregar}
+          onRemover={recarregar}
+          onConverter={handleConverter}
+          onFechar={() => setModalReserva(null)}
+        />
       )}
     </motion.div>
   );

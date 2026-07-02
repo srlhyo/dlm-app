@@ -40,7 +40,7 @@ export default function OperacionalTab({ submissions = [] }) {
       >
         {[
           { id: "materiais", label: "Materiais" },
-          { id: "fichas", label: "Fichas de Evento" },
+          { id: "fichas", label: "Fichas" },
         ].map((st) => {
           const ativo = subTab === st.id;
           return (

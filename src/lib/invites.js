@@ -17,9 +17,13 @@ export const generateCode = () => {
 // com os campos que a irmã escolheu preencher no Painel de Novo Convite —
 // pode ter campos diferentes, dependendo do tipo de evento e do que ela
 // decidiu mostrar nesse momento.
-export const createInvite = async ({ dataEvento, eventTypeId, respostas }) => {
+export const createInvite = async ({
+  dataEvento,
+  eventTypeId,
+  respostas,
+  reservaId,
+}) => {
   let code, exists;
-  // Garante que o código é único
   do {
     code = generateCode();
     const { data } = await supabase
@@ -38,6 +42,7 @@ export const createInvite = async ({ dataEvento, eventTypeId, respostas }) => {
         event_type_id: eventTypeId,
         respostas: respostas || {},
         status: "Pendente",
+        reserva_id: reservaId || null,
       },
     ])
     .select()
@@ -88,10 +93,29 @@ export const validateCode = async (code) => {
   }
   return { valid: true, invite: data };
 };
-// Marca o convite como preenchido e liga à submissão
+// Marca o convite como preenchido e liga à submissão.
+// Se o convite nasceu de uma reserva (reserva_id), converte também
+// essa reserva: liga-a à submissão e marca-a como "Convertida".
+// Assim, quando o cliente submete o formulário, a reserva provisória
+// deixa de aparecer na agenda e passa a evento real automaticamente.
 export const markInviteUsed = async (inviteId, submissionId) => {
+  // buscar o convite para saber se tem reserva associada
+  const { data: invite } = await supabase
+    .from("invites")
+    .select("reserva_id")
+    .eq("id", inviteId)
+    .single();
+
   await supabase
     .from("invites")
     .update({ status: "Preenchido", submission_id: submissionId })
     .eq("id", inviteId);
+
+  // converter a reserva de origem, se existir
+  if (invite?.reserva_id) {
+    await supabase
+      .from("reservas")
+      .update({ estado: "Convertida", submission_id: submissionId })
+      .eq("id", invite.reserva_id);
+  }
 };
