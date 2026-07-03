@@ -9,10 +9,13 @@ import CampoSeletor from "../components/admin/CampoSeletor";
 import SubmissionDrawer from "../components/admin/SubmissionDrawer";
 import DashboardTab from "../components/admin/DashboardTab";
 import ClientesTab from "../components/admin/ClientesTab";
+import DeleteInviteModal from "../components/admin/DeleteInviteModal";
 import ShareSheet from "../components/admin/ShareSheet";
 import CalendarioTab from "../components/admin/CalendarioTab";
 import OperacionalTab from "../components/admin/OperacionalTab";
+import InviteDetailModal from "../components/admin/InviteDetailModal";
 import InviteCreatedModal from "../components/admin/InviteCreatedModal";
+import InvitesList from "../components/admin/InvitesList";
 import { getReservas } from "../lib/reservas";
 import FormField from "../components/form/FormField";
 import { iniciarTour, tourJaVista } from "../lib/tour";
@@ -482,6 +485,21 @@ export default function AdminPage() {
       console.error(e);
     }
     setCreatingInvite(false);
+  };
+
+  const handleDeleteInvite = async () => {
+    const { error } = await supabase
+      .from("invites")
+      .delete()
+      .eq("id", inviteToDelete.id);
+    if (error) {
+      console.error("Erro ao remover convite:", error);
+      alert("Não foi possível remover o convite. Tenta novamente.");
+      return;
+    }
+    setInvites((prev) => prev.filter((i) => i.id !== inviteToDelete.id));
+    if (selectedInvite?.id === inviteToDelete.id) setSelectedInvite(null);
+    setInviteToDelete(null);
   };
 
   const getShareMessage = (invite) => {
@@ -1015,561 +1033,39 @@ export default function AdminPage() {
               })()}
 
             {/* Lista de convites */}
-            {loadingInvites ? (
-              <p
-                style={{
-                  textAlign: "center",
-                  padding: "40px",
-                  color: "var(--gray-mid)",
-                  fontSize: "14px",
-                }}
-              >
-                A carregar...
-              </p>
-            ) : invites.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "60px 20px" }}>
-                <p style={{ fontSize: "32px", marginBottom: "12px" }}>🎟️</p>
-                <p style={{ fontSize: "14px", color: "var(--gray-mid)" }}>
-                  Ainda não há convites criados.
-                </p>
-              </div>
-            ) : (
-              <div
-                className="invites-list"
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "10px",
-                }}
-              >
-                {invites.map((invite, idx) => {
-                  const isPendente = invite.status === "Pendente";
-                  return (
-                    <motion.div
-                      key={invite.id}
-                      onClick={() => setSelectedInvite(invite)}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{
-                        duration: 0.25,
-                        ease: "easeOut",
-                        delay: Math.min(idx * 0.04, 0.3),
-                      }}
-                      whileHover={{
-                        y: -2,
-                        boxShadow: "0 6px 20px rgba(0,0,0,0.08)",
-                      }}
-                      style={{
-                        backgroundColor: "white",
-                        borderRadius: "14px",
-                        padding: "18px 22px",
-                        boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
-                        borderLeft: `4px solid ${isPendente ? "var(--gold-light)" : "#22C55E"}`,
-                        cursor: "pointer",
-                        transition: "box-shadow 0.2s",
-                        display: "flex",
-                        alignItems: "flex-start",
-                        justifyContent: "space-between",
-                        gap: "12px",
-                      }}
-                    >
-                      <div>
-                        <p
-                          style={{
-                            fontSize: "15px",
-                            fontWeight: "500",
-                            color: "var(--charcoal)",
-                            margin: "0 0 4px 0",
-                          }}
-                        >
-                          {getTituloConvite(invite, submissions, eventTypes)}
-                        </p>
-                        <span
-                          style={{
-                            display: "inline-block",
-                            marginBottom: "6px",
-                            fontSize: "10px",
-                            fontWeight: "700",
-                            padding: "2px 10px",
-                            borderRadius: "999px",
-                            backgroundColor: "#FEF9EC",
-                            color: "var(--gold)",
-                            border: "1px solid var(--gold-light)",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.05em",
-                          }}
-                        >
-                          {eventTypes.find(
-                            (et) => et.id === invite.event_type_id,
-                          )?.nome || "—"}
-                        </span>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "12px",
-                          }}
-                        >
-                          <span
-                            style={{
-                              fontSize: "13px",
-                              fontWeight: "600",
-                              color: "var(--gold)",
-                              letterSpacing: "0.08em",
-                            }}
-                          >
-                            {invite.code}
-                          </span>
-                          <span
-                            style={{
-                              fontSize: "12px",
-                              color: "var(--gray-mid)",
-                            }}
-                          >
-                            {invite.data_evento
-                              ? new Date(invite.data_evento).toLocaleDateString(
-                                  "pt-PT",
-                                  {
-                                    day: "2-digit",
-                                    month: "long",
-                                    year: "numeric",
-                                  },
-                                )
-                              : "Sem data"}
-                          </span>
-                        </div>
-                      </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "flex-end",
-                          gap: "10px",
-                          flexShrink: 0,
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontSize: "11px",
-                            padding: "4px 10px",
-                            borderRadius: "999px",
-                            backgroundColor: isPendente ? "#FEF9EC" : "#F0FDF4",
-                            color: isPendente ? "var(--gold)" : "#22C55E",
-                            border: `1px solid ${isPendente ? "var(--gold-light)" : "#BBF7D0"}`,
-                            fontWeight: "500",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {invite.status}
-                        </span>
-                        {isPendente && (
-                          <>
-                            <button
-                              className="btn-compact"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handlePreencherFormulario(invite);
-                              }}
-                              title="Preencher o formulário"
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "6px",
-                                padding: "6px 12px",
-                                borderRadius: "8px",
-                                border: "1px solid var(--gold-light)",
-                                backgroundColor: "#FEF9EC",
-                                color: "var(--gold)",
-                                cursor: "pointer",
-                                fontSize: "12px",
-                                fontWeight: "500",
-                                transition: "all 0.2s",
-                                flexShrink: 0,
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              ✏️ Preencher
-                            </button>
-                            <button
-                              className="btn-compact"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setInviteToDelete(invite);
-                              }}
-                              title="Remover convite"
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "6px",
-                                padding: "6px 12px",
-                                borderRadius: "8px",
-                                border: "1px solid #FECACA",
-                                backgroundColor: "#FEF2F2",
-                                color: "#DC2626",
-                                cursor: "pointer",
-                                fontSize: "12px",
-                                fontWeight: "500",
-                                transition: "all 0.2s",
-                                flexShrink: 0,
-                                whiteSpace: "nowrap",
-                              }}
-                            >
-                              <svg
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="#DC2626"
-                                strokeWidth="1.6"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              >
-                                <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
-                                <path d="M10 11v6M14 11v6" />
-                              </svg>
-                              Remover
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            )}
+            <InvitesList
+              invites={invites}
+              loading={loadingInvites}
+              eventTypes={eventTypes}
+              onSelect={(invite) => setSelectedInvite(invite)}
+              onPreencher={handlePreencherFormulario}
+              onDelete={(invite) => setInviteToDelete(invite)}
+              getTitulo={(invite) =>
+                getTituloConvite(invite, submissions, eventTypes)
+              }
+            />
+
             {/* Confirmação de remoção */}
-            <AnimatePresence>
-              {inviteToDelete && (
-                <motion.div
-                  onClick={() => setInviteToDelete(null)}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  style={{
-                    position: "fixed",
-                    inset: 0,
-                    zIndex: 60,
-                    backgroundColor: "rgba(0,0,0,0.4)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: "16px",
-                  }}
-                >
-                  <motion.div
-                    onClick={(e) => e.stopPropagation()}
-                    initial={{ opacity: 0, scale: 0.96, y: 8 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.96, y: 8 }}
-                    transition={{ duration: 0.25, ease: "easeOut" }}
-                    style={{
-                      backgroundColor: "white",
-                      borderRadius: "16px",
-                      padding: "28px 24px",
-                      width: "100%",
-                      maxWidth: "380px",
-                      boxShadow: "0 8px 40px rgba(0,0,0,0.15)",
-                      textAlign: "center",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: "52px",
-                        height: "52px",
-                        borderRadius: "50%",
-                        backgroundColor: "#FEF2F2",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        margin: "0 auto 16px",
-                      }}
-                    >
-                      <svg
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="#DC2626"
-                        strokeWidth="1.6"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
-                        <path d="M10 11v6M14 11v6" />
-                      </svg>
-                    </div>
-                    <h3
-                      style={{
-                        fontSize: "16px",
-                        color: "var(--charcoal)",
-                        margin: "0 0 8px 0",
-                        fontFamily: "Playfair Display, serif",
-                      }}
-                    >
-                      Remover convite?
-                    </h3>
-                    <p
-                      style={{
-                        fontSize: "13px",
-                        color: "var(--gray-mid)",
-                        margin: "0 0 22px 0",
-                        lineHeight: "1.6",
-                      }}
-                    >
-                      O convite de{" "}
-                      <strong>
-                        {getTituloConvite(
-                          inviteToDelete,
-                          submissions,
-                          eventTypes,
-                        )}
-                      </strong>{" "}
-                      será removido. Esta ação não pode ser anulada.
-                    </p>
-                    <div style={{ display: "flex", gap: "10px" }}>
-                      <button
-                        onClick={() => setInviteToDelete(null)}
-                        style={{
-                          flex: 1,
-                          padding: "11px",
-                          borderRadius: "10px",
-                          fontSize: "13px",
-                          fontWeight: "500",
-                          border: "1.5px solid var(--gold-light)",
-                          color: "var(--gray-mid)",
-                          backgroundColor: "white",
-                          cursor: "pointer",
-                        }}
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        onClick={async () => {
-                          const { error } = await supabase
-                            .from("invites")
-                            .delete()
-                            .eq("id", inviteToDelete.id);
-                          if (error) {
-                            console.error("Erro ao remover convite:", error);
-                            alert(
-                              "Não foi possível remover o convite. Tenta novamente.",
-                            );
-                            return;
-                          }
-                          setInvites((prev) =>
-                            prev.filter((i) => i.id !== inviteToDelete.id),
-                          );
-                          if (selectedInvite?.id === inviteToDelete.id)
-                            setSelectedInvite(null);
-                          setInviteToDelete(null);
-                        }}
-                        style={{
-                          flex: 1,
-                          padding: "11px",
-                          borderRadius: "10px",
-                          fontSize: "13px",
-                          fontWeight: "600",
-                          border: "none",
-                          color: "white",
-                          backgroundColor: "#DC2626",
-                          cursor: "pointer",
-                        }}
-                      >
-                        Remover
-                      </button>
-                    </div>
-                  </motion.div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <DeleteInviteModal
+              invite={inviteToDelete}
+              onCancel={() => setInviteToDelete(null)}
+              onConfirm={handleDeleteInvite}
+              getTitulo={(invite) =>
+                getTituloConvite(invite, submissions, eventTypes)
+              }
+            />
+
             {/* Drawer do convite seleccionado */}
-            <AnimatePresence>
-              {selectedInvite && (
-                <motion.div
-                  onClick={() => setSelectedInvite(null)}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  style={{
-                    position: "fixed",
-                    inset: 0,
-                    zIndex: 50,
-                    backgroundColor: "rgba(0,0,0,0.4)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: "16px",
-                  }}
-                >
-                  <motion.div
-                    onClick={(e) => e.stopPropagation()}
-                    initial={{ opacity: 0, scale: 0.96, y: 8 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.96, y: 8 }}
-                    transition={{ duration: 0.25, ease: "easeOut" }}
-                    style={{
-                      backgroundColor: "#F0FDF4",
-                      borderRadius: "16px",
-                      padding: "20px 24px",
-                      width: "100%",
-                      maxWidth: "480px",
-                      boxShadow: "0 8px 40px rgba(0,0,0,0.15)",
-                      border: "1px solid #BBF7D0",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "flex-start",
-                        marginBottom: "16px",
-                      }}
-                    >
-                      <div>
-                        <p
-                          style={{
-                            fontSize: "14px",
-                            fontWeight: "600",
-                            color: "#166534",
-                            margin: "0 0 2px 0",
-                          }}
-                        >
-                          {getTituloConvite(
-                            selectedInvite,
-                            submissions,
-                            eventTypes,
-                          )}
-                        </p>
-                        <span
-                          style={{
-                            display: "inline-block",
-                            marginBottom: "4px",
-                            fontSize: "10px",
-                            fontWeight: "700",
-                            padding: "2px 10px",
-                            borderRadius: "999px",
-                            backgroundColor: "white",
-                            color: "var(--gold)",
-                            border: "1px solid var(--gold-light)",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.05em",
-                          }}
-                        >
-                          {eventTypes.find(
-                            (et) => et.id === selectedInvite?.event_type_id,
-                          )?.nome || "—"}
-                        </span>
-                        <p
-                          style={{
-                            fontSize: "12px",
-                            color: "#166534",
-                            margin: 0,
-                          }}
-                        >
-                          {selectedInvite.data_evento
-                            ? new Date(
-                                selectedInvite.data_evento,
-                              ).toLocaleDateString("pt-PT", {
-                                day: "2-digit",
-                                month: "long",
-                                year: "numeric",
-                              })
-                            : "Sem data"}{" "}
-                          · {selectedInvite.status}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => setSelectedInvite(null)}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          cursor: "pointer",
-                          color: "#166534",
-                          fontSize: "18px",
-                        }}
-                      >
-                        ✕
-                      </button>
-                    </div>
-
-                    {/* Mensagem — só faz sentido enquanto o convite ainda não foi preenchido */}
-                    {selectedInvite.status !== "Preenchido" ? (
-                      <>
-                        <div
-                          style={{
-                            backgroundColor: "white",
-                            borderRadius: "10px",
-                            padding: "14px 18px",
-                            marginBottom: "14px",
-                            border: "1px solid #BBF7D0",
-                          }}
-                        >
-                          <p
-                            style={{
-                              fontSize: "10px",
-                              color: "#6B7280",
-                              textTransform: "uppercase",
-                              letterSpacing: "0.08em",
-                              margin: "0 0 8px 0",
-                            }}
-                          >
-                            Mensagem para partilhar
-                          </p>
-                          <p
-                            style={{
-                              fontSize: "13px",
-                              color: "var(--charcoal)",
-                              margin: 0,
-                              lineHeight: "1.6",
-                              whiteSpace: "pre-line",
-                            }}
-                          >
-                            {getShareMessage(selectedInvite)}
-                          </p>
-                        </div>
-
-                        <button
-                          onClick={() => setShareTarget(selectedInvite)}
-                          style={{
-                            width: "100%",
-                            padding: "12px",
-                            borderRadius: "10px",
-                            fontSize: "13px",
-                            fontWeight: "600",
-                            cursor: "pointer",
-                            backgroundColor: "var(--gold)",
-                            color: "white",
-                            border: "none",
-                            boxShadow: "0 4px 12px rgba(201,168,76,0.35)",
-                            transition: "all 0.2s",
-                          }}
-                        >
-                          ↗ Partilhar
-                        </button>
-                      </>
-                    ) : (
-                      <p
-                        style={{
-                          fontSize: "12px",
-                          color: "#166534",
-                          backgroundColor: "white",
-                          border: "1px solid #BBF7D0",
-                          borderRadius: "10px",
-                          padding: "14px 18px",
-                          margin: 0,
-                          lineHeight: "1.6",
-                        }}
-                      >
-                        ✓ Este convite já foi preenchido. O link deixou de
-                        funcionar, e já não há nada para partilhar.
-                      </p>
-                    )}
-                  </motion.div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <InviteDetailModal
+              invite={selectedInvite}
+              eventTypes={eventTypes}
+              onClose={() => setSelectedInvite(null)}
+              onShare={() => setShareTarget(selectedInvite)}
+              getShareMessage={getShareMessage}
+              getTitulo={(invite) =>
+                getTituloConvite(invite, submissions, eventTypes)
+              }
+            />
           </motion.div>
         )}
 
