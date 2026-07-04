@@ -73,7 +73,9 @@ export default function ClientesTab({
       <div className="stats-row filter-wrap" style={{ marginBottom: "24px" }}>
         <div className="h-scroll" style={{ gap: "12px", paddingRight: "32px" }}>
           {STATUS_OPTIONS.map((status) => {
-            const count = submissions.filter((s) => s.status === status).length;
+            const count = submissions.filter(
+              (s) => s.status === status,
+            ).length;
             const colors = STATUS_COLORS[status];
             return (
               <div
@@ -312,7 +314,7 @@ export default function ClientesTab({
                         }}
                       >
                         {formatDate(resumo.data)} ·{" "}
-                        {s.local_evento || "Local não definido"}
+                        {resumo.local || "Local não definido"}
                       </p>
                     </div>
                   );

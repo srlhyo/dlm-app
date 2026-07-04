@@ -73,6 +73,7 @@ export const createMaterial = async ({
   categoria,
   nome,
   unidade = "un",
+  quantidade_total = 0,
   def_carga = true,
   def_montagem = true,
   def_higienizacao = false,
@@ -97,6 +98,7 @@ export const createMaterial = async ({
         categoria,
         nome,
         unidade,
+        quantidade_total,
         ordem: proximaOrdem,
         def_carga,
         def_montagem,
@@ -121,6 +123,7 @@ export const updateMaterial = async (id, campos) => {
     "def_montagem",
     "def_higienizacao",
     "ativo",
+    "quantidade_total",
   ];
   const patch = {};
   for (const k of permitidos) {

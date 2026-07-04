@@ -199,3 +199,162 @@ export const calcularDisponibilidade = ({
     eventosEmConflito,
   };
 };
+
+// ---------------------------------------------------------------------
+// 5. Carregamento em lote das fichas (para o motor de alertas)
+// ---------------------------------------------------------------------
+
+// Traz TODAS as linhas de evento_materiais de uma vez, só com os campos
+// que o motor de alertas precisa (submission_id, material_id, quantidade).
+// NÃO faz join com o catálogo — o stock de cada material vem à parte, do
+// getMateriais(), e juntamos as duas peças no cliente pelo material_id.
+// Isto mantém a query leve.
+export const getTodasFichas = async () => {
+  const { data, error } = await supabase
+    .from("evento_materiais")
+    .select("submission_id, material_id, quantidade");
+  if (error) throw error;
+  return data || [];
+};
+
+// ---------------------------------------------------------------------
+// 6. Motor de alertas — o clímax da Fase C
+// ---------------------------------------------------------------------
+
+// Constrói o mapa submission_id -> [{ material_id, quantidade }] a partir
+// da lista plana de todas as fichas.
+const construirMateriaisPorEvento = (todasFichas) => {
+  const mapa = new Map();
+  (todasFichas || []).forEach((linha) => {
+    if (!linha || !linha.submission_id) return;
+    if (!mapa.has(linha.submission_id)) mapa.set(linha.submission_id, []);
+    mapa.get(linha.submission_id).push({
+      material_id: linha.material_id,
+      quantidade: Math.max(0, Number(linha.quantidade) || 0),
+    });
+  });
+  return mapa;
+};
+
+// Agrupa eventos cujas janelas de ocupação se tocam, em "clusters"
+// temporais. Dois eventos no mesmo fim de semana caem no mesmo cluster;
+// eventos afastados ficam em clusters diferentes. Cada cluster representa
+// UM aperto físico de stock (um período em que as peças não rodam).
+//
+// Devolve uma lista de clusters, cada um { janela: {inicio, fim},
+// submissionIds: Set }. A janela do cluster é a união das janelas dos
+// eventos que o compõem.
+const agruparEventosEmClusters = (submissions, buffer) => {
+  // Eventos com data, ordenados por data, cada um com a sua janela
+  const comJanela = (submissions || [])
+    .filter((s) => s && s.data_evento)
+    .map((s) => ({ id: s.id, janela: janelaDoEvento(s.data_evento, buffer) }))
+    .filter((e) => e.janela)
+    .sort((a, b) => a.janela.inicio - b.janela.inicio);
+
+  const clusters = [];
+  comJanela.forEach((ev) => {
+    // Tenta encaixar no último cluster se as janelas se tocarem
+    const ultimo = clusters[clusters.length - 1];
+    if (ultimo && intervalosSobrepoem(ultimo.janela, ev.janela)) {
+      ultimo.submissionIds.add(ev.id);
+      // alarga a janela do cluster para conter também este evento
+      if (ev.janela.inicio < ultimo.janela.inicio)
+        ultimo.janela.inicio = ev.janela.inicio;
+      if (ev.janela.fim > ultimo.janela.fim) ultimo.janela.fim = ev.janela.fim;
+    } else {
+      clusters.push({
+        janela: { inicio: ev.janela.inicio, fim: ev.janela.fim },
+        submissionIds: new Set([ev.id]),
+      });
+    }
+  });
+  return clusters;
+};
+
+// Calcula todos os alertas de rutura de stock.
+//
+// Um alerta = um material que, num cluster temporal (um "aperto"), é
+// pedido em maior quantidade do que existe em stock. Eventos que
+// partilham o mesmo aperto geram UM só alerta por material, listando
+// todos os eventos envolvidos.
+//
+// Parâmetros:
+//   materiais    — catálogo com stock: [{ id, nome, categoria, unidade, quantidade_total }]
+//   submissions  — eventos com id + data_evento
+//   todasFichas  — todas as linhas de evento_materiais (getTodasFichas)
+//   buffer       — { antes, depois }
+//
+// Devolve lista de alertas, ordenada pela maior falta primeiro:
+//   { materialId, material, janela, stock, necessario, falta,
+//     eventos: [{ submissionId, dataEvento, quantidade }] }
+export const calcularAlertas = ({
+  materiais,
+  submissions,
+  todasFichas,
+  buffer,
+}) => {
+  const materiaisPorEvento = construirMateriaisPorEvento(todasFichas);
+  const clusters = agruparEventosEmClusters(submissions, buffer);
+  const catalogoPorId = new Map((materiais || []).map((m) => [m.id, m]));
+
+  const alertas = [];
+
+  clusters.forEach((cluster) => {
+    // Só interessam clusters com mais de um evento (um evento sozinho
+    // nunca disputa stock consigo próprio) OU um evento que sozinho já
+    // exceda o stock (ex: pediu 200 cadeiras e só há 150).
+    const idsCluster = cluster.submissionIds;
+
+    // Que materiais são usados neste cluster?
+    const materiaisUsados = new Set();
+    idsCluster.forEach((sid) => {
+      (materiaisPorEvento.get(sid) || []).forEach((l) => {
+        if (l.quantidade > 0) materiaisUsados.add(l.material_id);
+      });
+    });
+
+    materiaisUsados.forEach((materialId) => {
+      const info = catalogoPorId.get(materialId);
+      const stock = info ? Math.max(0, Number(info.quantidade_total) || 0) : 0;
+
+      // Soma o que todos os eventos do cluster pedem deste material
+      let necessario = 0;
+      const eventos = [];
+      idsCluster.forEach((sid) => {
+        const linha = (materiaisPorEvento.get(sid) || []).find(
+          (l) => l.material_id === materialId,
+        );
+        const qtd = linha ? linha.quantidade : 0;
+        if (qtd > 0) {
+          necessario += qtd;
+          const sub = (submissions || []).find((s) => s.id === sid);
+          eventos.push({
+            submissionId: sid,
+            dataEvento: sub?.data_evento || null,
+            quantidade: qtd,
+          });
+        }
+      });
+
+      const falta = necessario - stock;
+      if (falta > 0) {
+        alertas.push({
+          materialId,
+          material: info || { id: materialId, nome: "(material desconhecido)" },
+          janela: cluster.janela,
+          stock,
+          necessario,
+          falta,
+          // eventos ordenados por data
+          eventos: eventos.sort(
+            (a, b) => new Date(a.dataEvento) - new Date(b.dataEvento),
+          ),
+        });
+      }
+    });
+  });
+
+  // Maior falta primeiro — o mais urgente no topo
+  return alertas.sort((a, b) => b.falta - a.falta);
+};

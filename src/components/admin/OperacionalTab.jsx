@@ -8,7 +8,14 @@ import {
   agruparPorCategoria,
   CATEGORIAS_ORDEM,
 } from "../../lib/materiais";
+import {
+  getTodasFichas,
+  getAppConfig,
+  getBuffer,
+  calcularAlertas,
+} from "../../lib/stock";
 import FichaEvento from "./FichaEvento";
+import AlertasTab from "./AlertasTab";
 
 // Unidades sugeridas no seletor ao criar/editar um material.
 const UNIDADES = ["un", "mt", "cx", "kg", "par", "conj"];
@@ -19,8 +26,54 @@ const UNIDADES = ["un", "mt", "cx", "kg", "par", "conj"];
 //   • Materiais → catálogo (CRUD)  ← construído agora
 //   • Fichas    → ficha por evento ← placeholder (próximo bloco)
 // ============================================================
-export default function OperacionalTab({ submissions = [] }) {
+export default function OperacionalTab({ submissions = [], eventTypes = [] }) {
   const [subTab, setSubTab] = useState("materiais");
+
+  // Dados para os alertas — carregados AQUI (uma vez) e partilhados entre
+  // o badge da sub-navegação e a vista AlertasTab, para não duplicar
+  // trabalho nem queries.
+  const [materiais, setMateriais] = useState([]);
+  const [todasFichas, setTodasFichas] = useState([]);
+  const [buffer, setBuffer] = useState({ antes: 2, depois: 2 });
+  const [loadingAlertas, setLoadingAlertas] = useState(true);
+
+  useEffect(() => {
+    let vivo = true;
+    const carregar = async () => {
+      setLoadingAlertas(true);
+      try {
+        const [mats, fichas, config] = await Promise.all([
+          getMateriais({ incluirInativos: true }),
+          getTodasFichas(),
+          getAppConfig(),
+        ]);
+        if (!vivo) return;
+        setMateriais(mats);
+        setTodasFichas(fichas);
+        setBuffer(await getBuffer(config));
+      } catch (e) {
+        console.error("Erro ao carregar alertas:", e);
+      }
+      if (vivo) setLoadingAlertas(false);
+    };
+    carregar();
+    return () => {
+      vivo = false;
+    };
+  }, []);
+
+  const alertas = useMemo(
+    () => calcularAlertas({ materiais, submissions, todasFichas, buffer }),
+    [materiais, submissions, todasFichas, buffer],
+  );
+
+  // O badge conta só as RUTURAS REAIS (stock definido mas insuficiente),
+  // não os "sem stock definido" (stock = 0) — esses são setup por fazer,
+  // não conflitos acionáveis. Assim o badge mantém-se credível no dia 1.
+  const numRuturasReais = useMemo(
+    () => alertas.filter((a) => a.stock > 0).length,
+    [alertas],
+  );
 
   return (
     <motion.div
@@ -41,13 +94,19 @@ export default function OperacionalTab({ submissions = [] }) {
         {[
           { id: "materiais", label: "Materiais" },
           { id: "fichas", label: "Fichas" },
+          { id: "alertas", label: "Alertas" },
         ].map((st) => {
           const ativo = subTab === st.id;
+          // Badge só no botão Alertas, e só quando há ruturas reais
+          const mostrarBadge = st.id === "alertas" && numRuturasReais > 0;
           return (
             <button
               key={st.id}
               onClick={() => setSubTab(st.id)}
               style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
                 padding: "8px 18px",
                 borderRadius: "999px",
                 fontSize: "12px",
@@ -62,13 +121,49 @@ export default function OperacionalTab({ submissions = [] }) {
               }}
             >
               {st.label}
+              {mostrarBadge && (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minWidth: "18px",
+                    height: "18px",
+                    padding: "0 5px",
+                    borderRadius: "999px",
+                    fontSize: "10px",
+                    fontWeight: "700",
+                    lineHeight: 1,
+                    // No botão ativo (fundo dourado) o badge fica branco com
+                    // texto dourado; no inativo, vermelho cheio.
+                    backgroundColor: ativo ? "white" : "#DC2626",
+                    color: ativo ? "#DC2626" : "white",
+                  }}
+                >
+                  {numRuturasReais}
+                </span>
+              )}
             </button>
           );
         })}
       </div>
 
       {subTab === "materiais" && <MateriaisCatalogo />}
-      {subTab === "fichas" && <FichaEvento submissions={submissions} />}
+      {subTab === "fichas" && (
+        <FichaEvento
+          submissions={submissions}
+          eventTypes={eventTypes}
+          todasFichas={todasFichas}
+        />
+      )}
+      {subTab === "alertas" && (
+        <AlertasTab
+          alertas={alertas}
+          loading={loadingAlertas}
+          submissions={submissions}
+          eventTypes={eventTypes}
+        />
+      )}
     </motion.div>
   );
 }
@@ -409,6 +504,7 @@ function MateriaisCatalogo() {
             categoria: criarEm,
             nome: "",
             unidade: "un",
+            quantidade_total: 0,
             def_carga: true,
             def_montagem: true,
             def_higienizacao: false,
@@ -437,6 +533,10 @@ function MateriaisCatalogo() {
 // ------------------------------------------------------------
 function MaterialLinha({ material, onEditar, onToggleAtivo }) {
   const inativo = !material.ativo;
+  // Stock em falta (0 ou indefinido) → pista visual âmbar de "por definir".
+  // Com stock > 0 → mostra o número em cinza normal, ao lado da unidade.
+  const stock = Number(material.quantidade_total) || 0;
+  const semStock = stock <= 0;
   return (
     <div
       style={{
@@ -470,6 +570,16 @@ function MaterialLinha({ material, onEditar, onToggleAtivo }) {
         >
           <span style={{ fontSize: "11px", color: "var(--gray-mid)" }}>
             {material.unidade}
+          </span>
+          {/* Stock — número se definido, pista âmbar se por definir */}
+          <span
+            style={{
+              fontSize: "11px",
+              fontWeight: semStock ? "600" : "500",
+              color: semStock ? "var(--gold-dark)" : "var(--gray-mid)",
+            }}
+          >
+            {semStock ? "· sem stock definido" : `· ${stock} em stock`}
           </span>
           {/* Etiquetas de listas por defeito */}
           <ListaTag ativo={material.def_carga} label="Carga" />
@@ -560,6 +670,9 @@ function MaterialModal({
   const [nome, setNome] = useState(inicial.nome || "");
   const [categoria, setCategoria] = useState(inicial.categoria || "");
   const [unidade, setUnidade] = useState(inicial.unidade || "un");
+  const [quantidadeTotal, setQuantidadeTotal] = useState(
+    inicial.quantidade_total ?? 0,
+  );
   const [defCarga, setDefCarga] = useState(inicial.def_carga ?? true);
   const [defMontagem, setDefMontagem] = useState(inicial.def_montagem ?? true);
   const [defHigienizacao, setDefHigienizacao] = useState(
@@ -580,6 +693,8 @@ function MaterialModal({
         nome: nome.trim(),
         categoria,
         unidade,
+        // Normaliza: inteiro, nunca negativo
+        quantidade_total: Math.max(0, Math.round(Number(quantidadeTotal) || 0)),
         def_carga: defCarga,
         def_montagem: defMontagem,
         def_higienizacao: defHigienizacao,
@@ -679,21 +794,48 @@ function MaterialModal({
           </div>
         )}
 
-        {/* Unidade */}
-        <div style={{ marginBottom: "18px" }}>
-          <label style={labelStyle}>Unidade</label>
-          <select
-            value={unidade}
-            onChange={(e) => setUnidade(e.target.value)}
-            style={inputStyle}
-          >
-            {UNIDADES.map((u) => (
-              <option key={u} value={u}>
-                {u}
-              </option>
-            ))}
-          </select>
+        {/* Unidade + Quantidade em stock, lado a lado */}
+        <div style={{ display: "flex", gap: "12px", marginBottom: "18px" }}>
+          <div style={{ flex: 1 }}>
+            <label style={labelStyle}>Unidade</label>
+            <select
+              value={unidade}
+              onChange={(e) => setUnidade(e.target.value)}
+              style={inputStyle}
+            >
+              {UNIDADES.map((u) => (
+                <option key={u} value={u}>
+                  {u}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={labelStyle}>Em stock</label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={quantidadeTotal}
+              onChange={(e) => setQuantidadeTotal(e.target.value)}
+              placeholder="0"
+              style={inputStyle}
+            />
+          </div>
         </div>
+
+        {/* Nota sobre o stock */}
+        <p
+          style={{
+            fontSize: "11px",
+            color: "var(--gray-mid)",
+            margin: "-8px 0 18px 0",
+            lineHeight: 1.5,
+          }}
+        >
+          Quantas unidades tens no total. Serve para avisar quando dois eventos
+          próximos precisam de mais do que tens.
+        </p>
 
         {/* Defaults de lista */}
         <div style={{ marginBottom: "20px" }}>

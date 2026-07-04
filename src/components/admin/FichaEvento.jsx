@@ -9,24 +9,18 @@ import {
   agruparPorCategoria,
 } from "../../lib/materiais";
 import { imprimirFicha } from "../../lib/imprimirFicha";
+import { getResumoSubmissao } from "../../lib/submissionFields";
 
-// ============================================================
-// FichaEvento — sub-tab "Fichas de Evento" da OperacionalTab.
-// Fluxo:
-//   1. Escolher evento (seletor com busca)
-//   2. Ver/editar os materiais já na ficha (agrupados por categoria)
-//   3. Adicionar materiais (busca rápida OU navegação por categoria)
-//   4. Auto-save (debounced nos campos de texto, imediato nos toggles)
-// ============================================================
+// Título legível de uma submissão — usa a lógica genérica (papéis),
+// consistente com Clientes e Questionários.
+function tituloSubmissao(s, eventTypes) {
+  return getResumoSubmissao(s, eventTypes).titulo;
+}
 
-// Título legível de uma submissão para o seletor de evento.
-function tituloSubmissao(s) {
-  const nomes = [s.nome_noivo, s.nome_noiva].filter(
-    (n) => typeof n === "string" && n.trim() !== "",
-  );
-  if (nomes.length > 0) return nomes.join(" & ");
-  if (s.local_evento) return s.local_evento;
-  return "Evento sem nome";
+// Nome do tipo de evento (para a etiqueta), ou null se desconhecido.
+function nomeTipo(s, eventTypes) {
+  const tipo = (eventTypes || []).find((et) => et.id === s?.event_type_id);
+  return tipo ? tipo.nome : null;
 }
 
 function formatData(data) {
@@ -38,7 +32,11 @@ function formatData(data) {
   });
 }
 
-export default function FichaEvento({ submissions = [] }) {
+export default function FichaEvento({
+  submissions = [],
+  eventTypes = [],
+  todasFichas = [],
+}) {
   const [submissionId, setSubmissionId] = useState("");
   const [buscaEvento, setBuscaEvento] = useState("");
   const [seletorAberto, setSeletorAberto] = useState(false);
@@ -59,10 +57,22 @@ export default function FichaEvento({ submissions = [] }) {
     if (!q) return lista;
     return lista.filter(
       (s) =>
-        tituloSubmissao(s).toLowerCase().includes(q) ||
+        tituloSubmissao(s, eventTypes).toLowerCase().includes(q) ||
         (s.local_evento || "").toLowerCase().includes(q),
     );
-  }, [submissions, buscaEvento]);
+  }, [submissions, buscaEvento, eventTypes]);
+
+  // Conjunto de eventos que já têm ficha começada (pelo menos um material
+  // com quantidade > 0). Usado para mostrar o estado no seletor.
+  const idsComFicha = useMemo(() => {
+    const set = new Set();
+    (todasFichas || []).forEach((linha) => {
+      if (linha && linha.submission_id && Number(linha.quantidade) > 0) {
+        set.add(linha.submission_id);
+      }
+    });
+    return set;
+  }, [todasFichas]);
 
   return (
     <div>
@@ -106,8 +116,27 @@ export default function FichaEvento({ submissions = [] }) {
                   fontFamily: "Playfair Display, serif",
                 }}
               >
-                {tituloSubmissao(submissaoAtual)}
+                {tituloSubmissao(submissaoAtual, eventTypes)}
               </p>
+              {nomeTipo(submissaoAtual, eventTypes) && (
+                <span
+                  style={{
+                    display: "inline-block",
+                    fontSize: "10px",
+                    fontWeight: "700",
+                    padding: "2px 10px",
+                    borderRadius: "999px",
+                    backgroundColor: "#FEF9EC",
+                    color: "var(--gold)",
+                    border: "1px solid var(--gold-light)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                    margin: "0 0 4px 0",
+                  }}
+                >
+                  {nomeTipo(submissaoAtual, eventTypes)}
+                </span>
+              )}
               <p
                 style={{
                   fontSize: "12px",
@@ -167,20 +196,20 @@ export default function FichaEvento({ submissions = [] }) {
               <>
                 <div
                   onClick={() => setSeletorAberto(false)}
-                  style={{ position: "fixed", inset: 0, zIndex: 10 }}
+                  style={{ position: "fixed", inset: 0, zIndex: 30 }}
                 />
                 <div
+                  className="eventos-dropdown"
                   style={{
                     position: "absolute",
                     top: "calc(100% + 6px)",
                     left: 0,
                     right: 0,
-                    zIndex: 11,
+                    zIndex: 31,
                     backgroundColor: "white",
                     borderRadius: "10px",
                     border: "1px solid var(--gold-light)",
                     boxShadow: "0 8px 24px rgba(0,0,0,0.1)",
-                    maxHeight: "280px",
                     overflowY: "auto",
                   }}
                 >
@@ -231,14 +260,48 @@ export default function FichaEvento({ submissions = [] }) {
                             fontWeight: "500",
                           }}
                         >
-                          {tituloSubmissao(s)}
+                          {tituloSubmissao(s, eventTypes)}
                         </span>
                         <span
                           style={{ fontSize: "10px", color: "var(--gray-mid)" }}
                         >
+                          {nomeTipo(s, eventTypes)
+                            ? `${nomeTipo(s, eventTypes)} · `
+                            : ""}
                           {formatData(s.data_evento)}
                           {s.local_evento ? ` · ${s.local_evento}` : ""}
                         </span>
+                        {idsComFicha.has(s.id) ? (
+                          <span
+                            style={{
+                              marginTop: "4px",
+                              fontSize: "9px",
+                              fontWeight: "700",
+                              padding: "2px 8px",
+                              borderRadius: "999px",
+                              backgroundColor: "#FEF9EC",
+                              color: "var(--gold-dark)",
+                              border: "1px solid var(--gold-light)",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.04em",
+                            }}
+                          >
+                            ✓ Ficha iniciada
+                          </span>
+                        ) : (
+                          <span
+                            style={{
+                              marginTop: "4px",
+                              fontSize: "9px",
+                              fontWeight: "600",
+                              color: "var(--gray-mid)",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.04em",
+                            }}
+                          >
+                            Sem ficha
+                          </span>
+                        )}
                       </button>
                     ))
                   )}
@@ -255,12 +318,13 @@ export default function FichaEvento({ submissions = [] }) {
           key={submissaoAtual.id}
           submissionId={submissaoAtual.id}
           submissao={submissaoAtual}
+          eventTypes={eventTypes}
         />
       ) : (
         <div style={{ textAlign: "center", padding: "50px 20px" }}>
           <p style={{ fontSize: "32px", marginBottom: "12px" }}>📋</p>
           <p style={{ fontSize: "14px", color: "var(--gray-mid)", margin: 0 }}>
-            Escolhe um evento para começar a preparar a ficha operacional.
+            Escolhe um evento para ver ou preparar a ficha operacional.
           </p>
         </div>
       )}
@@ -271,7 +335,7 @@ export default function FichaEvento({ submissions = [] }) {
 // ------------------------------------------------------------
 // A ficha propriamente dita: materiais na ficha + adicionar
 // ------------------------------------------------------------
-function FichaMateriais({ submissionId, submissao }) {
+function FichaMateriais({ submissionId, submissao, eventTypes = [] }) {
   const [catalogo, setCatalogo] = useState([]);
   const [linhas, setLinhas] = useState([]); // evento_materiais (com .material)
   const [loading, setLoading] = useState(true);
@@ -403,7 +467,7 @@ function FichaMateriais({ submissionId, submissao }) {
               textOverflow: "ellipsis",
             }}
           >
-            {tituloSubmissao(submissao)}
+            {tituloSubmissao(submissao, eventTypes)}
           </p>
           <p style={{ fontSize: "12px", color: "var(--gray-mid)", margin: 0 }}>
             {totalNaFicha === 0

@@ -54,6 +54,7 @@ export function toEditingSteps(steps) {
       type: field.type || "text",
       required: !!field.required,
       placeholder: field.placeholder || "",
+      papel: field.papel || "",
       options: (field.options || []).map((o) => ({ uid: makeUid(), value: o })),
       validatePositive: field.validate === "positive",
       validateFutureDate: field.validate === "futureDate",
@@ -135,6 +136,14 @@ function buildStepsForSave(steps) {
           .map((o) => o.value.trim())
           .filter((o) => o !== "");
       }
+
+      if (["radio", "checkbox"].includes(field.type)) {
+        campoFinal.options = field.options
+          .map((o) => o.value.trim())
+          .filter((o) => o !== "");
+      }
+      if (field.papel) campoFinal.papel = field.papel;
+
       return campoFinal;
     }),
   }));
@@ -399,6 +408,21 @@ function FieldRow({
   ].includes(field.type);
   const showOptions = ["radio", "checkbox"].includes(field.type);
 
+  // Papéis disponíveis conforme o tipo do campo
+  const papeisDisponiveis =
+    field.type === "text"
+      ? [
+          { value: "", label: "Nenhum" },
+          { value: "titulo", label: "Título do evento" },
+          { value: "local", label: "Local do evento" },
+        ]
+      : field.type === "date"
+        ? [
+            { value: "", label: "Nenhum" },
+            { value: "data", label: "Data do evento" },
+          ]
+        : null;
+
   return (
     <div
       style={{
@@ -482,6 +506,34 @@ function FieldRow({
           placeholder="Texto de exemplo, opcional"
           style={{ ...inputBaseStyle, marginTop: "8px" }}
         />
+      )}
+      {papeisDisponiveis && (
+        <div style={{ marginTop: "8px" }}>
+          <label
+            style={{
+              fontSize: "10px",
+              fontWeight: "600",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              color: "var(--gray-mid)",
+              display: "block",
+              marginBottom: "4px",
+            }}
+          >
+            Papel deste campo
+          </label>
+          <select
+            value={field.papel || ""}
+            onChange={(e) => onUpdate({ papel: e.target.value })}
+            style={{ ...inputBaseStyle, fontSize: "12px" }}
+          >
+            {papeisDisponiveis.map((p) => (
+              <option key={p.value} value={p.value}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+        </div>
       )}
       {showOptions && (
         <OptionsZone
@@ -810,6 +862,7 @@ export default function EventTypeEditor({
                   type: "text",
                   required: true,
                   placeholder: "",
+                  papel: "",
                   options: [],
                   validatePositive: false,
                   validateFutureDate: false,
@@ -830,14 +883,36 @@ export default function EventTypeEditor({
     );
   };
 
-  const handleTypeChange = (stepUid, fieldUid, newType) =>
-    updateField(stepUid, fieldUid, {
-      type: newType,
-      options: ["radio", "checkbox"].includes(newType)
-        ? [{ uid: makeUid(), value: "" }]
-        : [],
-    });
-
+  const handleTypeChange = (stepUid, fieldUid, newType) => {
+    // Papéis válidos por tipo: texto pode ser título/local; data pode ser data.
+    // Ao mudar de tipo, um papel que já não faça sentido é limpo.
+    const papelValido = (papel) => {
+      if (papel === "titulo" || papel === "local") return newType === "text";
+      if (papel === "data") return newType === "date";
+      return false;
+    };
+    setSteps((prev) =>
+      prev.map((s) =>
+        s.uid !== stepUid
+          ? s
+          : {
+              ...s,
+              fields: s.fields.map((f) =>
+                f.uid !== fieldUid
+                  ? f
+                  : {
+                      ...f,
+                      type: newType,
+                      papel: papelValido(f.papel) ? f.papel : "",
+                      options: ["radio", "checkbox"].includes(newType)
+                        ? [{ uid: makeUid(), value: "" }]
+                        : [],
+                    },
+              ),
+            },
+      ),
+    );
+  };
   const updateOption = (stepUid, fieldUid, idx, value) =>
     setSteps((prev) =>
       prev.map((s) =>

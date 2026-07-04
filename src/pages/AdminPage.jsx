@@ -3,7 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { createInvite, getEventTypes } from "../lib/invites";
 import { validateField } from "../lib/validation";
-import { normalizeSubmission, getValorAtual } from "../lib/submissionFields";
+import {
+  normalizeSubmission,
+  getValorAtual,
+  getResumoSubmissao,
+} from "../lib/submissionFields";
 import EventTypesTab from "../components/admin/EventTypesTab";
 import CampoSeletor from "../components/admin/CampoSeletor";
 import SubmissionDrawer from "../components/admin/SubmissionDrawer";
@@ -133,44 +137,36 @@ const ADMIN_TOUR_STEPS = [
   },
 ];
 
-// Gera um título legível para um questionário (ex: "André & Andreia"), a
-// partir do que a irmã escolheu preencher no Painel de Novo Questionário.
-// Duas correcções importantes:
-// 1. Se o uestionário já foi preenchido, usa os valores da SUBMISSÃO real
-//    (o casal pode ter corrigido algo), não o que ficou gravado na
-//    criação do uestionário.
-// 2. Só entram no título campos de texto simples (nomes) — datas,
-//    emails, telefones e números ficam de fora, não fazem sentido lá.
+// Gera um título legível para um questionário (ex: "André & Andreia").
+// Delega no getResumoSubmissao (a lógica genérica com papéis), construindo
+// uma "fonte" a partir da submissão real (se o convite já foi preenchido)
+// ou do que a irmã pré-preencheu no convite. Só acrescenta o código do
+// convite quando não há título real, para o card ter sempre um id útil.
 function getTituloConvite(invite, submissions, eventTypes) {
-  const chaves = Object.keys(invite?.respostas || {});
-
-  let submissao = null;
+  let fonte = null;
   if (invite?.submission_id && submissions) {
-    submissao = submissions.find((s) => s.id === invite.submission_id) || null;
+    fonte = submissions.find((s) => s.id === invite.submission_id) || null;
+  }
+  if (!fonte) {
+    fonte = {
+      event_type_id: invite?.event_type_id,
+      respostas: invite?.respostas || {},
+    };
   }
 
+  const resumo = getResumoSubmissao(fonte, eventTypes);
   const tipo = eventTypes?.find((et) => et.id === invite?.event_type_id);
-  const tiposPorCampo = {};
-  getAllFields(tipo).forEach((f) => {
-    tiposPorCampo[f.id] = f.type;
-  });
 
-  const valores = chaves
-    .filter((chave) => !tiposPorCampo[chave] || tiposPorCampo[chave] === "text")
-    .map((chave) =>
-      submissao ? getValorAtual(submissao, chave) : invite.respostas[chave],
-    )
-    .map((v) => (Array.isArray(v) ? v.join(", ") : v))
-    .filter((v) => typeof v === "string" && v.trim() !== "")
-    .slice(0, 2); // no máximo dois nomes — faz sentido para qualquer evento
-
-  if (valores.length > 0) return valores.join(" & ");
-
-  // Sem nenhum campo de texto preenchido — usa o tipo de evento + código,
-  // para nunca ficar com um card sem nada útil para identificar
-  return tipo
-    ? `${tipo.nome} · ${invite.code}`
-    : invite.code || "Questionário sem nome";
+  // Se caiu no genérico (título === nome do tipo, ou "Evento" sem tipo),
+  // usa nome do tipo + código do convite como identificador.
+  const caiuNoGenerico = tipo && resumo.titulo === tipo.nome;
+  const semTitulo = !tipo && resumo.titulo === "Evento";
+  if (caiuNoGenerico || semTitulo) {
+    return tipo
+      ? `${tipo.nome} · ${invite.code}`
+      : invite?.code || "Questionário sem nome";
+  }
+  return resumo.titulo;
 }
 
 // Junta os campos de todos os passos de um tipo de evento numa única
@@ -1099,7 +1095,7 @@ export default function AdminPage() {
           />
         )}
         {activeTab === "operacional" && (
-          <OperacionalTab submissions={submissions} />
+          <OperacionalTab submissions={submissions} eventTypes={eventTypes} />
         )}
       </div>
 

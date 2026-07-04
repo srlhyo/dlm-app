@@ -136,6 +136,28 @@ h1, h2, h3 {
   border-radius: 999px;
 }
 
+/* ===== Admin: em ecrãs maiores (tablet/desktop), as listas crescem
+   até perto do fundo do ecrã, revelando mais cards. Mobile mantém as
+   alturas compactas fixas acima. ===== */
+@media (min-width: 768px) {
+  .clients-list {
+    max-height: calc(100vh - 380px);
+  }
+  .invites-list {
+    max-height: calc(100vh - 220px);
+  }
+}
+
+/* ===== Admin: dropdown de eventos (Fichas) — mesma lógica das listas ===== */
+.eventos-dropdown {
+  max-height: 280px;
+}
+@media (min-width: 768px) {
+  .eventos-dropdown {
+    max-height: 60vh;
+  }
+}
+
 /* ===== Alvos de toque confortáveis ===== */
 @media (pointer: coarse) {
   button:not(.btn-compact) {

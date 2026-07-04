@@ -79,18 +79,18 @@ export function normalizeSubmission(s) {
 }
 
 // ============================================================
-// getResumoSubmissao — título e data de QUALQUER submissão,
+// getResumoSubmissao — título, data e LOCAL de QUALQUER submissão,
 // independentemente do modelo de evento.
 //
-// Lê primeiro as colunas fixas (nome_noivo/nome_noiva/data_evento,
-// que existem para o Casamento e para submissões editadas à mão) e,
-// quando estão vazias, deriva a partir de "respostas" GUIADA PELO
-// TYPE dos campos do modelo:
-//   • título = primeiros 1-2 campos de texto preenchidos
-//   • data   = primeiro campo do tipo "date" preenchido
+// Prioridade de leitura, em três camadas (da mais fiável para o
+// último recurso):
+//   1. Colunas fixas (Casamento / submissões editadas à mão)
+//   2. PAPÉIS marcados no modelo (papel: "titulo" | "local" | "data")
+//   3. Fallback por TYPE dos campos (comportamento antigo)
 //
-// Não depende de nomes de campos fixos — funciona para Aniversário,
-// Batizado, ou qualquer modelo futuro.
+// A camada 2 é a novidade. A 3 garante RETROCOMPATIBILIDADE: modelos
+// sem papéis marcados comportam-se exactamente como antes, por isso
+// nada parte — os títulos só melhoram à medida que se marcam papéis.
 // ============================================================
 
 // Junta todos os campos de todos os passos de um modelo.
@@ -99,44 +99,88 @@ function camposDoModelo(tipo) {
   return tipo.steps.flatMap((step) => step.fields || []);
 }
 
-export function getResumoSubmissao(submissao, eventTypes) {
-  if (!submissao) return { titulo: "Evento", data: null };
+// Lê o valor de um campo do respostas, achatando arrays para string.
+function valorTexto(respostas, campoId) {
+  const v = respostas?.[campoId];
+  const s = Array.isArray(v) ? v.join(", ") : v;
+  return typeof s === "string" && s.trim() !== "" ? s.trim() : "";
+}
 
-  // 1) TÍTULO — colunas fixas primeiro (Casamento / editado à mão)
+export function getResumoSubmissao(submissao, eventTypes) {
+  if (!submissao) return { titulo: "Evento", data: null, local: null };
+
+  const tipo = eventTypes?.find((et) => et.id === submissao.event_type_id);
+  const campos = camposDoModelo(tipo);
+  const respostas = submissao.respostas || {};
+
+  // ---------------------------------------------------------------
+  // TÍTULO
+  // ---------------------------------------------------------------
+  // 1) colunas fixas (Casamento / editado à mão)
   const nomesFixos = [submissao.nome_noivo, submissao.nome_noiva]
     .map((n) => (typeof n === "string" ? n.trim() : ""))
     .filter((n) => n !== "");
   let titulo = nomesFixos.join(" & ");
 
-  const tipo = eventTypes?.find((et) => et.id === submissao.event_type_id);
+  // 2) campos marcados com papel "titulo" (na ordem do modelo)
+  if (!titulo && campos.length) {
+    const marcados = campos
+      .filter((f) => f.papel === "titulo")
+      .map((f) => valorTexto(respostas, f.id))
+      .filter((s) => s !== "");
+    if (marcados.length > 0) titulo = marcados.join(" & ");
+  }
 
-  // 2) TÍTULO — se as colunas fixas não deram nada, deriva do respostas
-  //    pelos campos de texto do modelo (primeiros 2 preenchidos)
-  if (!titulo && tipo && submissao.respostas) {
-    const campos = camposDoModelo(tipo);
+  // 3) fallback antigo: primeiros 2 campos de texto preenchidos
+  if (!titulo && campos.length) {
     const textos = campos
       .filter((f) => f.type === "text")
-      .map((f) => submissao.respostas[f.id])
-      .map((v) => (Array.isArray(v) ? v.join(", ") : v))
-      .filter((v) => typeof v === "string" && v.trim() !== "")
+      .map((f) => valorTexto(respostas, f.id))
+      .filter((s) => s !== "")
       .slice(0, 2);
     if (textos.length > 0) titulo = textos.join(" & ");
   }
 
-  // 3) TÍTULO — último recurso: nome do tipo + código, ou genérico
-  if (!titulo) {
-    titulo = tipo ? tipo.nome : "Evento";
-  }
+  // 4) último recurso
+  if (!titulo) titulo = tipo ? tipo.nome : "Evento";
 
-  // 4) DATA — coluna fixa primeiro, depois campo "date" do modelo
-  let data = submissao.data_evento || null;
-  if (!data && tipo && submissao.respostas) {
-    const campoData = camposDoModelo(tipo).find((f) => f.type === "date");
-    if (campoData) {
-      const v = submissao.respostas[campoData.id];
-      if (v) data = v;
+  // ---------------------------------------------------------------
+  // LOCAL
+  // ---------------------------------------------------------------
+  // 1) coluna fixa
+  let local =
+    typeof submissao.local_evento === "string" &&
+    submissao.local_evento.trim() !== ""
+      ? submissao.local_evento.trim()
+      : null;
+  // 2) campo marcado com papel "local"
+  if (!local && campos.length) {
+    const campoLocal = campos.find((f) => f.papel === "local");
+    if (campoLocal) {
+      const v = valorTexto(respostas, campoLocal.id);
+      if (v) local = v;
     }
   }
 
-  return { titulo, data };
+  // ---------------------------------------------------------------
+  // DATA
+  // ---------------------------------------------------------------
+  // 1) coluna fixa
+  let data = submissao.data_evento || null;
+  // 2) campo marcado com papel "data"
+  if (!data && campos.length) {
+    const campoDataMarcado = campos.find((f) => f.papel === "data");
+    if (campoDataMarcado && respostas[campoDataMarcado.id]) {
+      data = respostas[campoDataMarcado.id];
+    }
+  }
+  // 3) fallback antigo: primeiro campo type "date" preenchido
+  if (!data && campos.length) {
+    const campoData = campos.find((f) => f.type === "date");
+    if (campoData && respostas[campoData.id]) {
+      data = respostas[campoData.id];
+    }
+  }
+
+  return { titulo, data, local };
 }
