@@ -157,6 +157,9 @@ export const calcularDisponibilidade = ({
   materiaisPorEvento,
   ignorarSubmissionId = null,
 }) => {
+  // O 'quantidadeTotal' recebido já deve vir como stock efetivo para
+  // conflitos (total − por_confirmar), calculado por quem chama. Aqui só
+  // garantimos que não é negativo.
   const total = Math.max(0, Number(quantidadeTotal) || 0);
 
   // Acesso uniforme ao mapa de materiais por evento (aceita Map ou objecto)
@@ -272,6 +275,24 @@ const agruparEventosEmClusters = (submissions, buffer) => {
   return clusters;
 };
 
+// Stock efetivo para o cálculo de CONFLITOS entre eventos.
+//
+// Regra (decidida por análise de risco, dado não sabermos ao certo como a
+// Nádia usa as colunas):
+//   • desconta 'por_confirmar' — é incerteza estrutural ("não sei se as
+//     tenho"); contar com elas seria otimismo perigoso (faltariam peças).
+//   • NÃO desconta 'em_higienizacao' — é um estado temporário de hoje; as
+//     peças na lavandaria estarão limpas no evento futuro. Descontá-las
+//     geraria alertas falsos, que minam a confiança nos alertas.
+//
+// (O CARD do inventário desconta ambas, porque fala do disponível de HOJE.
+//  O motor de conflitos fala do FUTURO — daí a diferença, que é correta.)
+const stockParaConflitos = (info) => {
+  const total = Math.max(0, Number(info.quantidade_total) || 0);
+  const porConfirmar = Math.max(0, Number(info.por_confirmar) || 0);
+  return Math.max(0, total - porConfirmar);
+};
+
 // Calcula todos os alertas de rutura de stock.
 //
 // Um alerta = um material que, num cluster temporal (um "aperto"), é
@@ -316,7 +337,7 @@ export const calcularAlertas = ({
 
     materiaisUsados.forEach((materialId) => {
       const info = catalogoPorId.get(materialId);
-      const stock = info ? Math.max(0, Number(info.quantidade_total) || 0) : 0;
+      const stock = info ? stockParaConflitos(info) : 0;
 
       // Soma o que todos os eventos do cluster pedem deste material
       let necessario = 0;
@@ -357,4 +378,65 @@ export const calcularAlertas = ({
 
   // Maior falta primeiro — o mais urgente no topo
   return alertas.sort((a, b) => b.falta - a.falta);
+};
+
+// ---------------------------------------------------------------------
+// 7. Alertas de REPOSIÇÃO (stock ideal) — o segundo tipo de alerta
+// ---------------------------------------------------------------------
+
+// Disponível de HOJE de um material = total − higienização − por confirmar.
+// (É o mesmo conceito do card do inventário: o que ela tem mesmo agora.)
+const disponivelHoje = (m) => {
+  const total = Math.max(0, Number(m.quantidade_total) || 0);
+  const higien = Math.max(0, Number(m.em_higienizacao) || 0);
+  const conf = Math.max(0, Number(m.por_confirmar) || 0);
+  return total - higien - conf;
+};
+
+// Calcula os alertas de reposição: materiais cujo disponível de hoje está
+// abaixo do stock_ideal definido. Materiais SEM stock_ideal não entram
+// (a Nádia não definiu meta → não há do que a avisar).
+//
+// Cada alerta classifica a severidade, coerente com os cards:
+//   'critico' — disponível <= 0, ou abaixo de metade do ideal
+//   'atencao' — abaixo do ideal, mas acima de metade
+//
+// Parâmetro:
+//   materiais — catálogo [{ id, nome, categoria, quantidade_total,
+//               em_higienizacao, por_confirmar, stock_ideal, ativo }]
+//
+// Devolve lista ordenada pela maior falta relativa primeiro (o mais longe
+// do ideal no topo), cada item:
+//   { materialId, material, disponivel, ideal, falta, severidade }
+export const calcularAlertasReposicao = ({ materiais }) => {
+  const alertas = [];
+
+  (materiais || []).forEach((m) => {
+    if (!m || m.ativo === false) return; // ignora inativos
+    const ideal = m.stock_ideal == null ? null : Number(m.stock_ideal);
+    if (ideal == null || ideal <= 0) return; // sem meta → sem alerta
+
+    const disp = disponivelHoje(m);
+    if (disp >= ideal) return; // tem o suficiente → sem alerta
+
+    const falta = ideal - disp;
+    const severidade = disp <= 0 || disp < ideal / 2 ? "critico" : "atencao";
+
+    alertas.push({
+      materialId: m.id,
+      material: m,
+      disponivel: disp,
+      ideal,
+      falta,
+      severidade,
+    });
+  });
+
+  // Ordena: críticos primeiro, depois pela maior falta
+  const rank = { critico: 0, atencao: 1 };
+  return alertas.sort((a, b) => {
+    if (rank[a.severidade] !== rank[b.severidade])
+      return rank[a.severidade] - rank[b.severidade];
+    return b.falta - a.falta;
+  });
 };

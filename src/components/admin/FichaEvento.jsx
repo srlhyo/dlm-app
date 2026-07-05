@@ -36,6 +36,7 @@ export default function FichaEvento({
   submissions = [],
   eventTypes = [],
   todasFichas = [],
+  onFichaAlterada,
 }) {
   const [submissionId, setSubmissionId] = useState("");
   const [buscaEvento, setBuscaEvento] = useState("");
@@ -319,6 +320,7 @@ export default function FichaEvento({
           submissionId={submissaoAtual.id}
           submissao={submissaoAtual}
           eventTypes={eventTypes}
+          onFichaAlterada={onFichaAlterada}
         />
       ) : (
         <div style={{ textAlign: "center", padding: "50px 20px" }}>
@@ -335,7 +337,12 @@ export default function FichaEvento({
 // ------------------------------------------------------------
 // A ficha propriamente dita: materiais na ficha + adicionar
 // ------------------------------------------------------------
-function FichaMateriais({ submissionId, submissao, eventTypes = [] }) {
+function FichaMateriais({
+  submissionId,
+  submissao,
+  eventTypes = [],
+  onFichaAlterada,
+}) {
   const [catalogo, setCatalogo] = useState([]);
   const [linhas, setLinhas] = useState([]); // evento_materiais (com .material)
   const [loading, setLoading] = useState(true);
@@ -361,10 +368,13 @@ function FichaMateriais({ submissionId, submissao, eventTypes = [] }) {
     carregar();
   }, [carregar]);
 
-  // Feedback de guardado — mostra "A guardar…" e depois "✓ Guardado"
+  // Feedback de guardado — mostra "A guardar…" e depois "✓ Guardado".
+  // Também avisa o pai (OperacionalTab) que a ficha mudou, para o badge
+  // e a lista de alertas recalcularem sem refrescar a página.
   const marcarGuardado = () => {
     setSaveState("saved");
     setTimeout(() => setSaveState("idle"), 1800);
+    onFichaAlterada?.();
   };
 
   // ids dos materiais já na ficha (para o seletor saber o que está dentro)

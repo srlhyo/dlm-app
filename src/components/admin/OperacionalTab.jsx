@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   getMateriais,
@@ -13,9 +13,11 @@ import {
   getAppConfig,
   getBuffer,
   calcularAlertas,
+  calcularAlertasReposicao,
 } from "../../lib/stock";
 import FichaEvento from "./FichaEvento";
 import AlertasTab from "./AlertasTab";
+import MateriaisInventario from "./MateriaisInventario";
 
 // Unidades sugeridas no seletor ao criar/editar um material.
 const UNIDADES = ["un", "mt", "cx", "kg", "par", "conj"];
@@ -37,34 +39,46 @@ export default function OperacionalTab({ submissions = [], eventTypes = [] }) {
   const [buffer, setBuffer] = useState({ antes: 2, depois: 2 });
   const [loadingAlertas, setLoadingAlertas] = useState(true);
 
+  // Recarrega os dados que alimentam os alertas (stock, fichas, buffer).
+  // Chamada uma vez ao montar, E sempre que um filho grava algo que afeta
+  // os alertas (quantidade numa ficha, stock de um material) — assim o
+  // badge e a lista atualizam sem refrescar a página.
+  const recarregarDados = useCallback(async () => {
+    try {
+      const [mats, fichas, config] = await Promise.all([
+        getMateriais({ incluirInativos: true }),
+        getTodasFichas(),
+        getAppConfig(),
+      ]);
+      setMateriais(mats);
+      setTodasFichas(fichas);
+      setBuffer(await getBuffer(config));
+    } catch (e) {
+      console.error("Erro ao carregar alertas:", e);
+    }
+  }, []);
+
   useEffect(() => {
     let vivo = true;
-    const carregar = async () => {
+    (async () => {
       setLoadingAlertas(true);
-      try {
-        const [mats, fichas, config] = await Promise.all([
-          getMateriais({ incluirInativos: true }),
-          getTodasFichas(),
-          getAppConfig(),
-        ]);
-        if (!vivo) return;
-        setMateriais(mats);
-        setTodasFichas(fichas);
-        setBuffer(await getBuffer(config));
-      } catch (e) {
-        console.error("Erro ao carregar alertas:", e);
-      }
+      await recarregarDados();
       if (vivo) setLoadingAlertas(false);
-    };
-    carregar();
+    })();
     return () => {
       vivo = false;
     };
-  }, []);
+  }, [recarregarDados]);
 
   const alertas = useMemo(
     () => calcularAlertas({ materiais, submissions, todasFichas, buffer }),
     [materiais, submissions, todasFichas, buffer],
+  );
+
+  // Alertas de reposição (stock abaixo do ideal) — planeamento, não urgência.
+  const alertasReposicao = useMemo(
+    () => calcularAlertasReposicao({ materiais }),
+    [materiais],
   );
 
   // O badge conta só as RUTURAS REAIS (stock definido mas insuficiente),
@@ -148,17 +162,21 @@ export default function OperacionalTab({ submissions = [], eventTypes = [] }) {
         })}
       </div>
 
-      {subTab === "materiais" && <MateriaisCatalogo />}
+      {subTab === "materiais" && (
+        <MateriaisInventario onStockAlterado={recarregarDados} />
+      )}
       {subTab === "fichas" && (
         <FichaEvento
           submissions={submissions}
           eventTypes={eventTypes}
           todasFichas={todasFichas}
+          onFichaAlterada={recarregarDados}
         />
       )}
       {subTab === "alertas" && (
         <AlertasTab
           alertas={alertas}
+          alertasReposicao={alertasReposicao}
           loading={loadingAlertas}
           submissions={submissions}
           eventTypes={eventTypes}
@@ -171,7 +189,7 @@ export default function OperacionalTab({ submissions = [], eventTypes = [] }) {
 // ------------------------------------------------------------
 // Catálogo de materiais — accordion por categoria + busca
 // ------------------------------------------------------------
-function MateriaisCatalogo() {
+function MateriaisCatalogo({ onStockAlterado }) {
   const [materiais, setMateriais] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState("");
@@ -230,6 +248,7 @@ function MateriaisCatalogo() {
     setMateriais((prev) => [...prev, novo]);
     setCriarEm(null);
     mostrarSucesso(`"${novo.nome}" adicionado a ${novo.categoria}.`);
+    onStockAlterado?.();
   };
 
   const handleGuardarEdicao = async (id, campos) => {
@@ -239,6 +258,7 @@ function MateriaisCatalogo() {
     );
     setEditando(null);
     mostrarSucesso(`"${atualizado.nome}" actualizado.`);
+    onStockAlterado?.();
   };
 
   const handleToggleAtivo = async (material) => {
@@ -253,6 +273,7 @@ function MateriaisCatalogo() {
           ? `"${material.nome}" reactivado.`
           : `"${material.nome}" desativado (não aparece em novas fichas).`,
       );
+      onStockAlterado?.();
     } catch (e) {
       console.error(e);
       alert("Não foi possível alterar. Tenta novamente.");

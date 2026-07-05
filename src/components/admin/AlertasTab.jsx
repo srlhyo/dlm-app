@@ -46,6 +46,7 @@ const formatarDataCurta = (data) => {
 // ============================================================
 export default function AlertasTab({
   alertas = [],
+  alertasReposicao = [],
   loading = false,
   submissions = [],
   eventTypes = [],
@@ -79,71 +80,228 @@ export default function AlertasTab({
     );
   }
 
-  // Estado bom — sem conflitos. Acolhedor, não parece erro.
-  if (alertas.length === 0) {
-    return (
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
+      {/* ===== SECÇÃO 1: CONFLITOS DE EVENTOS (urgente) ===== */}
+      <section>
+        <SeccaoTitulo
+          titulo="Conflitos de eventos"
+          subtitulo="Materiais pedidos por eventos próximos em maior quantidade do que tens. Cada aviso junta os eventos que partilham o mesmo período."
+        />
+        {alertas.length === 0 ? (
+          <EstadoBom
+            titulo="Sem conflitos de stock"
+            texto="Tudo o que os teus eventos pedem cabe no que tens."
+          />
+        ) : (
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "12px" }}
+          >
+            {alertas.map((alerta, idx) => (
+              <AlertaCard
+                key={`${alerta.materialId}-${idx}`}
+                alerta={alerta}
+                tituloEvento={tituloEvento}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ===== SECÇÃO 2: ABAIXO DO STOCK IDEAL (planeamento) ===== */}
+      <section>
+        <SeccaoTitulo
+          titulo="Abaixo do stock ideal"
+          subtitulo="Materiais em que tens menos do que gostarias de ter. Para planeares reposições — não são urgentes."
+          contagem={alertasReposicao.length}
+        />
+        {alertasReposicao.length === 0 ? (
+          <EstadoBom
+            titulo="Stock nos níveis ideais"
+            texto="Todos os materiais com meta definida estão no nível que querias, ou acima."
+          />
+        ) : (
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "10px" }}
+          >
+            {alertasReposicao.map((a) => (
+              <ReposicaoCard key={a.materialId} alerta={a} />
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+// Cabeçalho de secção, com contagem opcional
+function SeccaoTitulo({ titulo, subtitulo, contagem }) {
+  return (
+    <div style={{ marginBottom: "16px" }}>
       <div
         style={{
-          textAlign: "center",
-          padding: "50px 24px",
-          backgroundColor: "#F0FDF4",
-          borderRadius: "16px",
-          border: "1px solid #BBF7D0",
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          marginBottom: "6px",
         }}
       >
-        <p style={{ fontSize: "36px", margin: "0 0 12px 0" }}>✓</p>
-        <p
+        <h3
           style={{
             fontSize: "15px",
             fontWeight: "600",
-            color: "#166534",
-            margin: "0 0 6px 0",
+            color: "var(--charcoal)",
+            margin: 0,
             fontFamily: "Playfair Display, serif",
           }}
         >
-          Sem conflitos de stock
-        </p>
-        <p
-          style={{
-            fontSize: "13px",
-            color: "#166534",
-            margin: 0,
-            maxWidth: "360px",
-            marginInline: "auto",
-            lineHeight: 1.5,
-          }}
-        >
-          Tudo o que os teus eventos pedem cabe no que tens. Se adicionares
-          eventos ou materiais, os avisos aparecem aqui.
-        </p>
+          {titulo}
+        </h3>
+        {contagem > 0 && (
+          <span
+            style={{
+              fontSize: "11px",
+              fontWeight: "700",
+              color: "var(--gold-dark)",
+              backgroundColor: "#FEF9EC",
+              border: "1px solid var(--gold-light)",
+              borderRadius: "999px",
+              padding: "1px 9px",
+            }}
+          >
+            {contagem}
+          </span>
+        )}
       </div>
-    );
-  }
-
-  return (
-    <div>
-      {/* Intro */}
       <p
         style={{
           fontSize: "13px",
           color: "var(--gray-mid)",
-          margin: "0 0 20px 0",
+          margin: 0,
           maxWidth: "560px",
           lineHeight: 1.5,
         }}
       >
-        Materiais pedidos por eventos próximos em maior quantidade do que tens
-        em stock. Cada aviso junta os eventos que partilham o mesmo período.
+        {subtitulo}
       </p>
+    </div>
+  );
+}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-        {alertas.map((alerta, idx) => (
-          <AlertaCard
-            key={`${alerta.materialId}-${idx}`}
-            alerta={alerta}
-            tituloEvento={tituloEvento}
-          />
-        ))}
+// Estado "tudo bem" de uma secção (acolhedor, não parece erro)
+function EstadoBom({ titulo, texto }) {
+  return (
+    <div
+      style={{
+        textAlign: "center",
+        padding: "32px 24px",
+        backgroundColor: "#F0FDF4",
+        borderRadius: "16px",
+        border: "1px solid #BBF7D0",
+      }}
+    >
+      <p style={{ fontSize: "28px", margin: "0 0 8px 0" }}>✓</p>
+      <p
+        style={{
+          fontSize: "14px",
+          fontWeight: "600",
+          color: "#166534",
+          margin: "0 0 4px 0",
+          fontFamily: "Playfair Display, serif",
+        }}
+      >
+        {titulo}
+      </p>
+      <p
+        style={{
+          fontSize: "13px",
+          color: "#166534",
+          margin: 0,
+          maxWidth: "360px",
+          marginInline: "auto",
+          lineHeight: 1.5,
+        }}
+      >
+        {texto}
+      </p>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------
+// Cartão de reposição (material abaixo do stock ideal)
+// ------------------------------------------------------------
+function ReposicaoCard({ alerta }) {
+  const critico = alerta.severidade === "critico";
+  const cor = critico
+    ? { borda: "#FECACA", fundo: "#FEF2F2", forte: "#DC2626" }
+    : {
+        borda: "var(--gold-light)",
+        fundo: "#FEF9EC",
+        forte: "var(--gold-dark)",
+      };
+  const m = alerta.material;
+  const nomeLegivel =
+    [m.tipo, m.cor].filter(Boolean).join(" · ") || m.nome || "Material";
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "12px",
+        padding: "14px 16px",
+        backgroundColor: "white",
+        borderRadius: "12px",
+        border: `1px solid ${cor.borda}`,
+        boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
+      }}
+    >
+      <div style={{ minWidth: 0 }}>
+        <p
+          style={{
+            fontSize: "14px",
+            fontWeight: "500",
+            color: "var(--charcoal)",
+            margin: "0 0 2px 0",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {m.codigo ? `${m.codigo} · ` : ""}
+          {nomeLegivel}
+        </p>
+        <p style={{ fontSize: "12px", color: "var(--gray-mid)", margin: 0 }}>
+          Tens <strong>{alerta.disponivel}</strong> · ideal{" "}
+          <strong>{alerta.ideal}</strong>
+        </p>
+      </div>
+      <div style={{ textAlign: "right", flexShrink: 0 }}>
+        <p
+          style={{
+            fontSize: "18px",
+            fontWeight: "700",
+            color: cor.forte,
+            margin: 0,
+            lineHeight: 1,
+            fontFamily: "Playfair Display, serif",
+          }}
+        >
+          −{alerta.falta}
+        </p>
+        <p
+          style={{
+            fontSize: "10px",
+            color: cor.forte,
+            margin: "2px 0 0 0",
+            textTransform: "uppercase",
+            letterSpacing: "0.05em",
+          }}
+        >
+          {critico ? "crítico" : "repor"}
+        </p>
       </div>
     </div>
   );
