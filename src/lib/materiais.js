@@ -299,3 +299,80 @@ export const gerarListas = (eventoMateriais) => {
     higienizacao: construir("lista_higienizacao"),
   };
 };
+
+// ============================================================
+// Upload de imagens de material para o Supabase Storage.
+// Bucket "materiais" (público). Comprime no browser antes de enviar,
+// para não gastar espaço nem largura de banda com fotos gigantes.
+// ============================================================
+
+const BUCKET_MATERIAIS = "materiais";
+
+// Comprime/redimensiona uma imagem no browser: máx 600px no lado maior.
+// Exporta PNG para PRESERVAR TRANSPARÊNCIA (o JPEG pintaria de preto as
+// zonas transparentes — bug clássico do canvas). PNG é maior que JPEG,
+// mas mantém o fundo transparente das imagens recortadas.
+const comprimirImagem = (file, maxLado = 600) =>
+  new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width > height && width > maxLado) {
+        height = Math.round((height * maxLado) / width);
+        width = maxLado;
+      } else if (height > maxLado) {
+        width = Math.round((width * maxLado) / height);
+        height = maxLado;
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      // NÃO pintar fundo — deixa transparente onde a imagem for transparente
+      ctx.clearRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob(
+        (blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("Falha ao comprimir a imagem."));
+        },
+        "image/png", // PNG preserva transparência
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Não foi possível ler a imagem."));
+    };
+    img.src = url;
+  });
+
+// Faz upload da imagem de um material e devolve a URL pública.
+// Usa o código do material (ou o id) como nome do ficheiro, para ser
+// estável e substituível. Acrescenta um sufixo temporal para furar a
+// cache do browser quando ela troca a foto.
+export const uploadImagemMaterial = async (material, file) => {
+  if (!file) throw new Error("Nenhum ficheiro selecionado.");
+  if (!file.type.startsWith("image/"))
+    throw new Error("O ficheiro tem de ser uma imagem.");
+
+  const blob = await comprimirImagem(file);
+  const base = (material?.codigo || material?.id || "material")
+    .toString()
+    .replace(/[^a-zA-Z0-9_-]/g, "");
+  const caminho = `${base}_${Date.now()}.png`;
+
+  const { error: errUpload } = await supabase.storage
+    .from(BUCKET_MATERIAIS)
+    .upload(caminho, blob, {
+      contentType: "image/png",
+      upsert: true,
+    });
+  if (errUpload) throw errUpload;
+
+  const { data } = supabase.storage
+    .from(BUCKET_MATERIAIS)
+    .getPublicUrl(caminho);
+  return data.publicUrl;
+};

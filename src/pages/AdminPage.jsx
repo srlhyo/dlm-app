@@ -17,125 +17,13 @@ import DeleteInviteModal from "../components/admin/DeleteInviteModal";
 import ShareSheet from "../components/admin/ShareSheet";
 import CalendarioTab from "../components/admin/CalendarioTab";
 import OperacionalTab from "../components/admin/OperacionalTab";
+import GerarOrcamento from "../components/admin/orcamentos/GerarOrcamento";
 import InviteDetailModal from "../components/admin/InviteDetailModal";
 import InviteCreatedModal from "../components/admin/InviteCreatedModal";
 import InvitesList from "../components/admin/InvitesList";
 import { getReservas } from "../lib/reservas";
 import FormField from "../components/form/FormField";
-import { iniciarTour, tourJaVista } from "../lib/tour";
 import { motion, AnimatePresence } from "framer-motion";
-
-// Mini-tour do Painel de Novo Questionário — dispara a 1ª vez que o painel
-// abre. Como o painel arranca sempre vazio, a explicação foca-se no
-// mecanismo de escolha de campos, que é a parte menos óbvia.
-const NOVO_CONVITE_TOUR_STEPS = (temVariosTipos) => {
-  const passos = [];
-  if (temVariosTipos) {
-    passos.push({
-      element: "#tour-novo-convite-tipo",
-      popover: {
-        title: "Tipo de Evento",
-        description:
-          "Escolhe primeiro o tipo de evento — os campos disponíveis mudam consoante a escolha.",
-      },
-    });
-  }
-  passos.push(
-    {
-      element: "#tour-campo-seletor",
-      popover: {
-        title: "Escolhe os campos",
-        description:
-          "O painel começa sempre vazio. Usa esta busca para adicionares só os campos que já souberes agora (ex: nomes, email, data) — podes remover qualquer um a qualquer momento.",
-      },
-    },
-    {
-      element: "#tour-criar-convite",
-      disableActiveInteraction: true,
-      popover: {
-        title: "Quando estiveres pronta",
-        description:
-          "Cria o convite — o que preencheste aqui já vem pronto no formulário do casal/família.",
-      },
-    },
-  );
-  return passos;
-};
-
-// Mini-tour da tab Tipos de Evento — dispara a 1ª vez que se entra
-// nessa tab
-const TIPOS_EVENTO_TOUR_STEPS = [
-  {
-    element: "#tour-criar-tipo-evento",
-    disableActiveInteraction: true,
-    popover: {
-      title: "Criar um tipo novo",
-      description:
-        "Podes começar do zero, ou duplicar um tipo existente e só ajustar as diferenças — mais rápido na maior parte dos casos.",
-    },
-  },
-  {
-    element: "#tour-lista-tipos-evento",
-    popover: {
-      title: "Os teus tipos de evento",
-      description:
-        "Cada tipo aparece aqui, com o número de passos e campos. Os botões ✏️ Editar e 🗑 Remover ficam sempre disponíveis, mesmo depois de criado.",
-    },
-  },
-];
-
-// Passos do tour guiado do Admin — os "element" referem-se aos ids
-// adicionados na barra de navegação (ver render do cabeçalho)
-const ADMIN_TOUR_STEPS = [
-  {
-    element: "#tour-admin-nav",
-    popover: {
-      title: "Bem-vinda ao painel!",
-      description:
-        "Aqui geres tudo: clientes, convites, o panorama do negócio, e os tipos de evento que ofereces. Vamos dar uma volta rápida.",
-    },
-  },
-  {
-    element: "#tour-tab-clientes",
-    popover: {
-      title: "Clientes",
-      description:
-        "Todos os eventos confirmados aparecem aqui, com o estado de cada um (Recebido, Em Preparação, Confirmado, Concluído).",
-    },
-  },
-  {
-    element: "#tour-tab-convites",
-    popover: {
-      title: "Convites",
-      description:
-        "Cria e gere os convites que envias aos teus clientes — cada um com um código único para o questionário deles.",
-    },
-  },
-  {
-    element: "#tour-tab-dashboard",
-    popover: {
-      title: "Dashboard",
-      description:
-        "Uma visão geral do negócio: próximos eventos, estilos e paletas mais pedidos, e o que precisa da tua atenção.",
-    },
-  },
-  {
-    element: "#tour-tab-calendario",
-    popover: {
-      title: "Calendário",
-      description:
-        "Vê todos os eventos do mês numa grelha. Percebe rapidamente que dias estão livres ou ocupados, e clica num evento para abrir a ficha completa.",
-    },
-  },
-  {
-    element: "#tour-tab-tiposEvento",
-    popover: {
-      title: "Tipos de Evento",
-      description:
-        "Aqui defines as perguntas de cada tipo de evento — Casamento, Batizado, ou o que precisares — sem programação.",
-    },
-  },
-];
 
 // Gera um título legível para um questionário (ex: "André & Andreia").
 // Delega no getResumoSubmissao (a lógica genérica com papéis), construindo
@@ -276,38 +164,6 @@ export default function AdminPage() {
     setShowNewInvite(true);
     setCreatedInvite(null);
   };
-
-  useEffect(() => {
-    if (!tourJaVista("admin")) {
-      const temporizador = setTimeout(() => {
-        iniciarTour("admin", ADMIN_TOUR_STEPS);
-      }, 700);
-      return () => clearTimeout(temporizador);
-    }
-  }, []);
-
-  // Mini-tour do Painel de Novo Convite — só na 1ª vez que se abre
-  useEffect(() => {
-    if (showNewInvite && !tourJaVista("novoConvite")) {
-      const temporizador = setTimeout(() => {
-        iniciarTour(
-          "novoConvite",
-          NOVO_CONVITE_TOUR_STEPS(eventTypes.length > 1),
-        );
-      }, 400);
-      return () => clearTimeout(temporizador);
-    }
-  }, [showNewInvite]);
-
-  // Mini-tour da tab Tipos de Evento — só na 1ª vez que se entra lá
-  useEffect(() => {
-    if (activeTab === "tiposEvento" && !tourJaVista("tiposEvento")) {
-      const temporizador = setTimeout(() => {
-        iniciarTour("tiposEvento", TIPOS_EVENTO_TOUR_STEPS);
-      }, 400);
-      return () => clearTimeout(temporizador);
-    }
-  }, [activeTab]);
 
   useEffect(() => {
     fetchSubmissions();
@@ -596,25 +452,6 @@ export default function AdminPage() {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <button
-              onClick={() => iniciarTour("admin", ADMIN_TOUR_STEPS)}
-              title="Ver tour outra vez"
-              style={{
-                fontSize: "11px",
-                fontWeight: "600",
-                padding: "8px 16px",
-                borderRadius: "999px",
-                border: "1.5px solid var(--gold-light)",
-                color: "var(--gold)",
-                backgroundColor: "white",
-                cursor: "pointer",
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                transition: "all 0.2s",
-              }}
-            >
-              ❓ Tour
-            </button>
-            <button
               onClick={handleLogout}
               style={{
                 fontSize: "11px",
@@ -637,41 +474,57 @@ export default function AdminPage() {
 
         {/* Tabs */}
         <div
-          id="tour-admin-nav"
-          style={{ maxWidth: "960px", margin: "0 auto", display: "flex" }}
+          className="filter-wrap"
+          style={{ maxWidth: "960px", margin: "0 auto" }}
         >
-          {[
-            { id: "clientes", label: "👥 Clientes" },
-            { id: "convites", label: "📋 Questionários" },
-            { id: "calendario", label: "📅 Agenda" },
-            { id: "operacional", label: "📦 Logística" },
-            { id: "tiposEvento", label: "🗂️ Modelos de Evento" },
-            { id: "dashboard", label: "📊 Visão Geral" },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              id={`tour-tab-${tab.id}`}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                padding: "12px 20px",
-                fontSize: "12px",
-                fontWeight: "600",
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                border: "none",
-                backgroundColor: "transparent",
-                cursor: "pointer",
-                color: activeTab === tab.id ? "var(--gold)" : "var(--gray-mid)",
-                borderBottom:
-                  activeTab === tab.id
-                    ? "2px solid var(--gold)"
-                    : "2px solid transparent",
-                transition: "all 0.2s",
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
+          <div
+            id="tour-admin-nav"
+            className="h-scroll admin-tabs"
+            style={{ gap: "2px" }}
+          >
+            {[
+              { id: "clientes", label: "👥 Clientes" },
+              { id: "convites", label: "📋 Questionários" },
+              { id: "calendario", label: "📅 Agenda" },
+              { id: "operacional", label: "📦 Logística" },
+              { id: "orcamentos", label: "💰 Orçamentos" },
+              { id: "tiposEvento", label: "🗂️ Modelos de Evento" },
+              { id: "dashboard", label: "📊 Visão Geral" },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                id={`tour-tab-${tab.id}`}
+                onClick={(e) => {
+                  setActiveTab(tab.id);
+                  e.currentTarget.scrollIntoView({
+                    behavior: "smooth",
+                    block: "nearest",
+                    inline: "center",
+                  });
+                }}
+                style={{
+                  padding: "12px 14px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  letterSpacing: "0.05em",
+                  textTransform: "uppercase",
+                  border: "none",
+                  backgroundColor: "transparent",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  color:
+                    activeTab === tab.id ? "var(--gold)" : "var(--gray-mid)",
+                  borderBottom:
+                    activeTab === tab.id
+                      ? "2px solid var(--gold)"
+                      : "2px solid transparent",
+                  transition: "all 0.2s",
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -1097,6 +950,7 @@ export default function AdminPage() {
         {activeTab === "operacional" && (
           <OperacionalTab submissions={submissions} eventTypes={eventTypes} />
         )}
+        {activeTab === "orcamentos" && <GerarOrcamento />}
       </div>
 
       <SubmissionDrawer

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CATEGORIAS_ORDEM } from "../../lib/materiais";
+import { CATEGORIAS_ORDEM, uploadImagemMaterial } from "../../lib/materiais";
 
 // ============================================================
 // MaterialModalRico — criar/editar um material do inventário rico.
@@ -23,6 +23,7 @@ export default function MaterialModalRico({
   gruposExistentes = [],
   onCancel,
   onGuardar,
+  onRemover,
 }) {
   const ehNovo = !inicial?.id;
 
@@ -54,8 +55,36 @@ export default function MaterialModalRico({
   // Notas
   const [notas, setNotas] = useState(inicial?.notas || "");
 
+  // Imagem
+  const [imagemUrl, setImagemUrl] = useState(inicial?.imagem_url || "");
+  const [aEnviarImagem, setAEnviarImagem] = useState(false);
+  const [erroImagem, setErroImagem] = useState(null);
+
   const [guardando, setGuardando] = useState(false);
   const [erro, setErro] = useState(null);
+  const [confirmarRemover, setConfirmarRemover] = useState(false);
+  const [removendo, setRemovendo] = useState(false);
+
+  const escolherImagem = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // permite reescolher o mesmo ficheiro
+    if (!file) return;
+    setErroImagem(null);
+    setAEnviarImagem(true);
+    try {
+      const url = await uploadImagemMaterial(
+        { codigo: codigo.trim() || null, id: inicial?.id },
+        file,
+      );
+      setImagemUrl(url);
+    } catch (err) {
+      console.error(err);
+      setErroImagem(
+        "Não foi possível carregar a imagem. Tenta novamente ou usa outra foto.",
+      );
+    }
+    setAEnviarImagem(false);
+  };
 
   // Sugestões de grupo: os que já existem + os canónicos, sem repetir
   const gruposSugeridos = Array.from(
@@ -84,6 +113,7 @@ export default function MaterialModalRico({
       stock_ideal:
         stockIdeal === "" || stockIdeal == null ? null : num(stockIdeal),
       notas: notas.trim() || null,
+      imagem_url: imagemUrl || null,
       def_carga: defCarga,
       def_montagem: defMontagem,
       def_higienizacao: defHigienizacao,
@@ -151,6 +181,106 @@ export default function MaterialModalRico({
         >
           {nomePreview}
         </p>
+
+        {/* ===== SECÇÃO: IMAGEM ===== */}
+        <Seccao titulo="Imagem" />
+        <div
+          style={{
+            display: "flex",
+            gap: "14px",
+            alignItems: "center",
+            marginBottom: "18px",
+          }}
+        >
+          <div
+            style={{
+              width: "72px",
+              height: "72px",
+              borderRadius: "12px",
+              backgroundColor: "#FBF7EF",
+              border: "1px solid var(--gold-light)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              overflow: "hidden",
+            }}
+          >
+            {imagemUrl ? (
+              <img
+                src={imagemUrl}
+                alt="material"
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : (
+              <span
+                style={{
+                  fontFamily: "Playfair Display, serif",
+                  fontSize: "24px",
+                  color: "var(--gold)",
+                }}
+              >
+                {(categoria || "?").trim().charAt(0).toUpperCase() || "?"}
+              </span>
+            )}
+          </div>
+          <div style={{ flex: 1 }}>
+            <label
+              style={{
+                display: "inline-block",
+                padding: "8px 16px",
+                borderRadius: "999px",
+                fontSize: "12px",
+                fontWeight: "600",
+                border: "1.5px solid var(--gold)",
+                color: aEnviarImagem ? "var(--gray-mid)" : "var(--gold)",
+                backgroundColor: "white",
+                cursor: aEnviarImagem ? "wait" : "pointer",
+              }}
+            >
+              {aEnviarImagem
+                ? "A carregar..."
+                : imagemUrl
+                  ? "Trocar imagem"
+                  : "Carregar imagem"}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={escolherImagem}
+                disabled={aEnviarImagem}
+                style={{ display: "none" }}
+              />
+            </label>
+            {imagemUrl && !aEnviarImagem && (
+              <button
+                type="button"
+                onClick={() => setImagemUrl("")}
+                style={{
+                  marginLeft: "8px",
+                  background: "none",
+                  border: "none",
+                  color: "var(--gray-mid)",
+                  fontSize: "12px",
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                }}
+              >
+                remover
+              </button>
+            )}
+            {erroImagem && (
+              <p
+                style={{
+                  fontSize: "11px",
+                  color: "#DC2626",
+                  margin: "6px 0 0 0",
+                }}
+              >
+                {erroImagem}
+              </p>
+            )}
+          </div>
+        </div>
 
         {/* ===== SECÇÃO: IDENTIFICAÇÃO ===== */}
         <Seccao titulo="Identificação" />
@@ -354,40 +484,118 @@ export default function MaterialModalRico({
           style={{
             display: "flex",
             gap: "10px",
-            justifyContent: "flex-end",
+            justifyContent: ehNovo ? "flex-end" : "space-between",
+            alignItems: "center",
             marginTop: "20px",
+            flexWrap: "wrap",
           }}
         >
-          <button
-            onClick={onCancel}
-            style={{
-              padding: "10px 20px",
-              borderRadius: "8px",
-              fontSize: "13px",
-              border: "1.5px solid var(--gold-light)",
-              color: "var(--gray-mid)",
-              backgroundColor: "white",
-              cursor: "pointer",
-            }}
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={guardar}
-            disabled={guardando}
-            style={{
-              padding: "10px 24px",
-              borderRadius: "8px",
-              fontSize: "13px",
-              fontWeight: "600",
-              border: "none",
-              backgroundColor: guardando ? "var(--gold-light)" : "var(--gold)",
-              color: "white",
-              cursor: guardando ? "not-allowed" : "pointer",
-            }}
-          >
-            {guardando ? "A guardar..." : "Guardar"}
-          </button>
+          {/* Remover do inventário (só para materiais existentes) */}
+          {!ehNovo &&
+            (confirmarRemover ? (
+              <div
+                style={{
+                  display: "flex",
+                  gap: "8px",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                }}
+              >
+                <span style={{ fontSize: "12px", color: "var(--charcoal)" }}>
+                  Remover?
+                </span>
+                <button
+                  onClick={async () => {
+                    setRemovendo(true);
+                    try {
+                      await onRemover();
+                    } catch (e) {
+                      console.error(e);
+                      setRemovendo(false);
+                      setConfirmarRemover(false);
+                    }
+                  }}
+                  disabled={removendo}
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: "8px",
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    border: "none",
+                    backgroundColor: "#DC2626",
+                    color: "white",
+                    cursor: removendo ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {removendo ? "A remover..." : "Sim, remover"}
+                </button>
+                <button
+                  onClick={() => setConfirmarRemover(false)}
+                  disabled={removendo}
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: "8px",
+                    fontSize: "12px",
+                    border: "1.5px solid var(--gold-light)",
+                    color: "var(--gray-mid)",
+                    backgroundColor: "white",
+                    cursor: "pointer",
+                  }}
+                >
+                  Não
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmarRemover(true)}
+                style={{
+                  padding: "10px 16px",
+                  borderRadius: "8px",
+                  fontSize: "13px",
+                  border: "1.5px solid #F0D0D0",
+                  color: "#DC2626",
+                  backgroundColor: "white",
+                  cursor: "pointer",
+                }}
+              >
+                Remover do inventário
+              </button>
+            ))}
+
+          <div style={{ display: "flex", gap: "10px", marginLeft: "auto" }}>
+            <button
+              onClick={onCancel}
+              style={{
+                padding: "10px 20px",
+                borderRadius: "8px",
+                fontSize: "13px",
+                border: "1.5px solid var(--gold-light)",
+                color: "var(--gray-mid)",
+                backgroundColor: "white",
+                cursor: "pointer",
+              }}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={guardar}
+              disabled={guardando}
+              style={{
+                padding: "10px 24px",
+                borderRadius: "8px",
+                fontSize: "13px",
+                fontWeight: "600",
+                border: "none",
+                backgroundColor: guardando
+                  ? "var(--gold-light)"
+                  : "var(--gold)",
+                color: "white",
+                cursor: guardando ? "not-allowed" : "pointer",
+              }}
+            >
+              {guardando ? "A guardar..." : "Guardar"}
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -140,19 +140,27 @@ export default function MateriaisInventario({ onStockAlterado }) {
   };
 
   // Grupos existentes (pela ordem em que aparecem), com contagem
+  // Só os ativos aparecem no inventário. Os "removidos" (inativos) são
+  // desativados na BD mas não se mostram — mantêm-se para não partir
+  // fichas de eventos que os usem.
+  const ativos = useMemo(
+    () => materiais.filter((m) => m.ativo !== false),
+    [materiais],
+  );
+
   const grupos = useMemo(() => {
     const contagem = new Map();
-    for (const m of materiais) {
+    for (const m of ativos) {
       const g = (m.categoria || "Sem grupo").trim();
       contagem.set(g, (contagem.get(g) || 0) + 1);
     }
     return Array.from(contagem.entries()).map(([nome, n]) => ({ nome, n }));
-  }, [materiais]);
+  }, [ativos]);
 
   // Materiais filtrados por grupo + busca
   const filtrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    return materiais.filter((m) => {
+    return ativos.filter((m) => {
       const grupo = (m.categoria || "Sem grupo").trim();
       if (grupoAtivo !== "Todos" && grupo !== grupoAtivo) return false;
       if (!q) return true;
@@ -162,7 +170,7 @@ export default function MateriaisInventario({ onStockAlterado }) {
         .toLowerCase();
       return alvo.includes(q);
     });
-  }, [materiais, grupoAtivo, busca]);
+  }, [ativos, grupoAtivo, busca]);
 
   return (
     <div>
@@ -287,7 +295,7 @@ export default function MateriaisInventario({ onStockAlterado }) {
       {/* Filtro por grupo (chips) */}
       <div className="filter-wrap" style={{ marginBottom: "20px" }}>
         <div className="h-scroll" style={{ gap: "8px", paddingRight: "32px" }}>
-          {[{ nome: "Todos", n: materiais.length }, ...grupos].map((g) => {
+          {[{ nome: "Todos", n: ativos.length }, ...grupos].map((g) => {
             const ativo = grupoAtivo === g.nome;
             return (
               <button
@@ -375,6 +383,11 @@ export default function MateriaisInventario({ onStockAlterado }) {
           gruposExistentes={grupos.map((g) => g.nome)}
           onCancel={() => setEditando(null)}
           onGuardar={handleGuardar}
+          onRemover={async () => {
+            await handleToggleAtivo(editando);
+            setEditando(null);
+            mostrarSucesso(`"${editando.nome}" removido do inventário.`);
+          }}
         />
       )}
     </div>

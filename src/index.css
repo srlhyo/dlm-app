@@ -1,13 +1,13 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap");
 
 :root {
-  --gold: #C9A84C;
-  --gold-light: #E8D5A3;
-  --gold-dark: #A07830;
-  --cream: #FAFAF8;
-  --charcoal: #1A1A1A;
-  --gray-mid: #6B6B6B;
+  --gold: #c9a84c;
+  --gold-light: #e8d5a3;
+  --gold-dark: #a07830;
+  --cream: #fafaf8;
+  --charcoal: #1a1a1a;
+  --gray-mid: #6b6b6b;
 }
 
 * {
@@ -15,14 +15,16 @@
 }
 
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: "Inter", sans-serif;
   background-color: var(--cream);
   color: var(--charcoal);
   overflow-x: hidden;
 }
 
-h1, h2, h3 {
-  font-family: 'Playfair Display', serif;
+h1,
+h2,
+h3 {
+  font-family: "Playfair Display", serif;
 }
 
 /* ===== Scroll horizontal elegante (stepper, filtros) ===== */
@@ -30,11 +32,11 @@ h1, h2, h3 {
   display: flex;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;        /* Firefox */
+  scrollbar-width: none; /* Firefox */
   scroll-snap-type: x proximity;
 }
 .h-scroll::-webkit-scrollbar {
-  display: none;                /* Chrome/Safari */
+  display: none; /* Chrome/Safari */
 }
 .h-scroll > * {
   scroll-snap-align: center;
@@ -87,8 +89,8 @@ h1, h2, h3 {
     background: var(--cream);
     padding: 10px 16px 8px;
     margin-bottom: 12px;
-    border-bottom: 1px solid #F0E6D0;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+    border-bottom: 1px solid #f0e6d0;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   }
   .flower-deco {
     position: absolute !important;
@@ -109,7 +111,7 @@ h1, h2, h3 {
   bottom: 0;
   width: 32px;
   pointer-events: none;
-  background: linear-gradient(to right, rgba(250,250,248,0), var(--cream));
+  background: linear-gradient(to right, rgba(250, 250, 248, 0), var(--cream));
 }
 
 /* ===== Admin: listas com scroll próprio (≈4 visíveis) ===== */
@@ -163,7 +165,18 @@ h1, h2, h3 {
   button:not(.btn-compact) {
     min-height: 42px;
   }
-  input, textarea {
-    font-size: 16px !important;  /* evita zoom automático no iOS */
+  input,
+  textarea {
+    font-size: 16px !important; /* evita zoom automático no iOS */
+  }
+}
+
+/* ===== Admin: barra de tabs — linha única, centra quando cabe, rola quando não ===== */
+.admin-tabs {
+  justify-content: flex-start;
+}
+@media (min-width: 900px) {
+  .admin-tabs {
+    justify-content: center;
   }
 }
