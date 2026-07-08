@@ -8,6 +8,7 @@ import { markInviteUsed } from "../lib/invites";
 import { motion, AnimatePresence } from "framer-motion";
 import flores from "../assets/flores.png";
 import { iniciarTour, tourJaVista } from "../lib/tour";
+import { submeterQuestionario } from "../lib/clientes";
 
 // Tour curta, só com o essencial — é um questionário único, não queremos
 // ser intrusivos
@@ -540,24 +541,15 @@ export default function FormPage() {
       respostas: formData,
     };
     try {
-      const { data: newSubmission, error } = await supabase
-        .from("submissions")
-        .insert([payload])
-        .select()
-        .single();
+      // Cria o CLIENTE (pessoa) + a SUBMISSÃO (evento) já ligados —
+      // a extração do nome/contacto vive na lib (mesma lógica da 011)
+      const newSubmission = await submeterQuestionario(payload);
 
-      if (error) {
-        console.error(error);
-        setSubmitError(
-          "Ocorreu um erro ao submeter. Por favor tenta novamente.",
-        );
-      } else {
-        if (invite) {
-          await markInviteUsed(invite.id, newSubmission.id);
-          sessionStorage.removeItem("dlm_invite");
-        }
-        setSubmitted(true);
+      if (invite) {
+        await markInviteUsed(invite.id, newSubmission.id);
+        sessionStorage.removeItem("dlm_invite");
       }
+      setSubmitted(true);
     } catch (e) {
       console.error(e);
       setSubmitError("Ocorreu um erro ao submeter. Por favor tenta novamente.");

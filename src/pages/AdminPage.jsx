@@ -12,12 +12,12 @@ import EventTypesTab from "../components/admin/EventTypesTab";
 import CampoSeletor from "../components/admin/CampoSeletor";
 import SubmissionDrawer from "../components/admin/SubmissionDrawer";
 import DashboardTab from "../components/admin/DashboardTab";
-import ClientesTab from "../components/admin/ClientesTab";
+import ClientesLista from "../components/admin/ClientesLista";
 import DeleteInviteModal from "../components/admin/DeleteInviteModal";
 import ShareSheet from "../components/admin/ShareSheet";
 import CalendarioTab from "../components/admin/CalendarioTab";
 import OperacionalTab from "../components/admin/OperacionalTab";
-import GerarOrcamento from "../components/admin/orcamentos/GerarOrcamento";
+import DocumentosTab from "../components/admin/orcamentos/DocumentosTab";
 import InviteDetailModal from "../components/admin/InviteDetailModal";
 import InviteCreatedModal from "../components/admin/InviteCreatedModal";
 import InvitesList from "../components/admin/InvitesList";
@@ -487,7 +487,7 @@ export default function AdminPage() {
               { id: "convites", label: "📋 Questionários" },
               { id: "calendario", label: "📅 Agenda" },
               { id: "operacional", label: "📦 Logística" },
-              { id: "orcamentos", label: "💰 Orçamentos" },
+              { id: "orcamentos", label: "💰 Documentos" },
               { id: "tiposEvento", label: "🗂️ Modelos de Evento" },
               { id: "dashboard", label: "📊 Visão Geral" },
             ].map((tab) => (
@@ -534,11 +534,9 @@ export default function AdminPage() {
       >
         {/* ---- TAB CLIENTES ---- */}
         {activeTab === "clientes" && (
-          <ClientesTab
-            submissions={submissions}
-            loading={loading}
+          <ClientesLista
             eventTypes={eventTypes}
-            onSelectSubmission={(s) => setSelected(s)}
+            onAbrirEvento={(ev) => setSelected(ev)}
           />
         )}
 
@@ -950,7 +948,7 @@ export default function AdminPage() {
         {activeTab === "operacional" && (
           <OperacionalTab submissions={submissions} eventTypes={eventTypes} />
         )}
-        {activeTab === "orcamentos" && <GerarOrcamento />}
+        {activeTab === "orcamentos" && <DocumentosTab />}
       </div>
 
       <SubmissionDrawer
