@@ -22,6 +22,8 @@ import SeletorPaleta, { AmostraPaleta } from "./SeletorPaleta";
 //   onClose()      — fechar o drawer
 //   onStatusChange(id, novoStatus)
 //   onSaved(submissaoAtualizada) — após guardar edição
+//   onGerarDocumento(submissao, "orcamento"|"contrato") — abre o
+//     separador Documentos com o documento pré-preenchido deste evento
 // ============================================================
 
 const STATUS_OPTIONS = ["Recebido", "Em Preparação", "Confirmado", "Concluído"];
@@ -104,6 +106,7 @@ export default function SubmissionDrawer({
   onClose,
   onStatusChange,
   onSaved,
+  onGerarDocumento,
 }) {
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState({});
@@ -177,6 +180,21 @@ export default function SubmissionDrawer({
   const fechar = () => {
     setEditMode(false);
     onClose();
+  };
+
+  // Estilo partilhado dos botões de documento (outline dourado)
+  const btnDocumento = {
+    flex: 1,
+    padding: "9px 8px",
+    borderRadius: "10px",
+    fontSize: "12px",
+    fontWeight: "500",
+    cursor: "pointer",
+    transition: "all 0.2s",
+    backgroundColor: "white",
+    color: "var(--gold)",
+    border: "1.5px solid var(--gold)",
+    whiteSpace: "nowrap",
   };
 
   return (
@@ -280,7 +298,7 @@ export default function SubmissionDrawer({
               </div>
             </div>
 
-            {/* Botão briefing */}
+            {/* Ações do evento: briefing (destaque) + documentos (outline) */}
             <div style={{ display: "flex", gap: "8px" }}>
               <button
                 onClick={() =>
@@ -288,7 +306,7 @@ export default function SubmissionDrawer({
                 }
                 style={{
                   flex: 1,
-                  padding: "9px 12px",
+                  padding: "9px 8px",
                   borderRadius: "10px",
                   fontSize: "12px",
                   fontWeight: "500",
@@ -297,9 +315,26 @@ export default function SubmissionDrawer({
                   backgroundColor: "var(--gold)",
                   color: "white",
                   border: "none",
+                  whiteSpace: "nowrap",
                 }}
               >
-                📄 Ver Briefing
+                📄 Briefing
+              </button>
+              <button
+                onClick={() =>
+                  onGerarDocumento && onGerarDocumento(selected, "orcamento")
+                }
+                style={btnDocumento}
+              >
+                💰 Orçamento
+              </button>
+              <button
+                onClick={() =>
+                  onGerarDocumento && onGerarDocumento(selected, "contrato")
+                }
+                style={btnDocumento}
+              >
+                📃 Contrato
               </button>
             </div>
           </div>

@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { getValorAtual, getResumoSubmissao } from "./submissionFields";
 
 // ============================================================
 // Clientes — a pessoa (separada do evento desde a migração 010).
@@ -144,4 +145,120 @@ export const submeterQuestionario = async (payload) => {
   }
 
   return submission;
+};
+
+// ============================================================
+// Funil comercial — leitura e avanço de fases.
+// ============================================================
+
+// Todos os eventos com o nome do cliente ligado — a matéria-prima do
+// funil. Traz a linha completa da submission para o card poder abrir
+// o SubmissionDrawer diretamente.
+export const getEventosFunil = async () => {
+  const { data, error } = await supabase
+    .from("submissions")
+    .select("*, clientes(nome)")
+    .order("data_evento", { ascending: true, nullsFirst: false });
+  if (error) throw error;
+  return data || [];
+};
+
+// Muda a fase de um evento — com whitelist (lição 3): só as fases da
+// CHECK constraint passam; qualquer outra rebenta aqui e não na BD.
+const FASES_VALIDAS = [
+  "interessado",
+  "orcamento",
+  "contrato",
+  "cliente",
+  "perdido",
+];
+
+export const updateFase = async (submissionId, fase) => {
+  if (!FASES_VALIDAS.includes(fase)) {
+    throw new Error(`Fase inválida: ${fase}`);
+  }
+  const { data, error } = await supabase
+    .from("submissions")
+    .update({ fase })
+    .eq("id", submissionId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+// ============================================================
+// Documentos pré-preenchidos — junta os dados do CLIENTE (pessoa) e
+// do EVENTO (submission) num objeto pronto a alimentar os formulários
+// de Orçamento e Contrato.
+//
+// Regras respeitadas:
+//   • Leitura SEMPRE das duas fontes (colunas antigas OU respostas
+//     JSONB), via getValorAtual.
+//   • O NIF vive em clientes.nif (a submissions não tem coluna nif).
+//   • Contraentes: só há 2 quando existem nomeNoivo E nomeNoiva
+//     (casamentos). Batizados, aniversários, dia da mãe/pai, etc.
+//     têm 1 contraente — o cliente. Nos casais, o NIF do cliente
+//     pré-preenche o 1.º contraente; o 2.º fica para a Nádia.
+// ============================================================
+export const getDadosParaDocumento = async (submission, eventTypes) => {
+  // 1. Buscar a pessoa (pode não existir em eventos antigos sem cliente_id)
+  let cliente = null;
+  if (submission.cliente_id) {
+    const { data, error } = await supabase
+      .from("clientes")
+      .select("id, nome, contacto, email, nif, morada")
+      .eq("id", submission.cliente_id)
+      .single();
+    if (!error) cliente = data;
+  }
+
+  // Leitura dupla fonte, já limpa (null quando vazio)
+  const ler = (campoId) => limpar(getValorAtual(submission, campoId));
+
+  const tipo = eventTypes?.find((et) => et.id === submission.event_type_id);
+  const resumo = getResumoSubmissao(submission, eventTypes);
+
+  // Contraentes do contrato
+  const noivo = ler("nomeNoivo");
+  const noiva = ler("nomeNoiva");
+  let contraentes;
+  if (noivo && noiva) {
+    contraentes = [
+      { nome: noivo, nif: cliente?.nif || "" },
+      { nome: noiva, nif: "" },
+    ];
+  } else {
+    contraentes = [
+      {
+        nome:
+          cliente?.nome || ler("nomeDoCliente") || ler("nomeResponsavel") || "",
+        nif: cliente?.nif || "",
+      },
+    ];
+  }
+
+  return {
+    submissionId: submission.id,
+    titulo: resumo.titulo,
+    cliente,
+
+    // ---- Orçamento ----
+    nomeCliente: cliente?.nome || resumo.titulo || "",
+    tipoEvento: tipo?.nome || "",
+    dataEvento: submission.data_evento || ler("dataEvento") || "",
+    local: ler("localEvento") || "",
+
+    // ---- Contrato ----
+    contraentes,
+    morada: cliente?.morada || ler("morada") || "",
+    contacto: cliente?.contacto || ler("contactoPrincipal") || "",
+    horaInicio: ler("horaInicio") || "",
+    horaFim: ler("horaTermino") || "",
+    // O contrato quer a morada completa do espaço — a moradaExacta é a
+    // melhor candidata; senão, o local do evento.
+    localCompleto: ler("moradaExacta") || ler("localEvento") || "",
+    lugares: ler("numeroConvidados") || "",
+    valor: submission.valor_acordado ?? "",
+  };
 };

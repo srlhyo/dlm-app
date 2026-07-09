@@ -8,6 +8,7 @@ import {
   getValorAtual,
   getResumoSubmissao,
 } from "../lib/submissionFields";
+import { getDadosParaDocumento } from "../lib/clientes";
 import EventTypesTab from "../components/admin/EventTypesTab";
 import CampoSeletor from "../components/admin/CampoSeletor";
 import SubmissionDrawer from "../components/admin/SubmissionDrawer";
@@ -25,7 +26,7 @@ import { getReservas } from "../lib/reservas";
 import FormField from "../components/form/FormField";
 import { motion, AnimatePresence } from "framer-motion";
 
-// Gera um título legível para um questionário (ex: "André & Andreia").
+// Gera um título legível para um formulário (ex: "André & Andreia").
 // Delega no getResumoSubmissao (a lógica genérica com papéis), construindo
 // uma "fonte" a partir da submissão real (se o convite já foi preenchido)
 // ou do que a irmã pré-preencheu no convite. Só acrescenta o código do
@@ -52,14 +53,14 @@ function getTituloConvite(invite, submissions, eventTypes) {
   if (caiuNoGenerico || semTitulo) {
     return tipo
       ? `${tipo.nome} · ${invite.code}`
-      : invite?.code || "Questionário sem nome";
+      : invite?.code || "Formulário sem nome";
   }
   return resumo.titulo;
 }
 
 // Junta os campos de todos os passos de um tipo de evento numa única
 // lista, guardando também o título do passo a que cada um pertence
-// (usado no Painel de Novo Questionário, para a irmã escolher campos)
+// (usado no Painel de Novo Formulário, para a irmã escolher campos)
 function getAllFields(tipo) {
   if (!tipo || !tipo.steps) return [];
   return tipo.steps.flatMap((step) =>
@@ -67,7 +68,7 @@ function getAllFields(tipo) {
   );
 }
 
-// Todos os tipos de evento arrancam vazios no Painel de Novo Questionário,
+// Todos os tipos de evento arrancam vazios no Painel de Novo Formulário,
 // sem excepções — nem o Casamento tem campos por defeito. A irmã
 // escolhe sempre o que quer pelo campo de busca.
 function getDefaultCampos(tipo) {
@@ -76,7 +77,7 @@ function getDefaultCampos(tipo) {
 
 // A partir do estado do painel, devolve a informação completa (label,
 // tipo, validações...) de cada campo activo — partilhado entre o render
-// e a validação ao criar o questionário
+// e a validação ao criar o formulário
 function getCamposActivosInfo(eventTypes, newInvite) {
   const tipo = eventTypes.find((et) => et.id === newInvite.eventTypeId);
   const todosOsCampos = getAllFields(tipo);
@@ -109,10 +110,14 @@ export default function AdminPage() {
   const [eventTypes, setEventTypes] = useState([]);
   const [loadingEventTypes, setLoadingEventTypes] = useState(true);
   const [reservas, setReservas] = useState([]);
+  // Contexto de documento pré-preenchido (vem dos botões 💰/📃 do drawer
+  // de um evento). Quando existe, o separador Documentos abre com os
+  // formulários já preenchidos com os dados desse evento.
+  const [documentoContexto, setDocumentoContexto] = useState(null);
   const navigate = useNavigate();
 
   // Abre o formulário para a irmã preencher ela própria —
-  // compõe o objecto de questionário completo (com event_types) a partir
+  // compõe o objecto de formulário completo (com event_types) a partir
   // do que já está em memória, e navega para o formulário como
   // se fosse o casal/família a abri-lo
   const handlePreencherFormulario = (invite) => {
@@ -129,8 +134,23 @@ export default function AdminPage() {
     navigate("/formulario");
   };
 
+  // Chamado pelos botões 💰 Orçamento / 📃 Contrato do drawer do evento:
+  // junta os dados do cliente + evento (dupla fonte: colunas + respostas),
+  // fecha o drawer e abre o separador Documentos já pré-preenchido.
+  const handleGerarDocumento = async (submissao, tipoDoc) => {
+    try {
+      const dados = await getDadosParaDocumento(submissao, eventTypes);
+      setDocumentoContexto({ ...dados, tipoDoc });
+      setSelected(null);
+      setActiveTab("orcamentos");
+    } catch (e) {
+      console.error("Erro ao preparar o documento:", e);
+      alert("Não foi possível preparar o documento. Tenta novamente.");
+    }
+  };
+
   // Chamado pela Agenda quando a irmã clica "Tornar cliente" numa reserva.
-  // Muda para a tab Questionários, abre o painel pré-preenchido e carimba
+  // Muda para a tab Formulários, abre o painel pré-preenchido e carimba
   // o convite com o id da reserva.
   //
   // O nome da cliente NÃO é pré-preenchido num campo (não sabemos para que
@@ -358,7 +378,7 @@ export default function AdminPage() {
     const url = `${window.location.origin}/?codigo=${invite.code}`;
     const tipo = eventTypes.find((et) => et.id === invite.event_type_id);
     const emoji = tipo?.icone === "couple" ? "💍" : "✨";
-    return `Olá ${getTituloConvite(invite, submissions, eventTypes)}! ${emoji}\n\nO vosso questionário *Do Luxo à Mesa* está pronto.\n\nÉ só clicar aqui para começar: ${url}\n\n(O vosso código de acesso é: *${invite.code}*)\n\nPlaneamos cada detalhe. Criamos memórias inesquecíveis. ✨`;
+    return `Olá ${getTituloConvite(invite, submissions, eventTypes)}! ${emoji}\n\nO vosso formulário *Do Luxo à Mesa* está pronto.\n\nÉ só clicar aqui para começar: ${url}\n\n(O vosso código de acesso é: *${invite.code}*)\n\nPlaneamos cada detalhe. Criamos memórias inesquecíveis. ✨`;
   };
 
   const fetchSubmissions = async () => {
@@ -484,7 +504,7 @@ export default function AdminPage() {
           >
             {[
               { id: "clientes", label: "👥 Clientes" },
-              { id: "convites", label: "📋 Questionários" },
+              { id: "convites", label: "📋 Formulários" },
               { id: "calendario", label: "📅 Agenda" },
               { id: "operacional", label: "📦 Logística" },
               { id: "orcamentos", label: "💰 Documentos" },
@@ -540,7 +560,7 @@ export default function AdminPage() {
           />
         )}
 
-        {/* ---- TAB CONVITES ---- */}
+        {/* ---- TAB CONVITES (label Formulários) ---- */}
         {activeTab === "convites" && (
           <motion.div
             key="tab-convites"
@@ -560,7 +580,7 @@ export default function AdminPage() {
               }
             />
 
-            {/* Botão novo Questionário */}
+            {/* Botão novo Formulário */}
             <div
               style={{
                 display: "flex",
@@ -585,11 +605,11 @@ export default function AdminPage() {
                   boxShadow: "0 4px 12px rgba(201,168,76,0.3)",
                 }}
               >
-                + Novo Questionário
+                + Novo Formulário
               </button>
             </div>
 
-            {/* Formulário novo Questionário */}
+            {/* Formulário novo Formulário */}
             <style>{`
               .painel-convite-scroll::-webkit-scrollbar { width: 6px; }
               .painel-convite-scroll::-webkit-scrollbar-thumb {
@@ -649,7 +669,7 @@ export default function AdminPage() {
                           letterSpacing: "0.06em",
                         }}
                       >
-                        Novo Questionário
+                        Novo Formulário
                       </h3>
 
                       {reservaContexto && (
@@ -871,7 +891,7 @@ export default function AdminPage() {
                             border: "none",
                           }}
                         >
-                          {creatingInvite ? "A criar..." : "Criar Convite"}
+                          {creatingInvite ? "A criar..." : "Criar Formulário"}
                         </button>
                       </div>
                     </div>
@@ -948,7 +968,17 @@ export default function AdminPage() {
         {activeTab === "operacional" && (
           <OperacionalTab submissions={submissions} eventTypes={eventTypes} />
         )}
-        {activeTab === "orcamentos" && <DocumentosTab />}
+        {activeTab === "orcamentos" && (
+          <DocumentosTab
+            key={
+              documentoContexto
+                ? `doc-${documentoContexto.submissionId}-${documentoContexto.tipoDoc}`
+                : "manual"
+            }
+            contexto={documentoContexto}
+            onLimpar={() => setDocumentoContexto(null)}
+          />
+        )}
       </div>
 
       <SubmissionDrawer
@@ -962,6 +992,7 @@ export default function AdminPage() {
           );
           setSelected(atualizada);
         }}
+        onGerarDocumento={handleGerarDocumento}
       />
 
       {/* Modal de partilha */}

@@ -17,13 +17,16 @@ export const CONTRATO_INTRO = `Titular da atividade de prestação de serviços 
 As partes acordam celebrar o presente Contrato de Prestação de Serviços, o qual se rege pelas cláusulas seguintes:`;
 
 // As cláusulas fixas. Cada uma tem número, título e corpo.
-// {DATA_EXTENSO}, {LOCAL}, {HORA_INICIO}, {HORA_FIM}, {VALOR},
-// {VALOR_EXTENSO}, {LUGARES} são substituídos na geração.
+// {TIPO_EVENTO}, {DATA_EXTENSO}, {LOCAL}, {HORA_INICIO}, {HORA_FIM},
+// {VALOR}, {VALOR_EXTENSO} são substituídos na geração.
 export const CLAUSULAS = [
   {
     n: "1.ª",
     titulo: "Objeto do Contrato",
-    corpo: `O presente contrato tem como objeto a prestação de serviços de decoração para a celebração de casamento, a realizar-se no dia {DATA_EXTENSO}, no espaço situado na {LOCAL}, com início previsto para as {HORA_INICIO} e término previsto para as {HORA_FIM}.`,
+    // {TIPO_EVENTO} — o contrato serve casamentos, batizados,
+    // aniversários, etc.; o tipo vem do modelo do evento (ou é escrito
+    // à mão no modo manual).
+    corpo: `O presente contrato tem como objeto a prestação de serviços de decoração para a celebração de {TIPO_EVENTO}, a realizar-se no dia {DATA_EXTENSO}, no espaço situado na {LOCAL}, com início previsto para as {HORA_INICIO} e término previsto para as {HORA_FIM}.`,
   },
   {
     n: "2.ª",
@@ -77,7 +80,9 @@ O pagamento considera-se efetuado apenas após boa cobrança dos respetivos valo
   {
     n: "7.ª",
     titulo: "Impossibilidade de Prestação do Serviço",
-    corpo: `Em caso de impossibilidade comprovada de realização do serviço por motivo de força maior, doença, acidente ou outra situação imprevisível e alheia à vontade da ${EMPRESA.designacao}, será efetuada a devolução dos valores já pagos pelos noivos, não sendo devida qualquer indemnização adicional.`,
+    // "pelo cliente" (era "pelos noivos") — o contrato serve todos os
+    // tipos de evento, não só casamentos.
+    corpo: `Em caso de impossibilidade comprovada de realização do serviço por motivo de força maior, doença, acidente ou outra situação imprevisível e alheia à vontade da ${EMPRESA.designacao}, será efetuada a devolução dos valores já pagos pelo cliente, não sendo devida qualquer indemnização adicional.`,
   },
   {
     n: "8.ª",
@@ -154,4 +159,109 @@ export const dataPorExtenso = (iso) => {
   const mes = MESES[m - 1];
   const mesCap = mes.charAt(0).toUpperCase() + mes.slice(1);
   return `${d} de ${mesCap} de ${a}`;
+};
+
+// ============================================================
+// Valor por extenso (PT-PT) — ex: 650 → "seiscentos e cinquenta euros",
+// 1250.80 → "mil duzentos e cinquenta euros e oitenta cêntimos".
+// Cobre até 999 999€ (mais que suficiente para eventos); acima disso
+// devolve "" e a Nádia escreve à mão.
+// ============================================================
+
+const ATE_DEZANOVE = [
+  "zero",
+  "um",
+  "dois",
+  "três",
+  "quatro",
+  "cinco",
+  "seis",
+  "sete",
+  "oito",
+  "nove",
+  "dez",
+  "onze",
+  "doze",
+  "treze",
+  "catorze",
+  "quinze",
+  "dezasseis",
+  "dezassete",
+  "dezoito",
+  "dezanove",
+];
+
+const DEZENAS = [
+  "",
+  "",
+  "vinte",
+  "trinta",
+  "quarenta",
+  "cinquenta",
+  "sessenta",
+  "setenta",
+  "oitenta",
+  "noventa",
+];
+
+const CENTENAS = [
+  "",
+  "cento",
+  "duzentos",
+  "trezentos",
+  "quatrocentos",
+  "quinhentos",
+  "seiscentos",
+  "setecentos",
+  "oitocentos",
+  "novecentos",
+];
+
+// 0–99 por extenso
+const ate99 = (n) => {
+  if (n < 20) return ATE_DEZANOVE[n];
+  const d = Math.floor(n / 10);
+  const u = n % 10;
+  return u ? `${DEZENAS[d]} e ${ATE_DEZANOVE[u]}` : DEZENAS[d];
+};
+
+// 0–999 por extenso ("cem" só quando é exatamente 100)
+const ate999 = (n) => {
+  if (n === 100) return "cem";
+  if (n < 100) return ate99(n);
+  const c = Math.floor(n / 100);
+  const r = n % 100;
+  return r ? `${CENTENAS[c]} e ${ate99(r)}` : CENTENAS[c];
+};
+
+// 0–999999 por extenso. Regra do "e" entre milhares e o resto:
+// usa-se quando o resto é < 100 ou é uma centena redonda
+// (ex: "mil e duzentos", mas "mil duzentos e cinquenta").
+const ate999999 = (n) => {
+  if (n < 1000) return ate999(n);
+  const m = Math.floor(n / 1000);
+  const r = n % 1000;
+  const milhar = m === 1 ? "mil" : `${ate999(m)} mil`;
+  if (!r) return milhar;
+  const liga = r < 100 || r % 100 === 0 ? " e " : " ";
+  return milhar + liga + ate999(r);
+};
+
+// Converte um valor em euros para texto por extenso (PT-PT).
+export const valorPorExtensoPT = (valor) => {
+  const n = Number(valor);
+  if (!Number.isFinite(n) || n < 0 || n >= 1000000) return "";
+
+  let euros = Math.floor(n);
+  let cent = Math.round((n - euros) * 100);
+  // proteção ao arredondar (ex: 649.999 → 650 euros e 0 cêntimos)
+  if (cent === 100) {
+    euros += 1;
+    cent = 0;
+  }
+
+  const parteEuros = `${ate999999(euros)} euro${euros === 1 ? "" : "s"}`;
+  if (!cent) return parteEuros;
+  const parteCent = `${ate99(cent)} cêntimo${cent === 1 ? "" : "s"}`;
+  return `${parteEuros} e ${parteCent}`;
 };

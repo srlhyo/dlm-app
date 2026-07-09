@@ -6,6 +6,7 @@ import {
   CLAUSULAS,
   COMPOSICAO_LUGAR_SUGERIDA,
   dataPorExtenso,
+  valorPorExtensoPT,
 } from "./contratoConfig";
 import { formatarEuros, formatarDataPT } from "./orcamentoConfig";
 
@@ -13,37 +14,63 @@ import { formatarEuros, formatarDataPT } from "./orcamentoConfig";
 // GerarContrato — formulário dos dados variáveis + pré-visualização
 // fiel ao contrato da Do Luxo à Mesa, imprimível (window.print()).
 // Suporta 1 ou 2 contraentes (cliente único ou casal).
+//
+// prefill (opcional) — dados do evento vindos do getDadosParaDocumento
+// (botão 📃 no drawer do evento). Alimenta só os useState iniciais:
+// o componente é remontado pelo AdminPage (via key) quando o contexto
+// muda, por isso não precisa de useEffect. Tudo continua editável.
+// Nos casais, o NIF do cliente pré-preenche o 1.º contraente; o 2.º
+// fica para a Nádia completar.
+//
+// O valor por extenso é gerado automaticamente (valorPorExtensoPT)
+// sempre que o valor muda — mas o campo continua editável, para a
+// Nádia poder afinar a redação se quiser.
 // ============================================================
 
 let seq = 0;
-const novoContraente = () => ({
+const novoContraente = (base = {}) => ({
   uid: `c_${Date.now()}_${seq++}`,
   nome: "",
   nif: "",
+  ...base,
 });
 
-export default function GerarContrato() {
-  // 1.ª Contraente — cliente(s)
-  const [contraentes, setContraentes] = useState([novoContraente()]);
-  const [morada, setMorada] = useState("");
-  const [contacto, setContacto] = useState("");
+export default function GerarContrato({ prefill = null }) {
+  // 1.ª Contraente — cliente(s). Com prefill, os contraentes vêm já
+  // resolvidos (casal = 2, restantes eventos = 1).
+  const [contraentes, setContraentes] = useState(() =>
+    prefill?.contraentes?.length
+      ? prefill.contraentes.map((c) => novoContraente(c))
+      : [novoContraente()],
+  );
+  const [morada, setMorada] = useState(prefill?.morada || "");
+  const [contacto, setContacto] = useState(prefill?.contacto || "");
 
   // Objeto
-  const [dataEvento, setDataEvento] = useState("");
-  const [horaInicio, setHoraInicio] = useState("");
-  const [horaFim, setHoraFim] = useState("");
-  const [local, setLocal] = useState("");
+  const [tipoEvento, setTipoEvento] = useState(
+    prefill ? prefill.tipoEvento || "" : "Casamento",
+  );
+  const [dataEvento, setDataEvento] = useState(prefill?.dataEvento || "");
+  const [horaInicio, setHoraInicio] = useState(prefill?.horaInicio || "");
+  const [horaFim, setHoraFim] = useState(prefill?.horaFim || "");
+  const [local, setLocal] = useState(prefill?.localCompleto || "");
 
   // Serviços (texto livre multilinha, pré-preenchido com a composição habitual)
-  const [lugares, setLugares] = useState("");
+  const [lugares, setLugares] = useState(prefill?.lugares || "");
   const [composicao, setComposicao] = useState(
     COMPOSICAO_LUGAR_SUGERIDA.join("\n"),
   );
   const [servicosExtra, setServicosExtra] = useState("");
 
-  // Valor
-  const [valor, setValor] = useState("");
-  const [valorExtenso, setValorExtenso] = useState("");
+  // Valor — o extenso deriva automaticamente do valor, mas fica editável
+  const [valor, setValor] = useState(
+    prefill?.valor !== undefined && prefill?.valor !== null
+      ? String(prefill.valor)
+      : "",
+  );
+  const [valorExtenso, setValorExtenso] = useState(
+    prefill?.valor ? valorPorExtensoPT(prefill.valor) : "",
+  );
 
   // Assinatura (local + data)
   const [localAssinatura, setLocalAssinatura] = useState("Ericeira");
@@ -55,6 +82,12 @@ export default function GerarContrato() {
     setContraentes((prev) =>
       prev.map((c) => (c.uid === uid ? { ...c, ...campos } : c)),
     );
+
+  // Mudar o valor regenera o extenso (a Nádia pode depois afiná-lo à mão)
+  const atualizarValor = (v) => {
+    setValor(v);
+    setValorExtenso(valorPorExtensoPT(v));
+  };
 
   const imprimir = () => window.print();
 
@@ -170,6 +203,14 @@ export default function GerarContrato() {
           </Campo>
 
           <h3 style={h3Style}>Objeto do contrato</h3>
+          <Campo label="Tipo de evento">
+            <input
+              style={inputStyle}
+              value={tipoEvento}
+              onChange={(e) => setTipoEvento(e.target.value)}
+              placeholder="ex: Casamento, Batizado, Aniversário..."
+            />
+          </Campo>
           <Campo label="Data do evento">
             <input
               type="date"
@@ -239,11 +280,11 @@ export default function GerarContrato() {
                 step="0.01"
                 style={inputStyle}
                 value={valor}
-                onChange={(e) => setValor(e.target.value)}
+                onChange={(e) => atualizarValor(e.target.value)}
                 placeholder="650"
               />
             </Campo>
-            <Campo label="Valor por extenso" flex={2}>
+            <Campo label="Valor por extenso (automático, editável)" flex={2}>
               <input
                 style={inputStyle}
                 value={valorExtenso}
@@ -306,6 +347,7 @@ export default function GerarContrato() {
         contraentes={contraentes}
         morada={morada}
         contacto={contacto}
+        tipoEvento={tipoEvento}
         dataEvento={dataEvento}
         horaInicio={horaInicio}
         horaFim={horaFim}
@@ -329,6 +371,7 @@ function ContratoDocumento({
   contraentes,
   morada,
   contacto,
+  tipoEvento,
   dataEvento,
   horaInicio,
   horaFim,
@@ -366,6 +409,7 @@ function ContratoDocumento({
 
   const substituir = (texto) =>
     texto
+      .replace("{TIPO_EVENTO}", tipoEvento || "___")
       .replace("{DATA_EXTENSO}", dataPorExtenso(dataEvento))
       .replace("{LOCAL}", local || "___")
       .replace("{HORA_INICIO}", horaInicio ? `${horaInicio}h` : "___")

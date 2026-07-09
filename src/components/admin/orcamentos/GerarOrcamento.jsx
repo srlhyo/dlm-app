@@ -21,6 +21,11 @@ const resolverDescricao = (template, lugares) => {
 // GerarOrcamento — formulário de dados do evento + linhas de serviço,
 // e pré-visualização imprimível que replica o template da Nádia.
 // A geração de PDF é via window.print() (só a área do documento imprime).
+//
+// prefill (opcional) — dados do evento vindos do getDadosParaDocumento
+// (botão 💰 no drawer do evento). Alimenta só os useState iniciais:
+// o componente é remontado pelo AdminPage (via key) quando o contexto
+// muda, por isso não precisa de useEffect. Tudo continua editável.
 // ============================================================
 
 let seqLinha = 0;
@@ -35,12 +40,15 @@ const novaLinha = (base = {}) => ({
   ...base,
 });
 
-export default function GerarOrcamento() {
-  // Dados do cliente/evento
-  const [cliente, setCliente] = useState("");
-  const [tipoEvento, setTipoEvento] = useState("Casamento");
-  const [dataEvento, setDataEvento] = useState("");
-  const [local, setLocal] = useState("");
+export default function GerarOrcamento({ prefill = null }) {
+  // Dados do cliente/evento — pré-preenchidos quando se chega de um
+  // evento; senão, os defaults manuais de sempre.
+  const [cliente, setCliente] = useState(prefill?.nomeCliente || "");
+  const [tipoEvento, setTipoEvento] = useState(
+    prefill ? prefill.tipoEvento || "" : "Casamento",
+  );
+  const [dataEvento, setDataEvento] = useState(prefill?.dataEvento || "");
+  const [local, setLocal] = useState(prefill?.local || "");
   const [subtitulo, setSubtitulo] = useState(""); // linha opcional (ex: "Decoração desenvolvida...")
 
   // Linhas de serviço
