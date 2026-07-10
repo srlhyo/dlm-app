@@ -13,7 +13,7 @@ import logoUrl from "../../assets/logo.png";
 
 export const NAV_PRINCIPAL = [
   { id: "inicio", label: "Início", icone: "inicio" },
-  { id: "clientes", label: "Contactos", icone: "contactos" },
+  { id: "clientes", label: "Clientes", icone: "contactos" },
   { id: "calendario", label: "Agenda", icone: "agenda" },
   { id: "orcamentos", label: "Documentos", icone: "documentos" },
 ];

@@ -34,7 +34,7 @@ export default function DocumentosTab({ contexto = null, onLimpar }) {
         {[
           { id: "orcamento", label: "Orçamento" },
           { id: "contrato", label: "Contrato" },
-          { id: "proposta", label: "Proposta" },
+          { id: "proposta", label: "Projecto" },
         ].map((t) => {
           const ativo = sub === t.id;
           return (

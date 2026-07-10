@@ -76,7 +76,7 @@ export default function GerarProposta({ prefill = null }) {
 
   const imprimir = () => {
     const tituloAnterior = document.title;
-    document.title = `Proposta — ${cliente || "Do Luxo à Mesa"}`;
+    document.title = `Projecto — ${cliente || "Do Luxo à Mesa"}`;
     window.print();
     document.title = tituloAnterior;
   };
@@ -173,7 +173,7 @@ export default function GerarProposta({ prefill = null }) {
             </div>
           )}
 
-          <h3 style={h3Style}>Dados da proposta</h3>
+          <h3 style={h3Style}>Dados do projecto</h3>
           <Campo label="Cliente">
             <input
               style={inputStyle}
@@ -267,9 +267,7 @@ export default function GerarProposta({ prefill = null }) {
               {/* Imagem da secção */}
               <div style={{ marginBottom: "8px" }}>
                 {s.imagem ? (
-                  <div
-                    style={{ position: "relative", display: "inline-block" }}
-                  >
+                  <div style={{ position: "relative", display: "inline-block" }}>
                     <img
                       src={s.imagem}
                       alt={s.titulo || `Secção ${idx + 1}`}
@@ -317,10 +315,13 @@ export default function GerarProposta({ prefill = null }) {
                       backgroundColor: "white",
                       color: "var(--gold)",
                       fontSize: "12px",
-                      cursor: carregandoImg === s.uid ? "wait" : "pointer",
+                      cursor:
+                        carregandoImg === s.uid ? "wait" : "pointer",
                     }}
                   >
-                    {carregandoImg === s.uid ? "A carregar..." : "+ Imagem"}
+                    {carregandoImg === s.uid
+                      ? "A carregar..."
+                      : "+ Imagem"}
                   </button>
                 )}
               </div>
@@ -388,9 +389,9 @@ export default function GerarProposta({ prefill = null }) {
                 lineHeight: 1.5,
               }}
             >
-              A pré-visualização abaixo mostra as páginas tal como saem no PDF:
-              capa primeiro, depois uma secção por página. Confere e carrega em
-              imprimir para guardar.
+              A pré-visualização abaixo mostra as páginas tal como saem no
+              PDF: capa primeiro, depois uma secção por página. Confere e
+              carrega em imprimir para guardar.
             </p>
             <button
               onClick={imprimir}
@@ -432,7 +433,7 @@ export default function GerarProposta({ prefill = null }) {
                 margin: "0 0 8px 0",
               }}
             >
-              PROPOSTA
+              PROJECTO
             </h1>
             <div
               style={{
