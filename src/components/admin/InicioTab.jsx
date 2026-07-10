@@ -231,7 +231,7 @@ export default function InicioTab({
           <div style={{ minWidth: 0 }}>
             <p
               style={{
-                fontSize: "10px",
+                fontSize: "11px",
                 color: "var(--gold-dark)",
                 textTransform: "uppercase",
                 letterSpacing: "0.08em",
@@ -248,7 +248,7 @@ export default function InicioTab({
             </p>
             <p
               style={{
-                fontSize: "17px",
+                fontSize: "19px",
                 fontWeight: "600",
                 fontFamily: "Playfair Display, serif",
                 color: "var(--charcoal)",
@@ -266,7 +266,7 @@ export default function InicioTab({
           <span
             style={{
               flexShrink: 0,
-              fontSize: "12px",
+              fontSize: "13px",
               color: "var(--gold-dark)",
               border: "1px solid var(--gold)",
               borderRadius: "999px",
@@ -305,7 +305,7 @@ export default function InicioTab({
             >
               <p
                 style={{
-                  fontSize: "13px",
+                  fontSize: "14px",
                   color: "var(--gray-mid)",
                   margin: 0,
                   lineHeight: 1.6,
@@ -336,7 +336,7 @@ export default function InicioTab({
               >
                 <span
                   style={{
-                    fontSize: "13px",
+                    fontSize: "14px",
                     color: "var(--charcoal)",
                     lineHeight: 1.5,
                     display: "flex",
@@ -361,7 +361,7 @@ export default function InicioTab({
                 <span
                   style={{
                     flexShrink: 0,
-                    fontSize: "12px",
+                    fontSize: "13px",
                     color: "var(--gold-dark)",
                     whiteSpace: "nowrap",
                   }}
@@ -388,7 +388,7 @@ export default function InicioTab({
             >
               <p
                 style={{
-                  fontSize: "13px",
+                  fontSize: "14px",
                   color: "var(--gray-mid)",
                   margin: 0,
                   lineHeight: 1.6,
@@ -441,7 +441,7 @@ export default function InicioTab({
                       <span
                         style={{
                           display: "block",
-                          fontSize: "17px",
+                          fontSize: "18px",
                           fontWeight: "600",
                           fontFamily: "Playfair Display, serif",
                           color: "var(--gold-dark)",
@@ -453,7 +453,7 @@ export default function InicioTab({
                     </span>
                     <span
                       style={{
-                        fontSize: "13px",
+                        fontSize: "14px",
                         color: "var(--charcoal)",
                         lineHeight: 1.4,
                         minWidth: 0,
@@ -474,7 +474,7 @@ export default function InicioTab({
                   width: "100%",
                   padding: "9px",
                   borderRadius: "999px",
-                  fontSize: "11px",
+                  fontSize: "12px",
                   fontWeight: "600",
                   letterSpacing: "0.08em",
                   textTransform: "uppercase",
@@ -513,9 +513,9 @@ export default function InicioTab({
             <button
               onClick={() => setNovoInteressado(true)}
               style={{
-                padding: "12px",
+                padding: "13px",
                 borderRadius: "999px",
-                fontSize: "11px",
+                fontSize: "12px",
                 fontWeight: "600",
                 letterSpacing: "0.1em",
                 textTransform: "uppercase",
@@ -531,9 +531,9 @@ export default function InicioTab({
             <button
               onClick={() => onNavegar && onNavegar("calendario")}
               style={{
-                padding: "12px",
+                padding: "13px",
                 borderRadius: "999px",
-                fontSize: "11px",
+                fontSize: "12px",
                 fontWeight: "600",
                 letterSpacing: "0.1em",
                 textTransform: "uppercase",
@@ -648,7 +648,7 @@ function CartaoNumero({ numero, legenda, onClick }) {
     >
       <p
         style={{
-          fontSize: "22px",
+          fontSize: "24px",
           fontWeight: "600",
           color: "var(--gold-dark)",
           margin: 0,
@@ -657,7 +657,7 @@ function CartaoNumero({ numero, legenda, onClick }) {
       >
         {numero}
       </p>
-      <p style={{ fontSize: "12px", color: "var(--gray-mid)", margin: 0 }}>
+      <p style={{ fontSize: "13px", color: "var(--gray-mid)", margin: 0 }}>
         {legenda}
       </p>
     </div>
@@ -665,7 +665,7 @@ function CartaoNumero({ numero, legenda, onClick }) {
 }
 
 const tituloSeccao = {
-  fontSize: "11px",
+  fontSize: "12px",
   fontWeight: "600",
   color: "var(--gray-mid)",
   textTransform: "uppercase",
