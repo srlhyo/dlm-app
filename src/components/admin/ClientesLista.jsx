@@ -45,6 +45,20 @@ const formatarData = (iso) => {
   return `${Number(d)} ${meses[Number(m) - 1]} ${a}`;
 };
 
+// A fase "mais avançada" de uma pessoa, para a pastilha do card da
+// lista: um cliente fechado sobrepõe-se a tudo; senão, o ponto mais
+// adiantado da negociação; só "perdido" quando todos os eventos o são.
+// Torna visível, sem cliques, quem é cliente e quem é interessado.
+const faseDaPessoa = (c) => {
+  const fases = (c.submissions || []).map((e) => e.fase).filter(Boolean);
+  if (fases.length === 0) return null;
+  for (const f of ["cliente", "contrato", "orcamento", "interessado"]) {
+    if (fases.includes(f)) return f;
+  }
+  if (fases.every((f) => f === "perdido")) return "perdido";
+  return null;
+};
+
 export default function ClientesLista({ eventTypes = [], onAbrirEvento }) {
   const [vista, setVista] = useState("lista"); // "lista" | "funil"
   const [clientes, setClientes] = useState([]);
@@ -211,6 +225,8 @@ export default function ClientesLista({ eventTypes = [], onAbrirEvento }) {
 
           {filtrados.map((c) => {
             const ativo = aberto?.id === c.id;
+            const fase = faseDaPessoa(c);
+            const corFase = fase ? FASE_COR[fase] : null;
             return (
               <div
                 key={c.id}
@@ -273,6 +289,22 @@ export default function ClientesLista({ eventTypes = [], onAbrirEvento }) {
                     {c.desdeAno ? ` · desde ${c.desdeAno}` : ""}
                   </p>
                 </div>
+                {corFase && (
+                  <span
+                    style={{
+                      flexShrink: 0,
+                      fontSize: "11px",
+                      fontWeight: "600",
+                      padding: "3px 10px",
+                      borderRadius: "999px",
+                      backgroundColor: corFase.bg,
+                      color: corFase.cor,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {FASE_LABEL[fase]}
+                  </span>
+                )}
               </div>
             );
           })}

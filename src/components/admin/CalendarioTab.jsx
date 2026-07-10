@@ -32,6 +32,19 @@ const STATUS_CORES = {
 // para se distinguir num relance dos eventos reais (que têm cor sólida)
 const RESERVA_COR = { bg: "#FBF7EF", border: "#D8C9A0", texto: "#A07830" };
 
+// Fases comerciais ainda EM NEGOCIAÇÃO — na Agenda aparecem provisórias
+// (tracejadas, como as reservas): o dia está prometido, não vendido.
+// Só a fase "cliente" (sinal pago) pinta sólido pelo estado operacional;
+// "perdido" não ocupa dias.
+const FASES_EM_NEGOCIACAO = ["interessado", "orcamento", "contrato"];
+const emNegociacao = (s) => FASES_EM_NEGOCIACAO.includes(s.fase);
+
+// Cores de um evento na Agenda: provisório (negociação) ou sólido (status)
+const coresDoEvento = (s) =>
+  emNegociacao(s)
+    ? RESERVA_COR
+    : STATUS_CORES[s.status] || STATUS_CORES["Recebido"];
+
 function getTituloSubmissao(s, eventTypes) {
   return getResumoSubmissao(s, eventTypes).titulo;
 }
@@ -85,9 +98,19 @@ export default function CalendarioTab({
   const mesAnterior = () => setViewDate(new Date(ano, mes - 1, 1));
   const mesSeguinte = () => setViewDate(new Date(ano, mes + 1, 1));
 
+  // Eventos com reserva provisória ligada (bloco 7): a tracejada da
+  // reserva já os representa na Agenda — mostrar os dois duplicaria o
+  // mesmo negócio no mesmo dia. Após a conversão, a reserva sai da
+  // lista (só vêm provisórias) e o evento passa a aparecer.
+  const idsComReservaProvisoria = new Set(
+    reservas.map((r) => r.submission_id).filter(Boolean),
+  );
+
   // Agrupa as submissões por dia do mês actual
   const eventosPorDia = {};
   submissions.forEach((s) => {
+    if (s.fase === "perdido") return; // negócios mortos não ocupam dias
+    if (idsComReservaProvisoria.has(s.id)) return; // a reserva representa-o
     // Usa a data do resumo — apanha eventos cuja data só está em
     // "respostas" (modelos onde a coluna data_evento ficou vazia).
     const dataEvento = getResumoSubmissao(s, eventTypes).data;
@@ -289,7 +312,7 @@ export default function CalendarioTab({
             }}
           />
           <span style={{ fontSize: "10px", color: "var(--gray-mid)" }}>
-            Reserva (provisória)
+            Reserva / em negociação
           </span>
         </div>
       </div>
@@ -457,15 +480,15 @@ export default function CalendarioTab({
                   {visiveis.map((item, idx) => {
                     if (item.tipo === "evento") {
                       const s = item.dados;
-                      const cores =
-                        STATUS_CORES[s.status] || STATUS_CORES["Recebido"];
+                      const cores = coresDoEvento(s);
+                      const negociacao = emNegociacao(s);
                       const titulo = getTituloSubmissao(s, eventTypes);
                       const tipo = getTipoNome(s, eventTypes);
                       return (
                         <button
                           key={`ev-${s.id}`}
                           onClick={() => onSelectSubmission(s)}
-                          title={`${titulo}${tipo ? ` · ${tipo}` : ""} · ${s.status}`}
+                          title={`${titulo}${tipo ? ` · ${tipo}` : ""} · ${negociacao ? "Em negociação" : s.status}`}
                           style={{
                             display: "block",
                             width: "100%",
@@ -473,7 +496,7 @@ export default function CalendarioTab({
                             padding: "3px 6px",
                             borderRadius: "5px",
                             backgroundColor: cores.bg,
-                            border: `1px solid ${cores.border}`,
+                            border: `1px ${negociacao ? "dashed" : "solid"} ${cores.border}`,
                             cursor: "pointer",
                             transition: "opacity 0.15s",
                           }}
@@ -693,8 +716,8 @@ export default function CalendarioTab({
               }}
             >
               {popupDia.eventos.map((s) => {
-                const cores =
-                  STATUS_CORES[s.status] || STATUS_CORES["Recebido"];
+                const cores = coresDoEvento(s);
+                const negociacao = emNegociacao(s);
                 const titulo = getTituloSubmissao(s, eventTypes);
                 const tipo = getTipoNome(s, eventTypes);
                 return (
@@ -710,7 +733,7 @@ export default function CalendarioTab({
                       padding: "10px 14px",
                       borderRadius: "10px",
                       backgroundColor: cores.bg,
-                      border: `1px solid ${cores.border}`,
+                      border: `1px ${negociacao ? "dashed" : "solid"} ${cores.border}`,
                       cursor: "pointer",
                       transition: "opacity 0.15s",
                     }}
@@ -758,7 +781,7 @@ export default function CalendarioTab({
                           fontWeight: "500",
                         }}
                       >
-                        {s.status}
+                        {negociacao ? "Em negociação" : s.status}
                       </span>
                     </div>
                   </button>

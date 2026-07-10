@@ -1,6 +1,7 @@
 import { useState } from "react";
 import GerarOrcamento from "./GerarOrcamento";
 import GerarContrato from "./GerarContrato";
+import GerarProposta from "./GerarProposta";
 import { formatarDataPT } from "./orcamentoConfig";
 
 // ============================================================
@@ -33,6 +34,7 @@ export default function DocumentosTab({ contexto = null, onLimpar }) {
         {[
           { id: "orcamento", label: "Orçamento" },
           { id: "contrato", label: "Contrato" },
+          { id: "proposta", label: "Proposta" },
         ].map((t) => {
           const ativo = sub === t.id;
           return (
@@ -125,6 +127,7 @@ export default function DocumentosTab({ contexto = null, onLimpar }) {
 
       {sub === "orcamento" && <GerarOrcamento prefill={contexto} />}
       {sub === "contrato" && <GerarContrato prefill={contexto} />}
+      {sub === "proposta" && <GerarProposta prefill={contexto} />}
     </div>
   );
 }

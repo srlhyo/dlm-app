@@ -46,7 +46,10 @@ const FIELD_MAP = {
   acesso_local: "acessoLocal",
 };
 
-const FIELD_MAP_INVERSO = Object.fromEntries(
+// Exportado para quem precisa de gravar nas duas fontes (respostas +
+// colunas antigas): o SubmissionDrawer (edição) e o
+// atualizarEventoComQuestionario (formulário apontado a um evento).
+export const FIELD_MAP_INVERSO = Object.fromEntries(
   Object.entries(FIELD_MAP).map(([coluna, campo]) => [campo, coluna]),
 );
 

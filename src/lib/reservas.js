@@ -2,10 +2,22 @@ import { supabase } from "./supabase";
 
 // ============================================================
 // reservas.js — reservas provisórias da Agenda.
-// Marcação rápida de um dia enquanto a irmã fala com a cliente,
-// antes de haver cliente fechado. Quando a cliente fecha o pacote,
-// a reserva converte-se e liga-se à submissão.
-// Estilo alinhado com invites.js / eventTypes.js.
+// Marcação rápida de um dia enquanto a irmã fala com a cliente.
+//
+// ALINHADO COM O FUNIL (bloco 7): criar uma reserva cria também a
+// PESSOA (clientes) + o EVENTO (submission em fase "interessado"),
+// ligados via submission_id — a reserva segura a data na Agenda e a
+// pessoa entra no funil no mesmo gesto, como qualquer interessado.
+//
+// submission_id = "o evento desta reserva" (desde a criação); o
+// ESTADO continua a ser o marcador do ciclo de vida:
+//   Provisória → aparece na Agenda (tracejada)
+//   Convertida → o formulário de onboarding foi submetido
+//   Cancelada  → saiu da Agenda (e o evento ligado passa a "perdido")
+//
+// NOTA DE USO: a reserva é para pessoas NOVAS (ao telefone). Para
+// alguém que já está no funil, o certo é pôr a data no próprio
+// evento (drawer) — criar reserva duplicaria a pessoa.
 // ============================================================
 
 // Estados possíveis de uma reserva no funil.
@@ -32,8 +44,10 @@ export const getReservas = async ({ incluirTodas = false } = {}) => {
   return data || [];
 };
 
-// Cria uma reserva. Só o nome é obrigatório — o resto é opcional,
-// para ela poder marcar rápido ao telefone.
+// Cria uma reserva E a entrada no funil (pessoa + evento interessado).
+// Só o nome é obrigatório — o resto é opcional, para ela poder marcar
+// rápido ao telefone. Cadeia de rollback: se algum passo falhar, os
+// anteriores são desfeitos (nada fica órfão).
 export const createReserva = async ({
   nomeCliente,
   dataEvento,
@@ -44,26 +58,69 @@ export const createReserva = async ({
   if (!nomeCliente || !nomeCliente.trim()) {
     throw new Error("O nome da cliente é obrigatório.");
   }
+  const nome = nomeCliente.trim();
+  const contactoLimpo = contacto?.trim() || null;
 
+  // 1) A PESSOA
+  const { data: cliente, error: erroCliente } = await supabase
+    .from("clientes")
+    .insert({ nome, contacto: contactoLimpo })
+    .select()
+    .single();
+  if (erroCliente) throw erroCliente;
+
+  // 2) O EVENTO em fase "interessado" — chaves canónicas no respostas,
+  //    para o drawer/resumo/documentos lerem tudo sem código novo.
+  const respostas = { nomeDoCliente: nome };
+  if (contactoLimpo) respostas.contactoPrincipal = contactoLimpo;
+  if (dataEvento) respostas.dataEvento = dataEvento;
+  if (nota?.trim()) respostas.mensagemInicial = nota.trim();
+
+  const { data: evento, error: erroEvento } = await supabase
+    .from("submissions")
+    .insert([
+      {
+        cliente_id: cliente.id,
+        fase: "interessado",
+        event_type_id: eventTypeId || null,
+        data_evento: dataEvento || null,
+        respostas,
+      },
+    ])
+    .select()
+    .single();
+  if (erroEvento) {
+    await supabase.from("clientes").delete().eq("id", cliente.id);
+    throw erroEvento;
+  }
+
+  // 3) A RESERVA, já ligada ao evento
   const { data, error } = await supabase
     .from("reservas")
     .insert([
       {
-        nome_cliente: nomeCliente.trim(),
+        nome_cliente: nome,
         data_evento: dataEvento || null,
         event_type_id: eventTypeId || null,
-        contacto: contacto?.trim() || null,
+        contacto: contactoLimpo,
         nota: nota?.trim() || null,
         estado: ESTADOS_RESERVA.PROVISORIA,
+        submission_id: evento.id,
       },
     ])
     .select("*, event_types(nome, icone)")
     .single();
-  if (error) throw error;
+  if (error) {
+    await supabase.from("submissions").delete().eq("id", evento.id);
+    await supabase.from("clientes").delete().eq("id", cliente.id);
+    throw error;
+  }
   return data;
 };
 
 // Actualiza campos de uma reserva. Só passa os campos presentes.
+// Se a DATA mudar e a reserva tiver evento ligado, a data do evento
+// acompanha — a Agenda e o funil nunca divergem.
 export const updateReserva = async (id, campos) => {
   const mapa = {
     nomeCliente: "nome_cliente",
@@ -91,18 +148,42 @@ export const updateReserva = async (id, campos) => {
     .select("*, event_types(nome, icone)")
     .single();
   if (error) throw error;
+
+  // Sincronizar a data do evento ligado (se a data mudou)
+  if ("dataEvento" in campos && data.submission_id) {
+    const { error: erroSync } = await supabase
+      .from("submissions")
+      .update({ data_evento: patch.data_evento })
+      .eq("id", data.submission_id);
+    if (erroSync)
+      console.error("Falha a sincronizar a data do evento:", erroSync);
+  }
+
   return data;
 };
 
-// Remove uma reserva definitivamente.
+// Remove uma reserva definitivamente. O evento ligado (se existir)
+// NÃO é apagado — continua no funil, onde a Nádia decide o destino.
 export const deleteReserva = async (id) => {
   const { error } = await supabase.from("reservas").delete().eq("id", id);
   if (error) throw error;
 };
 
 // Cancela uma reserva (soft) — mantém o registo mas tira-a da agenda.
+// O evento ligado passa a "perdido" (o negócio morreu); se a pessoa
+// reaparecer, recupera-se pelo funil (↩ Recuperar → interessado).
 export const cancelarReserva = async (id) => {
-  return updateReserva(id, { estado: ESTADOS_RESERVA.CANCELADA });
+  const reserva = await updateReserva(id, {
+    estado: ESTADOS_RESERVA.CANCELADA,
+  });
+  if (reserva.submission_id) {
+    const { error } = await supabase
+      .from("submissions")
+      .update({ fase: "perdido" })
+      .eq("id", reserva.submission_id);
+    if (error) console.error("Falha a marcar o evento como perdido:", error);
+  }
+  return reserva;
 };
 
 // Converte uma reserva num cliente fechado: liga-a à submissão criada

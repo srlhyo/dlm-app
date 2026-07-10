@@ -3,6 +3,7 @@ import { getEventosFunil, updateFase } from "../../lib/clientes";
 import { getResumoSubmissao } from "../../lib/submissionFields";
 import { formatarEuros } from "./orcamentos/orcamentoConfig";
 import { FASE_LABEL, FASE_COR, FASES_BOARD, PROXIMA_FASE } from "./faseConfig";
+import CaptacaoForm from "../captacao/CaptacaoForm";
 
 // ============================================================
 // FunilBoard — a esteira visual do funil comercial, dentro de Clientes.
@@ -46,6 +47,7 @@ export default function FunilBoard({ eventTypes = [], onAbrirEvento }) {
   const [mostrarPerdidos, setMostrarPerdidos] = useState(false);
   const [confirmandoPerda, setConfirmandoPerda] = useState(null); // id do evento
   const [atualizando, setAtualizando] = useState(null); // id do evento
+  const [novoInteressado, setNovoInteressado] = useState(false); // modal aberto
 
   const carregar = async () => {
     setCarregando(true);
@@ -109,14 +111,34 @@ export default function FunilBoard({ eventTypes = [], onAbrirEvento }) {
 
   return (
     <div>
-      {/* Filtro de perdidos */}
+      {/* Barra de topo: novo interessado (o caso Instagram: a Nádia
+          transcreve a conversa) + filtro de perdidos */}
       <div
         style={{
           display: "flex",
-          justifyContent: "flex-end",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "10px",
           marginBottom: "14px",
         }}
       >
+        <button
+          onClick={() => setNovoInteressado(true)}
+          style={{
+            padding: "9px 18px",
+            borderRadius: "10px",
+            fontSize: "13px",
+            fontWeight: "600",
+            border: "none",
+            backgroundColor: "var(--gold)",
+            color: "white",
+            cursor: "pointer",
+            boxShadow: "0 4px 12px rgba(201,168,76,0.3)",
+            whiteSpace: "nowrap",
+          }}
+        >
+          + Novo interessado
+        </button>
         <button
           onClick={() => setMostrarPerdidos((v) => !v)}
           style={{
@@ -129,6 +151,7 @@ export default function FunilBoard({ eventTypes = [], onAbrirEvento }) {
             color: "var(--gray-mid)",
             cursor: "pointer",
             transition: "all 0.2s",
+            whiteSpace: "nowrap",
           }}
         >
           {mostrarPerdidos ? "✓ " : ""}Ver perdidos ({perdidos.length})
@@ -148,7 +171,16 @@ export default function FunilBoard({ eventTypes = [], onAbrirEvento }) {
       >
         {colunas.map((fase) => {
           const f = FASE_COR[fase];
-          const daColuna = eventos.filter((e) => faseDe(e) === fase);
+          const daColuna = eventos.filter((e) => {
+            if (faseDe(e) !== fase) return false;
+            // A coluna Cliente é o "ganho recente", não o arquivo:
+            // eventos já CONCLUÍDOS saem do funil (o histórico vive na
+            // Logística, no Dashboard e na ficha da pessoa) — senão a
+            // coluna crescia para sempre. Fechados com data passada mas
+            // NÃO concluídos ficam, de propósito: é sinal de atenção.
+            if (fase === "cliente" && e.status === "Concluído") return false;
+            return true;
+          });
           return (
             <div
               key={fase}
@@ -231,6 +263,88 @@ export default function FunilBoard({ eventTypes = [], onAbrirEvento }) {
           );
         })}
       </div>
+
+      {/* Modal: novo interessado — reutiliza o CaptacaoForm da página
+          pública (uma UI, duas portas). Ao criar, recarrega o funil. */}
+      {novoInteressado && (
+        <div
+          onClick={() => setNovoInteressado(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 50,
+            backgroundColor: "rgba(0,0,0,0.35)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "flex-start",
+            padding: "24px 16px",
+            overflowY: "auto",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: "white",
+              borderRadius: "16px",
+              padding: "22px 20px",
+              width: "100%",
+              maxWidth: "440px",
+              border: "1px solid var(--gold-light)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                marginBottom: "4px",
+              }}
+            >
+              <h3
+                style={{
+                  fontSize: "17px",
+                  fontFamily: "Playfair Display, serif",
+                  color: "var(--charcoal)",
+                  margin: 0,
+                }}
+              >
+                Novo interessado
+              </h3>
+              <button
+                onClick={() => setNovoInteressado(false)}
+                aria-label="Fechar"
+                style={{
+                  fontSize: "18px",
+                  color: "var(--gray-mid)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  lineHeight: 1,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <p
+              style={{
+                fontSize: "12px",
+                color: "var(--gray-mid)",
+                margin: "0 0 16px 0",
+              }}
+            >
+              Transcreve o que a pessoa te disse na conversa.
+            </p>
+            <CaptacaoForm
+              textoBotao="Criar interessado"
+              onSubmetido={() => {
+                setNovoInteressado(false);
+                carregar();
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+
 // Gera um código legível e único — ex: DLM-X7K9-2025
 export const generateCode = () => {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -12,16 +13,21 @@ export const generateCode = () => {
   ).join("");
   return `DLM-${part1}-${part2}`;
 };
+
 // Cria um novo convite no Supabase
 // "respostas" é um objecto genérico (ex: { nomeNoivo: "...", email: "..." })
 // com os campos que a irmã escolheu preencher no Painel de Novo Convite —
 // pode ter campos diferentes, dependendo do tipo de evento e do que ela
 // decidiu mostrar nesse momento.
+// "submissionAlvoId" (opcional) aponta o formulário a um EVENTO existente:
+// ao submeter, as respostas ATUALIZAM esse evento em vez de criar
+// cliente + evento novos (o caminho do onboarding pós-sinal).
 export const createInvite = async ({
   dataEvento,
   eventTypeId,
   respostas,
   reservaId,
+  submissionAlvoId,
 }) => {
   let code, exists;
   do {
@@ -33,6 +39,7 @@ export const createInvite = async ({
       .single();
     exists = !!data;
   } while (exists);
+
   const { data, error } = await supabase
     .from("invites")
     .insert([
@@ -43,6 +50,7 @@ export const createInvite = async ({
         respostas: respostas || {},
         status: "Pendente",
         reserva_id: reservaId || null,
+        submission_alvo_id: submissionAlvoId || null,
       },
     ])
     .select()
@@ -61,6 +69,7 @@ export const getEventTypes = async () => {
   if (error) throw error;
   return data;
 };
+
 // Valida um código e devolve o convite se válido
 // Inclui também o tipo de evento associado (nome + steps), para o
 // formulário saber que perguntas mostrar
@@ -93,6 +102,7 @@ export const validateCode = async (code) => {
   }
   return { valid: true, invite: data };
 };
+
 // Marca o convite como preenchido e liga à submissão.
 // Se o convite nasceu de uma reserva (reserva_id), converte também
 // essa reserva: liga-a à submissão e marca-a como "Convertida".

@@ -1,3 +1,4 @@
+import { getResumoSubmissao } from "../../lib/submissionFields";
 import { motion } from "framer-motion";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts";
 
@@ -92,7 +93,7 @@ const formatDate = (date) => {
   });
 };
 
-// Tab Visão Geral (dashboard) — extraída do AdminPage sem mudar
+// Tab Dashboard — extraída do AdminPage sem mudar
 // comportamento. É read-only: só lê submissions/invites/eventTypes e
 // desenha. A única saída é onSelectSubmission ao clicar num evento.
 //
@@ -107,9 +108,19 @@ export default function DashboardTab({
   eventTypes,
   onSelectSubmission,
 }) {
+  // Perdidos ficam fora do dashboard — negócios mortos não são
+  // "eventos ativos" nem merecem atenção (o funil é o sítio deles).
+  const ativos = (submissions || []).filter((s) => s.fase !== "perdido");
+
+  // Título de QUALQUER evento — a mesma lógica do drawer/funil
+  // (dupla fonte + papéis do modelo), em vez do antigo
+  // `nome_noivo & nome_noiva` que deixava um "&" pendurado nos
+  // eventos que não são casamento.
+  const tituloDe = (s) => getResumoSubmissao(s, eventTypes).titulo;
+
   const eventosPorMes = () => {
     const counts = {};
-    submissions.forEach((s) => {
+    ativos.forEach((s) => {
       if (!s.data_evento) return;
       const mes = new Date(s.data_evento).toLocaleDateString("pt-PT", {
         month: "short",
@@ -122,7 +133,7 @@ export default function DashboardTab({
 
   const estilosMaisPedidos = () => {
     const counts = {};
-    submissions.forEach((s) => {
+    ativos.forEach((s) => {
       (s.estilo_evento || []).forEach((e) => {
         counts[e] = (counts[e] || 0) + 1;
       });
@@ -134,7 +145,7 @@ export default function DashboardTab({
 
   const paletasMaisPopulares = () => {
     const counts = {};
-    submissions.forEach((s) => {
+    ativos.forEach((s) => {
       (s.paleta_cores || []).forEach((c) => {
         counts[c] = (counts[c] || 0) + 1;
       });
@@ -198,7 +209,7 @@ export default function DashboardTab({
 
   const pipelineData = STATUS_OPTIONS.map((status) => ({
     status,
-    total: submissions.filter((s) => s.status === status).length,
+    total: ativos.filter((s) => s.status === status).length,
   })).filter((p) => p.total > 0);
 
   return (
@@ -220,7 +231,7 @@ export default function DashboardTab({
         {/* Eventos ativos */}
         <div style={kpiCardStyle}>
           <p style={{ ...kpiValueStyle, color: "var(--gold)" }}>
-            {submissions.filter((s) => s.status !== "Concluído").length}
+            {ativos.filter((s) => s.status !== "Concluído").length}
           </p>
           <p style={kpiLabelStyle}>Eventos Activos</p>
         </div>
@@ -236,7 +247,7 @@ export default function DashboardTab({
         {/* Confirmados */}
         <div style={kpiCardStyle}>
           <p style={{ ...kpiValueStyle, color: "#22C55E" }}>
-            {submissions.filter((s) => s.status === "Confirmado").length}
+            {ativos.filter((s) => s.status === "Confirmado").length}
           </p>
           <p style={kpiLabelStyle}>Confirmados</p>
         </div>
@@ -297,7 +308,7 @@ export default function DashboardTab({
               margin: "0 0 6px 0",
             }}
           >
-            {proximoEvento().nome_noivo} & {proximoEvento().nome_noiva}
+            {tituloDe(proximoEvento())}
           </p>
           <p style={{ fontSize: "13px", margin: 0, opacity: 0.95 }}>
             {formatDate(proximoEvento().data_evento)}
@@ -365,7 +376,7 @@ export default function DashboardTab({
                         textOverflow: "ellipsis",
                       }}
                     >
-                      {s.nome_noivo} & {s.nome_noiva}
+                      {tituloDe(s)}
                     </p>
                     <p
                       style={{
@@ -411,7 +422,7 @@ export default function DashboardTab({
           .map((et) => ({
             id: et.id,
             nome: et.nome,
-            total: submissions.filter((s) => s.event_type_id === et.id).length,
+            total: ativos.filter((s) => s.event_type_id === et.id).length,
           }))
           .filter((et) => et.total > 0)
           .sort((a, b) => b.total - a.total);
@@ -700,10 +711,8 @@ export default function DashboardTab({
             }}
           >
             {STATUS_OPTIONS.map((status) => {
-              const total = submissions.filter(
-                (s) => s.status === status,
-              ).length;
-              const max = submissions.length || 1;
+              const total = ativos.filter((s) => s.status === status).length;
+              const max = ativos.length || 1;
               const pct = Math.round((total / max) * 100);
               const colors = STATUS_COLORS[status];
               return (

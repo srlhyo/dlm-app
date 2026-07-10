@@ -8,7 +8,10 @@ import { markInviteUsed } from "../lib/invites";
 import { motion, AnimatePresence } from "framer-motion";
 import flores from "../assets/flores.png";
 import { iniciarTour, tourJaVista } from "../lib/tour";
-import { submeterQuestionario } from "../lib/clientes";
+import {
+  submeterQuestionario,
+  atualizarEventoComQuestionario,
+} from "../lib/clientes";
 
 // Tour curta, só com o essencial — é um questionário único, não queremos
 // ser intrusivos
@@ -541,9 +544,20 @@ export default function FormPage() {
       respostas: formData,
     };
     try {
-      // Cria o CLIENTE (pessoa) + a SUBMISSÃO (evento) já ligados —
-      // a extração do nome/contacto vive na lib (mesma lógica da 011)
-      const newSubmission = await submeterQuestionario(payload);
+      // Dois caminhos (migração 013):
+      //   • Convite com EVENTO-ALVO (onboarding pós-sinal): as respostas
+      //     ATUALIZAM o evento existente — nada de clientes duplicados.
+      //   • Convite sem alvo (caminho antigo): cria CLIENTE + SUBMISSÃO
+      //     ligados, como sempre.
+      let newSubmission;
+      if (invite.submission_alvo_id) {
+        newSubmission = await atualizarEventoComQuestionario(
+          invite.submission_alvo_id,
+          payload,
+        );
+      } else {
+        newSubmission = await submeterQuestionario(payload);
+      }
 
       if (invite) {
         await markInviteUsed(invite.id, newSubmission.id);

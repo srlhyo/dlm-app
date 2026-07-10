@@ -24,6 +24,8 @@ import SeletorPaleta, { AmostraPaleta } from "./SeletorPaleta";
 //   onSaved(submissaoAtualizada) — após guardar edição
 //   onGerarDocumento(submissao, "orcamento"|"contrato") — abre o
 //     separador Documentos com o documento pré-preenchido deste evento
+//   onFormulario(submissao) — abre o painel Novo Formulário apontado
+//     a este evento (as respostas atualizam-no, não criam duplicados)
 // ============================================================
 
 const STATUS_OPTIONS = ["Recebido", "Em Preparação", "Confirmado", "Concluído"];
@@ -107,6 +109,8 @@ export default function SubmissionDrawer({
   onStatusChange,
   onSaved,
   onGerarDocumento,
+  onFormulario,
+  onMensagens,
 }) {
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState({});
@@ -298,14 +302,20 @@ export default function SubmissionDrawer({
               </div>
             </div>
 
-            {/* Ações do evento: briefing (destaque) + documentos (outline) */}
-            <div style={{ display: "flex", gap: "8px" }}>
+            {/* Ações do evento: briefing em largura total (destaque) +
+                grelha 2×2 de formulário e documentos (outline) */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "8px",
+              }}
+            >
               <button
                 onClick={() =>
                   window.open(`/briefing/${selected.id}`, "_blank")
                 }
                 style={{
-                  flex: 1,
                   padding: "9px 8px",
                   borderRadius: "10px",
                   fontSize: "12px",
@@ -319,6 +329,26 @@ export default function SubmissionDrawer({
                 }}
               >
                 📄 Briefing
+              </button>
+              <button
+                onClick={() => onMensagens && onMensagens(selected)}
+                style={btnDocumento}
+              >
+                💬 Mensagens
+              </button>
+              <button
+                onClick={() => onFormulario && onFormulario(selected)}
+                style={btnDocumento}
+              >
+                📋 Formulário
+              </button>
+              <button
+                onClick={() =>
+                  onGerarDocumento && onGerarDocumento(selected, "proposta")
+                }
+                style={btnDocumento}
+              >
+                🎨 Proposta
               </button>
               <button
                 onClick={() =>

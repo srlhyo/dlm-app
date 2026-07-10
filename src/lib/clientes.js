@@ -1,5 +1,9 @@
 import { supabase } from "./supabase";
-import { getValorAtual, getResumoSubmissao } from "./submissionFields";
+import {
+  getValorAtual,
+  getResumoSubmissao,
+  FIELD_MAP_INVERSO,
+} from "./submissionFields";
 
 // ============================================================
 // Clientes — a pessoa (separada do evento desde a migração 010).
@@ -148,6 +152,58 @@ export const submeterQuestionario = async (payload) => {
 };
 
 // ============================================================
+// atualizarEventoComQuestionario — o caminho do ONBOARDING: o convite
+// do formulário grande foi apontado a um evento existente
+// (submission_alvo_id, migração 013). Em vez de criar cliente + evento
+// novos, as respostas ATUALIZAM esse evento:
+//   • merge no respostas (o que já lá vive — imagensReferencia da
+//     captação, pretende, mensagemInicial — NUNCA se perde)
+//   • escrita também nas colunas antigas equivalentes (dupla fonte,
+//     via FIELD_MAP_INVERSO — o mesmo padrão do drawer ao guardar)
+//   • a fase NÃO é tocada (é a Nádia que a gere no funil)
+// ============================================================
+export const atualizarEventoComQuestionario = async (submissionId, payload) => {
+  if (!submissionId) throw new Error("submissionId em falta.");
+
+  // 1) respostas atuais do evento (para o merge não apagar nada)
+  const { data: atual, error: erroAtual } = await supabase
+    .from("submissions")
+    .select("respostas")
+    .eq("id", submissionId)
+    .single();
+  if (erroAtual) throw erroAtual;
+
+  const respostas = {
+    ...(atual?.respostas || {}),
+    ...(payload.respostas || {}),
+  };
+
+  // 2) montar o update: respostas + colunas fixas + colunas antigas
+  const update = { respostas };
+  if (payload.event_type_id) update.event_type_id = payload.event_type_id;
+  if (payload.data_evento) update.data_evento = payload.data_evento;
+  if (
+    payload.numero_convidados !== null &&
+    payload.numero_convidados !== undefined
+  ) {
+    update.numero_convidados = payload.numero_convidados;
+  }
+  for (const [campoId, valor] of Object.entries(payload.respostas || {})) {
+    const coluna = FIELD_MAP_INVERSO[campoId];
+    if (coluna) update[coluna] = valor;
+  }
+
+  const { data, error } = await supabase
+    .from("submissions")
+    .update(update)
+    .eq("id", submissionId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+// ============================================================
 // Funil comercial — leitura e avanço de fases.
 // ============================================================
 
@@ -248,6 +304,11 @@ export const getDadosParaDocumento = async (submission, eventTypes) => {
     tipoEvento: tipo?.nome || "",
     dataEvento: submission.data_evento || ler("dataEvento") || "",
     local: ler("localEvento") || "",
+    // Imagens de referência DO CLIENTE (vêm da captação) — entram no
+    // PDF do orçamento como páginas de referências.
+    imagensReferencia: Array.isArray(submission.respostas?.imagensReferencia)
+      ? submission.respostas.imagensReferencia
+      : [],
 
     // ---- Contrato ----
     contraentes,

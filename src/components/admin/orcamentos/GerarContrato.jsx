@@ -89,20 +89,34 @@ export default function GerarContrato({ prefill = null }) {
     setValorExtenso(valorPorExtensoPT(v));
   };
 
-  const imprimir = () => window.print();
+  // Troca temporária do <title> durante a impressão (o browser usa-o
+  // nos cabeçalhos; o @page margin 0 no CSS já os elimina de qualquer
+  // forma — cinto e suspensórios).
+  const imprimir = () => {
+    const tituloAnterior = document.title;
+    const nomePrimeiro = contraentes[0]?.nome;
+    document.title = `Contrato — ${nomePrimeiro || "Do Luxo à Mesa"}`;
+    window.print();
+    document.title = tituloAnterior;
+  };
 
   return (
     <div>
+      {/* O contrato é multi-página: mantém @page margin 2cm (margens
+          bonitas em TODAS as páginas). Os cabeçalhos do browser
+          resolvem-se com o swap do título + desligar "Headers and
+          footers" uma vez no diálogo de impressão (fica memorizado). */}
       <style>{`
         @media print {
           body * { visibility: hidden; }
           .contrato-doc, .contrato-doc * { visibility: visible; }
           .contrato-doc {
             position: absolute; left: 0; top: 0; width: 100%;
-            box-shadow: none !important;
+            box-shadow: none !important; max-width: none !important;
+            margin: 0 !important; padding: 0 !important;
           }
           .no-print { display: none !important; }
-          @page { margin: 2cm; }
+          @page { size: A4; margin: 2cm; }
         }
       `}</style>
 

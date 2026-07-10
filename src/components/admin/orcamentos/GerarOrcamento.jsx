@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import logoUrl from "../../../assets/logo.png";
+import { uploadImagemReferencia } from "../../../lib/captacao";
 import {
   CATALOGO_SERVICOS,
   CONDICOES_ORCAMENTO,
@@ -53,6 +54,36 @@ export default function GerarOrcamento({ prefill = null }) {
 
   // Linhas de serviço
   const [linhas, setLinhas] = useState([novaLinha()]);
+
+  // Imagens de referência DO CLIENTE — pré-preenchidas da captação;
+  // a Nádia pode remover ou juntar as que chegaram por Instagram.
+  // Entram no PDF como páginas de referências, a seguir ao orçamento.
+  const [imagens, setImagens] = useState(prefill?.imagensReferencia || []);
+  const [carregandoImg, setCarregandoImg] = useState(false);
+  const inputImagens = useRef(null);
+
+  const adicionarImagens = async (e) => {
+    const ficheiros = Array.from(e.target.files || []).filter((f) =>
+      f.type.startsWith("image/"),
+    );
+    e.target.value = "";
+    if (ficheiros.length === 0) return;
+    setCarregandoImg(true);
+    try {
+      const novas = [];
+      for (const f of ficheiros) {
+        novas.push(await uploadImagemReferencia(f));
+      }
+      setImagens((prev) => [...prev, ...novas]);
+    } catch (err) {
+      console.error(err);
+      alert("Não foi possível carregar a imagem. Tenta novamente.");
+    }
+    setCarregandoImg(false);
+  };
+
+  const removerImagem = (idx) =>
+    setImagens((prev) => prev.filter((_, i) => i !== idx));
 
   const hoje = new Date().toISOString().slice(0, 10);
 
@@ -109,21 +140,44 @@ export default function GerarOrcamento({ prefill = null }) {
   const removerLinha = (uid) =>
     setLinhas((prev) => prev.filter((l) => l.uid !== uid));
 
-  const imprimir = () => window.print();
+  // Durante a impressão o browser usa o <title> da app nos cabeçalhos;
+  // trocamo-lo temporariamente para o nome certo (e o @page margin 0
+  // no CSS elimina os cabeçalhos por completo — cinto e suspensórios).
+  const imprimir = () => {
+    const tituloAnterior = document.title;
+    document.title = `Orçamento — ${cliente || "Do Luxo à Mesa"}`;
+    window.print();
+    document.title = tituloAnterior;
+  };
 
   return (
     <div>
-      {/* ===== Estilos de impressão: só a área .orcamento-doc imprime ===== */}
+      {/* ===== Estilos de impressão =====
+          @page margin 0 elimina os cabeçalhos/rodapés automáticos do
+          browser (título + URL); as margens passam a ser o padding dos
+          próprios "cartões-página". Cada imagem de referência é uma
+          página inteira (.pagina-ref). */}
       <style>{`
         @media print {
           body * { visibility: hidden; }
-          .orcamento-doc, .orcamento-doc * { visibility: visible; }
+          .area-impressao, .area-impressao * { visibility: visible; }
+          .area-impressao { position: absolute; left: 0; top: 0; width: 100%; }
           .orcamento-doc {
-            position: absolute; left: 0; top: 0; width: 100%;
             box-shadow: none !important; border: none !important;
+            border-radius: 0 !important; max-width: none !important;
+            margin: 0 !important; padding: 1.5cm !important;
           }
+          .pagina-ref {
+            page-break-before: always;
+            height: 26.5cm; width: 100%;
+            margin: 0 !important; max-width: none !important;
+            padding: 1.5cm; box-sizing: border-box;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: none !important; border-radius: 0 !important;
+          }
+          .pagina-ref img { max-width: 100% !important; max-height: 100% !important; }
           .no-print { display: none !important; }
-          @page { margin: 1.5cm; }
+          @page { size: A4; margin: 0; }
         }
       `}</style>
 
@@ -192,6 +246,74 @@ export default function GerarOrcamento({ prefill = null }) {
               value={subtitulo}
               onChange={(e) => setSubtitulo(e.target.value)}
               placeholder="ex: Decoração desenvolvida dentro da estética Do Luxo à Mesa."
+            />
+          </Campo>
+
+          <Campo label="Imagens de referência do cliente">
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+              {imagens.map((url, i) => (
+                <div key={url + i} style={{ position: "relative" }}>
+                  <img
+                    src={url}
+                    alt={`Referência ${i + 1}`}
+                    style={{
+                      width: "58px",
+                      height: "58px",
+                      objectFit: "cover",
+                      borderRadius: "10px",
+                      border: "1px solid var(--gold-light)",
+                      display: "block",
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removerImagem(i)}
+                    aria-label="Remover imagem"
+                    style={{
+                      position: "absolute",
+                      top: "-6px",
+                      right: "-6px",
+                      width: "18px",
+                      height: "18px",
+                      borderRadius: "50%",
+                      border: "none",
+                      backgroundColor: "var(--charcoal)",
+                      color: "white",
+                      fontSize: "10px",
+                      lineHeight: 1,
+                      cursor: "pointer",
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => inputImagens.current?.click()}
+                disabled={carregandoImg}
+                aria-label="Adicionar imagens"
+                style={{
+                  width: "58px",
+                  height: "58px",
+                  borderRadius: "10px",
+                  border: "1.5px dashed var(--gold)",
+                  backgroundColor: "white",
+                  color: "var(--gold)",
+                  fontSize: "20px",
+                  cursor: carregandoImg ? "wait" : "pointer",
+                }}
+              >
+                {carregandoImg ? "…" : "+"}
+              </button>
+            </div>
+            <input
+              ref={inputImagens}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={adicionarImagens}
+              style={{ display: "none" }}
             />
           </Campo>
 
@@ -290,17 +412,51 @@ export default function GerarOrcamento({ prefill = null }) {
         </div>
       </div>
 
-      {/* ===== PRÉ-VISUALIZAÇÃO / DOCUMENTO IMPRIMÍVEL ===== */}
-      <OrcamentoDocumento
-        cliente={cliente}
-        tipoEvento={tipoEvento}
-        dataEvento={dataEvento}
-        local={local}
-        subtitulo={subtitulo}
-        linhas={linhas}
-        total={total}
-        dataEmissao={hoje}
-      />
+      {/* ===== PRÉ-VISUALIZAÇÃO / ÁREA IMPRIMÍVEL =====
+          O orçamento é um cartão-página; cada imagem de referência é
+          OUTRO cartão-página abaixo (a divisão visível no ecrã é a
+          mesma divisão de páginas do PDF). Sem imagens, nada muda. */}
+      <div className="area-impressao">
+        <OrcamentoDocumento
+          cliente={cliente}
+          tipoEvento={tipoEvento}
+          dataEvento={dataEvento}
+          local={local}
+          subtitulo={subtitulo}
+          linhas={linhas}
+          total={total}
+          dataEmissao={hoje}
+        />
+        {imagens.map((url, i) => (
+          <div
+            key={url + i}
+            className="pagina-ref"
+            style={{
+              backgroundColor: "white",
+              maxWidth: "800px",
+              margin: "24px auto 0",
+              padding: "48px 56px",
+              boxShadow: "0 2px 24px rgba(0,0,0,0.08)",
+              borderRadius: "4px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <img
+              src={url}
+              alt={`Referência do cliente ${i + 1}`}
+              style={{
+                maxWidth: "100%",
+                maxHeight: "70vh",
+                objectFit: "contain",
+                borderRadius: "4px",
+                display: "block",
+              }}
+            />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
