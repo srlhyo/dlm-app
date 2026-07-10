@@ -21,6 +21,7 @@ export const NAV_PRINCIPAL = [
 export const NAV_GESTAO = [
   { id: "operacional", label: "Logística", icone: "logistica" },
   { id: "convites", label: "Formulários", icone: "formularios" },
+  { id: "mensagens", label: "Mensagens", icone: "mensagens" },
   { id: "dashboard", label: "Dashboard", icone: "dashboard" },
 ];
 
@@ -79,6 +80,14 @@ export function Icone({ nome, tamanho = 18 }) {
         <rect {...t} x="6" y="4.5" width="12" height="16" rx="2" />
         <rect {...t} x="9" y="3" width="6" height="3" rx="1" />
         <path {...t} d="M9 11h6M9 14.5h6" />
+      </>
+    ),
+    mensagens: (
+      <>
+        <path
+          {...t}
+          d="M12 5c-4.1 0-7.5 2.6-7.5 5.9 0 1.5.7 2.9 1.9 3.9L5.5 18.5l3.7-1.6c.9.3 1.8.4 2.8.4 4.1 0 7.5-2.6 7.5-5.9S16.1 5 12 5z"
+        />
       </>
     ),
     dashboard: (

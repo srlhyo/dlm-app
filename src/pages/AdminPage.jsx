@@ -24,6 +24,7 @@ import InviteCreatedModal from "../components/admin/InviteCreatedModal";
 import InvitesList from "../components/admin/InvitesList";
 import MensagensSheet from "../components/admin/MensagensSheet";
 import InicioTab from "../components/admin/InicioTab";
+import MensagensTab from "../components/admin/MensagensTab";
 import {
   SidebarNav,
   BottomNavMovel,
@@ -584,6 +585,9 @@ export default function AdminPage() {
             onNavegar={setActiveTab}
           />
         )}
+
+        {/* ---- TAB MENSAGENS (biblioteca de mensagens-tipo) ---- */}
+        {activeTab === "mensagens" && <MensagensTab />}
 
         {/* ---- TAB CLIENTES ---- */}
         {activeTab === "clientes" && (

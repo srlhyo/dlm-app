@@ -23,7 +23,9 @@ import {
 //   onFechar — fecha o painel (o drawer fica por baixo, intacto)
 // ============================================================
 
-export default function MensagensSheet({ dados, onFechar }) {
+// O MIOLO (lista + copiar + editor) — partilhado entre a folha do
+// drawer e o separador Mensagens (biblioteca sem contexto de evento).
+export function MensagensConteudo({ dados }) {
   const [mensagens, setMensagens] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(null);
@@ -92,78 +94,7 @@ export default function MensagensSheet({ dados, onFechar }) {
   };
 
   return (
-    <div
-      onClick={onFechar}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 70, // por cima do drawer (50)
-        backgroundColor: "rgba(0,0,0,0.35)",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "flex-start",
-        padding: "24px 16px",
-        overflowY: "auto",
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          backgroundColor: "white",
-          borderRadius: "16px",
-          padding: "20px",
-          width: "100%",
-          maxWidth: "460px",
-          border: "1px solid var(--gold-light)",
-          boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
-        }}
-      >
-        {/* Cabeçalho */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            marginBottom: "4px",
-          }}
-        >
-          <h3
-            style={{
-              fontSize: "17px",
-              fontFamily: "Playfair Display, serif",
-              color: "var(--charcoal)",
-              margin: 0,
-            }}
-          >
-            Mensagens
-            {dados?.nomeCliente ? ` · ${dados.nomeCliente}` : ""}
-          </h3>
-          <button
-            onClick={onFechar}
-            aria-label="Fechar"
-            style={{
-              fontSize: "18px",
-              color: "var(--gray-mid)",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              lineHeight: 1,
-            }}
-          >
-            ✕
-          </button>
-        </div>
-        <p
-          style={{
-            fontSize: "12px",
-            color: "var(--gray-mid)",
-            margin: "0 0 16px 0",
-          }}
-        >
-          Já preenchidas com os dados deste evento — toca em Copiar e cola no
-          Instagram.
-        </p>
-
+    <div>
         {carregando && (
           <p style={{ fontSize: "13px", color: "var(--gray-mid)" }}>
             A carregar mensagens...
@@ -215,7 +146,9 @@ export default function MensagensSheet({ dados, onFechar }) {
                     fontSize: "12px",
                     fontWeight: "600",
                     border:
-                      copiadoId === m.id ? "1.5px solid var(--gold)" : "none",
+                      copiadoId === m.id
+                        ? "1.5px solid var(--gold)"
+                        : "none",
                     backgroundColor:
                       copiadoId === m.id ? "white" : "var(--gold)",
                     color: copiadoId === m.id ? "var(--gold-dark)" : "white",
@@ -401,6 +334,85 @@ export default function MensagensSheet({ dados, onFechar }) {
             </button>
           )
         )}
+    </div>
+  );
+}
+
+// A folha que abre do drawer de um evento (💬): overlay + cabeçalho
+// com o nome do cliente + o miolo partilhado.
+export default function MensagensSheet({ dados, onFechar }) {
+  return (
+    <div
+      onClick={onFechar}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 70, // por cima do drawer (50)
+        backgroundColor: "rgba(0,0,0,0.35)",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "flex-start",
+        padding: "24px 16px",
+        overflowY: "auto",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          backgroundColor: "white",
+          borderRadius: "16px",
+          padding: "20px",
+          width: "100%",
+          maxWidth: "460px",
+          border: "1px solid var(--gold-light)",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            marginBottom: "4px",
+          }}
+        >
+          <h3
+            style={{
+              fontSize: "17px",
+              fontFamily: "Playfair Display, serif",
+              color: "var(--charcoal)",
+              margin: 0,
+            }}
+          >
+            Mensagens
+            {dados?.nomeCliente ? ` · ${dados.nomeCliente}` : ""}
+          </h3>
+          <button
+            onClick={onFechar}
+            aria-label="Fechar"
+            style={{
+              fontSize: "18px",
+              color: "var(--gray-mid)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              lineHeight: 1,
+            }}
+          >
+            ✕
+          </button>
+        </div>
+        <p
+          style={{
+            fontSize: "12px",
+            color: "var(--gray-mid)",
+            margin: "0 0 16px 0",
+          }}
+        >
+          Já preenchidas com os dados deste evento — toca em Copiar e cola
+          no Instagram.
+        </p>
+        <MensagensConteudo dados={dados} />
       </div>
     </div>
   );
