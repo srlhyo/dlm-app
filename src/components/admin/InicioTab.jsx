@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { getResumoSubmissao } from "../../lib/submissionFields";
 import CaptacaoForm from "../captacao/CaptacaoForm";
@@ -69,6 +69,15 @@ export default function InicioTab({
 }) {
   const [novoInteressado, setNovoInteressado] = useState(false);
 
+  // 3 colunas só quando há largura para elas (senão empilham)
+  const [largura, setLargura] = useState(window.innerWidth);
+  useEffect(() => {
+    const aoRedimensionar = () => setLargura(window.innerWidth);
+    window.addEventListener("resize", aoRedimensionar);
+    return () => window.removeEventListener("resize", aoRedimensionar);
+  }, []);
+  const tresColunas = largura >= 1100;
+
   const titulo = (s) => getResumoSubmissao(s, eventTypes).titulo;
   const vivos = submissions.filter((s) => s.fase !== "perdido");
 
@@ -78,6 +87,16 @@ export default function InicioTab({
     .filter((s) => diasAte(s.data_evento) >= 0)
     .sort((a, b) => new Date(a.data_evento) - new Date(b.data_evento));
   const proximo = futuros[0] || null;
+
+  // ---- Esta semana: os próximos 7 dias com rosto ----
+  const semana = futuros.filter((s) => diasAte(s.data_evento) <= 7);
+  const nomeDoTipo = (s) =>
+    eventTypes.find((et) => et.id === s.event_type_id)?.nome || null;
+  const DIAS_ABREV = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
+  const pastilhaDia = (iso) => {
+    const d = new Date(iso);
+    return { semana: DIAS_ABREV[d.getUTCDay()], numero: d.getUTCDate() };
+  };
 
   // ---- Números do momento ----
   const estaSemana = futuros.filter((s) => diasAte(s.data_evento) <= 7).length;
@@ -264,7 +283,9 @@ export default function InicioTab({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+          gridTemplateColumns: tresColunas
+            ? "1.35fr 1fr 0.95fr"
+            : "repeat(auto-fit, minmax(260px, 1fr))",
           gap: "26px",
           alignItems: "start",
         }}
@@ -352,10 +373,129 @@ export default function InicioTab({
           )}
         </div>
 
+        {/* Esta semana — mini-agenda dos próximos 7 dias */}
+        <div>
+          <p style={tituloSeccao}>Esta semana</p>
+          {semana.length === 0 ? (
+            <div
+              style={{
+                backgroundColor: "white",
+                borderRadius: "12px",
+                padding: "18px",
+                border: "1px solid #F0E6D0",
+                textAlign: "center",
+              }}
+            >
+              <p
+                style={{
+                  fontSize: "13px",
+                  color: "var(--gray-mid)",
+                  margin: 0,
+                  lineHeight: 1.6,
+                }}
+              >
+                Semana tranquila ✨
+                <br />
+                Sem eventos nos próximos 7 dias.
+              </p>
+            </div>
+          ) : (
+            <>
+              {semana.map((s) => {
+                const p = pastilhaDia(s.data_evento);
+                const tipo = nomeDoTipo(s);
+                return (
+                  <div
+                    key={`sem-${s.id}`}
+                    onClick={() => onAbrirEvento && onAbrirEvento(s)}
+                    style={{
+                      backgroundColor: "white",
+                      borderRadius: "12px",
+                      padding: "10px 12px",
+                      marginBottom: "8px",
+                      border: "1px solid #F0E6D0",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                    }}
+                  >
+                    <span
+                      style={{
+                        flexShrink: 0,
+                        width: "38px",
+                        textAlign: "center",
+                      }}
+                    >
+                      <span
+                        style={{
+                          display: "block",
+                          fontSize: "9px",
+                          fontWeight: "600",
+                          letterSpacing: "0.1em",
+                          color: "var(--gold)",
+                        }}
+                      >
+                        {p.semana}
+                      </span>
+                      <span
+                        style={{
+                          display: "block",
+                          fontSize: "17px",
+                          fontWeight: "600",
+                          fontFamily: "Playfair Display, serif",
+                          color: "var(--gold-dark)",
+                          lineHeight: 1.1,
+                        }}
+                      >
+                        {p.numero}
+                      </span>
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "13px",
+                        color: "var(--charcoal)",
+                        lineHeight: 1.4,
+                        minWidth: 0,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {titulo(s)}
+                      {tipo ? ` · ${tipo}` : ""}
+                    </span>
+                  </div>
+                );
+              })}
+              <button
+                onClick={() => onNavegar && onNavegar("calendario")}
+                style={{
+                  width: "100%",
+                  padding: "9px",
+                  borderRadius: "999px",
+                  fontSize: "11px",
+                  fontWeight: "600",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  border: "none",
+                  backgroundColor: "transparent",
+                  color: "var(--gold-dark)",
+                  cursor: "pointer",
+                }}
+              >
+                Ver a agenda completa →
+              </button>
+            </>
+          )}
+        </div>
+
         {/* O momento + ações rápidas */}
         <div>
           <p style={tituloSeccao}>O momento</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+          >
             <CartaoNumero
               numero={emConversa}
               legenda={

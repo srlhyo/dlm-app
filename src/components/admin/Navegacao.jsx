@@ -133,9 +133,8 @@ function ItemNav({ item, ativo, onClick }) {
         alignItems: "center",
         gap: "12px",
         width: "100%",
-        padding: "9px 14px",
+        padding: "10px 14px",
         borderRadius: "10px",
-        border: "none",
         cursor: "pointer",
         textAlign: "left",
         backgroundColor: ativo ? "#FBF7EF" : "transparent",
@@ -143,10 +142,10 @@ function ItemNav({ item, ativo, onClick }) {
         transition: "all 0.15s",
       }}
     >
-      <Icone nome={item.icone} tamanho={17} />
+      <Icone nome={item.icone} tamanho={18} />
       <span
         style={{
-          fontSize: "13px",
+          fontSize: "14px",
           fontWeight: ativo ? "600" : "400",
           letterSpacing: "0.02em",
           whiteSpace: "nowrap",
@@ -182,7 +181,7 @@ export function SidebarNav({ activeTab, onNavegar, onSair }) {
   return (
     <div
       style={{
-        width: "224px",
+        width: "248px",
         flexShrink: 0,
         backgroundColor: "white",
         borderRight: "1px solid #F0E6D0",
@@ -201,7 +200,7 @@ export function SidebarNav({ activeTab, onNavegar, onSair }) {
         <img
           src={logoUrl}
           alt="Do Luxo à Mesa"
-          style={{ width: "104px", height: "auto", margin: "0 auto" }}
+          style={{ width: "132px", height: "auto", margin: "0 auto" }}
         />
       </div>
 
@@ -273,7 +272,8 @@ export function BottomNavMovel({ activeTab, onNavegar, onAbrirMais }) {
       }}
     >
       {itens.map((item) => {
-        const ativo = item.id === "__mais" ? maisAtivo : activeTab === item.id;
+        const ativo =
+          item.id === "__mais" ? maisAtivo : activeTab === item.id;
         return (
           <button
             key={item.id}
