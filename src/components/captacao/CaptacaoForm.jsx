@@ -8,16 +8,29 @@ import {
 // ============================================================
 // CaptacaoForm — os campos da captação, PARTILHADOS entre:
 //   • a página pública /interesse (o interessado preenche)
-//   • o botão "+ Novo interessado" no funil (a Nádia transcreve
-//     uma conversa de Instagram) — bloco 4b
+//   • os modais "+ Novo interessado" (funil e Início)
 //
-// Fricção zero: só nome, contacto e tipo são obrigatórios.
+// UM formulário, UMA verdade: os campos, labels e regras são os
+// MESMOS em todas as portas (pedido explícito de consistência).
+// Telemóvel é opcional (a conversa de Instagram é o canal — quem
+// chega ao /interesse chegou pelo link enviado nessa conversa);
+// a data do evento é obrigatória e exata.
+//
 // props:
 //   onSubmetido(submission) — chamado após criar cliente + evento
 //   textoBotao              — label do botão (default "Enviar pedido")
 // ============================================================
 
-const OPCOES_PRETENDE = ["Decoração", "Buffet", "Outro"];
+const OPCOES_LOCAL = ["Ao domicílio", "Salão", "Quinta", "Exterior", "Outro"];
+const OPCOES_SERVICOS = ["Mesa posta", "Buffet", "Cenário", "Balcão"];
+const OPCOES_BALCAO = [
+  "Cocktail & bar",
+  "Welcome drink",
+  "Waffles e panquecas",
+  "Doces",
+  "Hambúrgueres",
+  "Hotdogs",
+];
 
 export default function CaptacaoForm({
   onSubmetido,
@@ -30,9 +43,11 @@ export default function CaptacaoForm({
   const [tipoOutro, setTipoOutro] = useState("");
   const [dataEvento, setDataEvento] = useState("");
   const [numeroConvidados, setNumeroConvidados] = useState("");
-  const [local, setLocal] = useState("");
-  const [pretende, setPretende] = useState([]);
-  const [pretendeOutro, setPretendeOutro] = useState("");
+  const [local, setLocal] = useState(""); // texto livre (ex: Cascais)
+  const [localTipo, setLocalTipo] = useState(""); // tipo de espaço
+  const [localOutro, setLocalOutro] = useState("");
+  const [servicos, setServicos] = useState([]);
+  const [balcao, setBalcao] = useState([]);
   const [ficheiros, setFicheiros] = useState([]); // File[]
   const [mensagem, setMensagem] = useState("");
   const [erros, setErros] = useState({});
@@ -44,11 +59,22 @@ export default function CaptacaoForm({
     getTiposParaCaptacao().then(setTipos);
   }, []);
 
-  const togglePretende = (opt) => {
-    setPretende((prev) =>
+  const toggleServico = (opt) => {
+    setServicos((prev) => {
+      const novo = prev.includes(opt)
+        ? prev.filter((o) => o !== opt)
+        : [...prev, opt];
+      if (!novo.includes("Balcão")) setBalcao([]);
+      return novo;
+    });
+    setErros((prev) => ({ ...prev, servicos: undefined, balcao: undefined }));
+  };
+
+  const toggleBalcao = (opt) => {
+    setBalcao((prev) =>
       prev.includes(opt) ? prev.filter((o) => o !== opt) : [...prev, opt],
     );
-    setErros((prev) => ({ ...prev, pretende: undefined }));
+    setErros((prev) => ({ ...prev, balcao: undefined }));
   };
 
   const escolherImagens = (e) => {
@@ -66,14 +92,22 @@ export default function CaptacaoForm({
 
   const validar = () => {
     const e = {};
-    if (!nome.trim()) e.nome = "Diz-nos o teu nome.";
-    if (!contacto.trim()) e.contacto = "Precisamos de um contacto.";
+    if (!nome.trim()) e.nome = "Indica o nome.";
     const temTipo =
       (eventTypeId && eventTypeId !== "__outro__") || tipoOutro.trim();
     if (!temTipo) e.tipo = "Escolhe o tipo de evento.";
-    if (pretende.length === 0) e.pretende = "Escolhe pelo menos uma opção.";
-    if (pretende.includes("Outro") && !pretendeOutro.trim())
-      e.pretendeOutro = "Diz-nos o que procuras.";
+    // Data do evento: obrigatória e exata (em todas as portas)
+    if (!dataEvento) e.data = "Indica a data do evento.";
+    if (localTipo === "Outro" && !localOutro.trim())
+      e.localOutro = "Descreve o local.";
+    // Serviços só são pedidos (e obrigatórios) depois de escolhido o
+    // "onde vai ser realizado" — é ele que revela a secção.
+    if (localTipo) {
+      if (servicos.length === 0)
+        e.servicos = "Escolhe pelo menos um serviço.";
+      if (servicos.includes("Balcão") && balcao.length === 0)
+        e.balcao = "Escolhe pelo menos uma opção do balcão.";
+    }
     setErros(e);
     return Object.keys(e).length === 0;
   };
@@ -83,12 +117,13 @@ export default function CaptacaoForm({
     if (!validar()) return;
     setEnviando(true);
     try {
-      // "Outro" no pretende leva o texto livre em vez da palavra solta
-      const pretendeFinal = pretende.map((p) =>
-        p === "Outro" ? `Outro: ${pretendeOutro.trim()}` : p,
-      );
       const tipoReal =
         eventTypeId && eventTypeId !== "__outro__" ? eventTypeId : null;
+      // Dois campos distintos: "local" (texto livre, ex: Cascais) vai
+      // para a chave canónica localEvento; "tipoLocal" é o tipo de
+      // espaço (ou a descrição, no caso do Outro)
+      const tipoLocalFinal =
+        localTipo === "Outro" ? `Outro: ${localOutro.trim()}` : localTipo;
       const submission = await submeterCaptacao({
         nome,
         contacto,
@@ -97,7 +132,10 @@ export default function CaptacaoForm({
         dataEvento,
         numeroConvidados,
         local,
-        pretende: pretendeFinal,
+        tipoLocal: tipoLocalFinal,
+        servicos: localTipo ? servicos : [],
+        servicosBalcao:
+          localTipo && servicos.includes("Balcão") ? balcao : [],
         mensagem,
         ficheiros,
       });
@@ -113,7 +151,7 @@ export default function CaptacaoForm({
 
   return (
     <div>
-      <Campo label="O teu nome *" erro={erros.nome}>
+      <Campo label="Nome *" erro={erros.nome}>
         <input
           style={inputStyle(erros.nome)}
           value={nome}
@@ -125,15 +163,16 @@ export default function CaptacaoForm({
         />
       </Campo>
 
-      <Campo label="Contacto (telemóvel ou Instagram) *" erro={erros.contacto}>
+      <Campo label="Telemóvel (opcional)" erro={erros.contacto}>
         <input
+          type="tel"
           style={inputStyle(erros.contacto)}
           value={contacto}
           onChange={(e) => {
             setContacto(e.target.value);
             setErros((p) => ({ ...p, contacto: undefined }));
           }}
-          placeholder="ex: 912 345 678 ou @zeliiaaa__"
+          placeholder="ex: 912 345 678"
         />
       </Campo>
 
@@ -176,12 +215,15 @@ export default function CaptacaoForm({
       </Campo>
 
       <div style={{ display: "flex", gap: "10px" }}>
-        <Campo label="Data (aproximada)" flex={1}>
+        <Campo label="Data do evento *" erro={erros.data} flex={1}>
           <input
             type="date"
-            style={inputStyle()}
+            style={inputStyle(erros.data)}
             value={dataEvento}
-            onChange={(e) => setDataEvento(e.target.value)}
+            onChange={(e) => {
+              setDataEvento(e.target.value);
+              setErros((p) => ({ ...p, data: undefined }));
+            }}
           />
         </Campo>
         <Campo label="Nº de convidados" flex={1}>
@@ -196,7 +238,7 @@ export default function CaptacaoForm({
         </Campo>
       </div>
 
-      <Campo label="Local (se já souberes)">
+      <Campo label="Local (opcional)">
         <input
           style={inputStyle()}
           value={local}
@@ -205,47 +247,95 @@ export default function CaptacaoForm({
         />
       </Campo>
 
-      <Campo label="O que pretendes? *" erro={erros.pretende}>
+      <Campo label="Onde vai ser realizado (opcional)" erro={erros.localOutro}>
+        <select
+          style={inputStyle()}
+          value={localTipo}
+          onChange={(e) => {
+            setLocalTipo(e.target.value);
+            if (e.target.value !== "Outro") setLocalOutro("");
+            setErros((p) => ({ ...p, localOutro: undefined }));
+          }}
+        >
+          <option value="">Escolher...</option>
+          {OPCOES_LOCAL.map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+        </select>
+        {localTipo === "Outro" && (
+          <input
+            style={{ ...inputStyle(erros.localOutro), marginTop: "6px" }}
+            value={localOutro}
+            onChange={(e) => {
+              setLocalOutro(e.target.value);
+              setErros((p) => ({ ...p, localOutro: undefined }));
+            }}
+            placeholder="Descreve o local (ex: jardim da quinta da avó, Sintra)"
+          />
+        )}
+      </Campo>
+
+      {localTipo && (
+      <Campo label="Serviços *" erro={erros.servicos}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-          {OPCOES_PRETENDE.map((opt) => {
-            const ativo = pretende.includes(opt);
+          {OPCOES_SERVICOS.map((opt) => {
+            const ativo = servicos.includes(opt);
             return (
               <button
                 key={opt}
                 type="button"
-                onClick={() => togglePretende(opt)}
-                style={{
-                  padding: "8px 18px",
-                  borderRadius: "999px",
-                  fontSize: "13px",
-                  fontWeight: ativo ? "600" : "400",
-                  border: `1.5px solid ${ativo ? "var(--gold)" : "var(--gold-light)"}`,
-                  backgroundColor: ativo ? "var(--gold)" : "white",
-                  color: ativo ? "white" : "var(--gray-mid)",
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                }}
+                onClick={() => toggleServico(opt)}
+                style={pillStyle(ativo)}
               >
                 {opt}
               </button>
             );
           })}
         </div>
-        {pretende.includes("Outro") && (
-          <div style={{ marginTop: "8px" }}>
-            <input
-              style={inputStyle(erros.pretendeOutro)}
-              value={pretendeOutro}
-              onChange={(e) => {
-                setPretendeOutro(e.target.value);
-                setErros((p) => ({ ...p, pretendeOutro: undefined }));
+        {servicos.includes("Balcão") && (
+          <div
+            style={{
+              marginTop: "10px",
+              padding: "10px 12px",
+              backgroundColor: "#FBF7EF",
+              border: "1px solid var(--gold-light)",
+              borderRadius: "10px",
+            }}
+          >
+            <p
+              style={{
+                fontSize: "10px",
+                fontWeight: "600",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                color: "var(--gold-dark)",
+                margin: "0 0 8px 0",
               }}
-              placeholder="Conta-nos o que procuras"
-            />
-            {erros.pretendeOutro && <Erro texto={erros.pretendeOutro} />}
+            >
+              Opções do balcão *
+            </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+              {OPCOES_BALCAO.map((opt) => {
+                const ativo = balcao.includes(opt);
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => toggleBalcao(opt)}
+                    style={pillStyle(ativo, true)}
+                  >
+                    {opt}
+                  </button>
+                );
+              })}
+            </div>
+            {erros.balcao && <Erro texto={erros.balcao} />}
           </div>
         )}
       </Campo>
+      )}
 
       <Campo
         label={`Imagens de referência (até ${MAX_IMAGENS_REFERENCIA}, opcional)`}
@@ -318,7 +408,7 @@ export default function CaptacaoForm({
         />
       </Campo>
 
-      <Campo label="Conta-nos mais (opcional)">
+      <Campo label="Mais detalhes (opcional)">
         <textarea
           style={{ ...inputStyle(), minHeight: "70px", resize: "vertical" }}
           value={mensagem}
@@ -402,4 +492,16 @@ const inputStyle = (temErro) => ({
   fontFamily: "Inter, sans-serif",
   boxSizing: "border-box",
   backgroundColor: "white",
+});
+
+const pillStyle = (ativo, pequeno = false) => ({
+  padding: pequeno ? "6px 14px" : "8px 18px",
+  borderRadius: "999px",
+  fontSize: pequeno ? "12px" : "13px",
+  fontWeight: ativo ? "600" : "400",
+  border: `1.5px solid ${ativo ? "var(--gold)" : "var(--gold-light)"}`,
+  backgroundColor: ativo ? "var(--gold)" : "white",
+  color: ativo ? "white" : "var(--gray-mid)",
+  cursor: "pointer",
+  transition: "all 0.15s",
 });

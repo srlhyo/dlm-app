@@ -2,7 +2,12 @@ import { useState, useEffect } from "react";
 import { getEventosFunil, updateFase } from "../../lib/clientes";
 import { getResumoSubmissao } from "../../lib/submissionFields";
 import { formatarEuros } from "./orcamentos/orcamentoConfig";
-import { FASE_LABEL, FASE_COR, FASES_BOARD, PROXIMA_FASE } from "./faseConfig";
+import {
+  FASE_LABEL,
+  FASE_COR,
+  FASES_BOARD,
+  PROXIMA_FASE,
+} from "./faseConfig";
 import CaptacaoForm from "../captacao/CaptacaoForm";
 
 // ============================================================

@@ -22,7 +22,6 @@ import DocumentosTab from "../components/admin/orcamentos/DocumentosTab";
 import InviteDetailModal from "../components/admin/InviteDetailModal";
 import InviteCreatedModal from "../components/admin/InviteCreatedModal";
 import InvitesList from "../components/admin/InvitesList";
-import MensagensSheet from "../components/admin/MensagensSheet";
 import InicioTab from "../components/admin/InicioTab";
 import MensagensTab from "../components/admin/MensagensTab";
 import {
@@ -127,9 +126,6 @@ export default function AdminPage() {
   // de um evento). Quando existe, o separador Documentos abre com os
   // formulários já preenchidos com os dados desse evento.
   const [documentoContexto, setDocumentoContexto] = useState(null);
-  // Contexto do painel de mensagens-tipo (💬 no drawer): os dados do
-  // evento para resolver os placeholders. O drawer fica aberto por baixo.
-  const [mensagensContexto, setMensagensContexto] = useState(null);
   // Casca de navegação: desktop = sidebar; telemóvel = barra inferior.
   const [larguraJanela, setLarguraJanela] = useState(window.innerWidth);
   const [maisAberto, setMaisAberto] = useState(false);
@@ -141,19 +137,6 @@ export default function AdminPage() {
     window.addEventListener("resize", aoRedimensionar);
     return () => window.removeEventListener("resize", aoRedimensionar);
   }, []);
-
-  // Abre o painel de mensagens com os placeholders resolvidos por este
-  // evento (reutiliza a extração dupla-fonte dos documentos).
-  const handleMensagens = async (submissao) => {
-    try {
-      const dados = await getDadosParaDocumento(submissao, eventTypes);
-      setMensagensContexto(dados);
-    } catch (e) {
-      console.error("Erro ao preparar as mensagens:", e);
-      // Sem dados do evento, abre na mesma — placeholders ficam "___"
-      setMensagensContexto({});
-    }
-  };
 
   // Abre o formulário para a irmã preencher ela própria —
   // compõe o objecto de formulário completo (com event_types) a partir
@@ -1092,16 +1075,7 @@ export default function AdminPage() {
         }}
         onGerarDocumento={handleGerarDocumento}
         onFormulario={handleFormularioDoEvento}
-        onMensagens={handleMensagens}
       />
-
-      {/* Painel de mensagens-tipo (por cima do drawer, que fica intacto) */}
-      {mensagensContexto && (
-        <MensagensSheet
-          dados={mensagensContexto}
-          onFechar={() => setMensagensContexto(null)}
-        />
-      )}
 
       {/* Modal de partilha */}
       <ShareSheet

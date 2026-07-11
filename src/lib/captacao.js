@@ -93,20 +93,24 @@ export const uploadImagemReferencia = async (file) => {
 // mesmo padrão de rollback (se a submissão falha, o cliente sai).
 //
 // payload:
-//   nome*, contacto*         — a pessoa
+//   nome*                    — a pessoa (contacto é OPCIONAL: nos
+//                              modais internos a conversa de Instagram
+//                              já existe; o telemóvel é um bónus)
 //   eventTypeId | tipoOutro  — o tipo (modelo existente OU texto livre)
-//   dataEvento, numeroConvidados, local, pretende[], mensagem
-//   ficheiros[]              — File[] de imagens de referência (máx 5)
+//   dataEvento, numeroConvidados, local, servicos[], servicosBalcao[],
+//   mensagem, ficheiros[]    — File[] de imagens de referência (máx 5)
 // ============================================================
 export const submeterCaptacao = async (payload) => {
   const nome = limpar(payload.nome);
   const contacto = limpar(payload.contacto);
   if (!nome) throw new Error("O nome é obrigatório.");
-  if (!contacto) throw new Error("O contacto é obrigatório.");
 
   // 1) Upload das imagens de referência (antes de criar registos;
   //    se a submissão falhar, ficam órfãs no bucket — aceitável)
-  const ficheiros = (payload.ficheiros || []).slice(0, MAX_IMAGENS_REFERENCIA);
+  const ficheiros = (payload.ficheiros || []).slice(
+    0,
+    MAX_IMAGENS_REFERENCIA,
+  );
   const imagens = [];
   for (const f of ficheiros) {
     imagens.push(await uploadImagemReferencia(f));
@@ -115,25 +119,36 @@ export const submeterCaptacao = async (payload) => {
   // 2) Criar a PESSOA
   const { data: cliente, error: erroCliente } = await supabase
     .from("clientes")
-    .insert({ nome, contacto })
+    .insert({ nome, contacto: contacto || null })
     .select()
     .single();
   if (erroCliente) throw erroCliente;
 
   // 3) Criar o EVENTO em fase "interessado", com as respostas nas
   //    chaves canónicas (o resto do sistema lê-as sem código novo)
-  const respostas = {
-    nomeDoCliente: nome,
-    contactoPrincipal: contacto,
-  };
+  const respostas = { nomeDoCliente: nome };
+  if (contacto) respostas.contactoPrincipal = contacto;
   const dataEvento = limpar(payload.dataEvento);
   if (dataEvento) respostas.dataEvento = dataEvento;
   const local = limpar(payload.local);
   if (local) respostas.localEvento = local;
+  const tipoLocal = limpar(payload.tipoLocal);
+  if (tipoLocal) respostas.tipoLocal = tipoLocal;
   const convidados = limpar(payload.numeroConvidados);
   if (convidados) respostas.numeroConvidados = convidados;
   const tipoOutro = limpar(payload.tipoOutro);
   if (tipoOutro) respostas.tipoEventoOutro = tipoOutro;
+  // Serviços (a taxonomia nova) + opções do balcão; o "pretende"
+  // antigo continua aceite por retrocompatibilidade.
+  if (Array.isArray(payload.servicos) && payload.servicos.length > 0) {
+    respostas.servicos = payload.servicos;
+  }
+  if (
+    Array.isArray(payload.servicosBalcao) &&
+    payload.servicosBalcao.length > 0
+  ) {
+    respostas.servicosBalcao = payload.servicosBalcao;
+  }
   if (Array.isArray(payload.pretende) && payload.pretende.length > 0) {
     respostas.pretende = payload.pretende;
   }

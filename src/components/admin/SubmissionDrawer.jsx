@@ -110,7 +110,6 @@ export default function SubmissionDrawer({
   onSaved,
   onGerarDocumento,
   onFormulario,
-  onMensagens,
 }) {
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState({});
@@ -316,6 +315,7 @@ export default function SubmissionDrawer({
                   window.open(`/briefing/${selected.id}`, "_blank")
                 }
                 style={{
+                  gridColumn: "1 / -1",
                   padding: "9px 8px",
                   borderRadius: "10px",
                   fontSize: "12px",
@@ -329,12 +329,6 @@ export default function SubmissionDrawer({
                 }}
               >
                 📄 Briefing
-              </button>
-              <button
-                onClick={() => onMensagens && onMensagens(selected)}
-                style={btnDocumento}
-              >
-                💬 Mensagens
               </button>
               <button
                 onClick={() => onFormulario && onFormulario(selected)}
