@@ -35,7 +35,7 @@ const novoContraente = (base = {}) => ({
   ...base,
 });
 
-export default function GerarContrato({ prefill = null }) {
+export default function GerarContrato({ prefill = null, ativo = true }) {
   // 1.ª Contraente — cliente(s). Com prefill, os contraentes vêm já
   // resolvidos (casal = 2, restantes eventos = 1).
   const [contraentes, setContraentes] = useState(() =>
@@ -106,6 +106,7 @@ export default function GerarContrato({ prefill = null }) {
           bonitas em TODAS as páginas). Os cabeçalhos do browser
           resolvem-se com o swap do título + desligar "Headers and
           footers" uma vez no diálogo de impressão (fica memorizado). */}
+      {ativo && (
       <style>{`
         @media print {
           body * { visibility: hidden; }
@@ -119,6 +120,7 @@ export default function GerarContrato({ prefill = null }) {
           @page { size: A4; margin: 2cm; }
         }
       `}</style>
+      )}
 
       <div
         className="no-print"

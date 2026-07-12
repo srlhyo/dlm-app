@@ -125,6 +125,13 @@ export function getResumoSubmissao(submissao, eventTypes) {
     .filter((n) => n !== "");
   let titulo = nomesFixos.join(" & ");
 
+  // 1.5) chaves CANÓNICAS da captação/reserva (migração 011: a
+  // prioridade é nomeNoivo & nomeNoiva → nomeDoCliente → ... →
+  // nomeResponsavel no fim; nomeDoBebe NUNCA é usado como nome).
+  // Sem isto, eventos da captação apareciam como o nome do TIPO
+  // ("Casamento · Casamento") na Agenda e no Início.
+  if (!titulo) titulo = valorTexto(respostas, "nomeDoCliente");
+
   // 2) campos marcados com papel "titulo" (na ordem do modelo)
   if (!titulo && campos.length) {
     const marcados = campos
@@ -143,6 +150,9 @@ export function getResumoSubmissao(submissao, eventTypes) {
       .slice(0, 2);
     if (textos.length > 0) titulo = textos.join(" & ");
   }
+
+  // 3.5) responsável (último nome humano antes de cair no tipo)
+  if (!titulo) titulo = valorTexto(respostas, "nomeResponsavel");
 
   // 4) último recurso
   if (!titulo) titulo = tipo ? tipo.nome : "Evento";

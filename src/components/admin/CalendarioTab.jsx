@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import ReservaModal from "./ReservaModal";
+import CaptacaoForm from "../captacao/CaptacaoForm";
 import { agruparReservasPorDia } from "../../lib/reservas";
 import { getResumoSubmissao } from "../../lib/submissionFields";
 
@@ -28,22 +29,35 @@ const STATUS_CORES = {
   Concluído: { bg: "#F9FAFB", border: "#E5E7EB", texto: "#6B7280" },
 };
 
-// Cor das reservas provisórias — cinza-dourado esbatido e tracejado,
+// Cor das reservas / em negociação — VERMELHO FORTE e tracejado
+// (pedido da Nádia): a data está segura mas ainda não está vendida;
+// tem de saltar à vista. Desaparece sozinha quando o sinal entra
+// (fase pós-sinal → cor do estado operacional).
+// Nota histórica:
 // para se distinguir num relance dos eventos reais (que têm cor sólida)
-const RESERVA_COR = { bg: "#FBF7EF", border: "#D8C9A0", texto: "#A07830" };
+const RESERVA_COR = { bg: "#FEF2F2", border: "#DC2626", texto: "#B91C1C" };
 
 // Fases comerciais ainda EM NEGOCIAÇÃO — na Agenda aparecem provisórias
 // (tracejadas, como as reservas): o dia está prometido, não vendido.
-// Só a fase "cliente" (sinal pago) pinta sólido pelo estado operacional;
+// Do sinal em diante (cliente/projecto/contrato) pinta sólido pelo estado;
 // "perdido" não ocupa dias.
-const FASES_EM_NEGOCIACAO = ["interessado", "orcamento", "contrato"];
+const FASES_EM_NEGOCIACAO = ["interessado", "orcamento", "sinal"];
 const emNegociacao = (s) => FASES_EM_NEGOCIACAO.includes(s.fase);
 
-// Cores de um evento na Agenda: provisório (negociação) ou sólido (status)
-const coresDoEvento = (s) =>
-  emNegociacao(s)
-    ? RESERVA_COR
-    : STATUS_CORES[s.status] || STATUS_CORES["Recebido"];
+// Cores de um evento na Agenda — a regra COMBINADA (comercial +
+// operacional) pedida pela Nádia:
+//   pré-sinal                    → vermelho Reserva (tracejado)
+//   pós-sinal                    → VERDE Confirmado (a data está vendida)
+//   pós-sinal + "Em Preparação"  → azul Em Preparação
+//   "Concluído"                  → cinza Concluído
+// (O estado "Recebido" não tem cor própria aqui — um pós-sinal
+// Recebido É uma data confirmada; o Recebido vive na Logística.)
+const coresDoEvento = (s) => {
+  if (emNegociacao(s)) return RESERVA_COR;
+  if (s.status === "Concluído") return STATUS_CORES["Concluído"];
+  if (s.status === "Em Preparação") return STATUS_CORES["Em Preparação"];
+  return STATUS_CORES["Confirmado"];
+};
 
 function getTituloSubmissao(s, eventTypes) {
   return getResumoSubmissao(s, eventTypes).titulo;
@@ -81,6 +95,7 @@ export default function CalendarioTab({
   onSelectSubmission,
   onReservasChange,
   onCriarQuestionario,
+  onDadosMudaram,
 }) {
   const hoje = new Date();
   const [viewDate, setViewDate] = useState(
@@ -131,7 +146,13 @@ export default function CalendarioTab({
   });
 
   const totalEventosMes = Object.values(eventosPorDia).flat().length;
-  const totalReservasMes = Object.values(reservasPorDia).flat().length;
+  // "Reservas" na cabeça da Nádia = pills vermelhas: as linhas legadas
+  // da tabela de reservas + os eventos em negociação (pré-sinal).
+  const totalReservasMes =
+    Object.values(reservasPorDia).flat().length +
+    Object.values(eventosPorDia)
+      .flat()
+      .filter((s) => FASES_EM_NEGOCIACAO.includes(s.fase)).length;
   const diasOcupados = new Set([
     ...Object.keys(eventosPorDia),
     ...Object.keys(reservasPorDia),
@@ -281,7 +302,9 @@ export default function CalendarioTab({
           flexWrap: "wrap",
         }}
       >
-        {Object.entries(STATUS_CORES).map(([status, cor]) => (
+        {Object.entries(STATUS_CORES)
+          .filter(([status]) => status !== "Recebido")
+          .map(([status, cor]) => (
           <div
             key={status}
             style={{ display: "flex", alignItems: "center", gap: "5px" }}
@@ -858,8 +881,94 @@ export default function CalendarioTab({
         </div>
       )}
 
-      {/* Modal de reserva (criar ou editar) */}
-      {modalReserva && (
+      {/* Reserva NOVA = interessado com a data segura: o mesmo
+          CaptacaoForm das outras portas, com a data do dia clicado
+          já preenchida. Segue o funil normal até Cliente. */}
+      {modalReserva?.dataInicial && !modalReserva?.reserva && (
+        <div
+          onClick={() => setModalReserva(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 60,
+            backgroundColor: "rgba(0,0,0,0.35)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "flex-start",
+            padding: "24px 16px",
+            overflowY: "auto",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: "white",
+              borderRadius: "16px",
+              padding: "22px 20px",
+              width: "100%",
+              maxWidth: "440px",
+              border: "1px solid var(--gold-light)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                marginBottom: "4px",
+              }}
+            >
+              <h3
+                style={{
+                  fontSize: "17px",
+                  fontFamily: "Playfair Display, serif",
+                  color: "var(--charcoal)",
+                  margin: 0,
+                }}
+              >
+                Nova reserva
+              </h3>
+              <button
+                onClick={() => setModalReserva(null)}
+                aria-label="Fechar"
+                style={{
+                  fontSize: "18px",
+                  color: "var(--gray-mid)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  lineHeight: 1,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <p
+              style={{
+                fontSize: "12px",
+                color: "var(--gray-mid)",
+                margin: "0 0 16px 0",
+              }}
+            >
+              A data fica segura no funil como interessado (a vermelho na
+              Agenda até o sinal entrar). Nome e tipo chegam — o resto é
+              opcional.
+            </p>
+            <CaptacaoForm
+              textoBotao="Criar reserva"
+              dataInicial={modalReserva.dataInicial}
+              onSubmetido={() => {
+                setModalReserva(null);
+                if (onDadosMudaram) onDadosMudaram();
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Modal antigo: só para EDITAR reservas legadas (pills antigas) */}
+      {modalReserva?.reserva && (
         <ReservaModal
           dataInicial={modalReserva.dataInicial}
           reserva={modalReserva.reserva}

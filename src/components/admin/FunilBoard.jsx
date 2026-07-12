@@ -6,13 +6,16 @@ import {
   FASE_LABEL,
   FASE_COR,
   FASES_BOARD,
+  FASES_POS_SINAL,
   PROXIMA_FASE,
+  AVANCO_LABEL,
 } from "./faseConfig";
 import CaptacaoForm from "../captacao/CaptacaoForm";
 
 // ============================================================
 // FunilBoard — a esteira visual do funil comercial, dentro de Clientes.
-// Colunas Interessado → Orçamento → Contrato → Cliente, com scroll
+// Colunas Interessado → Orçamento → Cliente → Projecto → Contrato,
+// com scroll
 // horizontal no telemóvel. Perdido NÃO é coluna (é saída): só aparece
 // quando a Nádia liga "Ver perdidos".
 //
@@ -45,7 +48,16 @@ const formatarData = (iso) => {
   return `${Number(d)} ${meses[Number(m) - 1]} ${a}`;
 };
 
-export default function FunilBoard({ eventTypes = [], onAbrirEvento }) {
+// Soma o valor acordado de uma lista de eventos (quem não tem valor
+// simplesmente não pesa — sem inventar zeros).
+const somaValores = (lista) =>
+  lista.reduce((acc, e) => acc + (Number(e.valor_acordado) || 0), 0);
+
+export default function FunilBoard({
+  eventTypes = [],
+  onAbrirEvento,
+  onDadosMudaram,
+}) {
   const [eventos, setEventos] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(null);
@@ -53,6 +65,10 @@ export default function FunilBoard({ eventTypes = [], onAbrirEvento }) {
   const [confirmandoPerda, setConfirmandoPerda] = useState(null); // id do evento
   const [atualizando, setAtualizando] = useState(null); // id do evento
   const [novoInteressado, setNovoInteressado] = useState(false); // modal aberto
+  const [avisoErro, setAvisoErro] = useState(null); // toast discreto (adeus alert)
+  // Colunas VAZIAS colapsam em faixas finas (clicar expande); uma
+  // coluna com eventos expande-se sozinha. Poupa o scroll horizontal.
+  const [expandidas, setExpandidas] = useState({});
 
   const carregar = async () => {
     setCarregando(true);
@@ -82,9 +98,13 @@ export default function FunilBoard({ eventTypes = [], onAbrirEvento }) {
       setEventos((prev) =>
         prev.map((e) => (e.id === ev.id ? { ...e, fase } : e)),
       );
+      if (onDadosMudaram) onDadosMudaram();
     } catch (e) {
       console.error(e);
-      alert("Não foi possível atualizar a fase. Tenta novamente.");
+      setAvisoErro(
+        "Não foi possível atualizar a fase — verifica a ligação e as migrações.",
+      );
+      setTimeout(() => setAvisoErro(null), 4500);
     }
     setAtualizando(null);
     setConfirmandoPerda(null);
@@ -116,6 +136,100 @@ export default function FunilBoard({ eventTypes = [], onAbrirEvento }) {
 
   return (
     <div>
+      {/* ===== BARRA-RESUMO: o pulso financeiro do funil =====
+          Em negociação = fases pré-sinal (dinheiro possível);
+          Garantido = pós-sinal, sem Concluídos (a data está vendida).
+          Lê exatamente o que o quadro mostra. */}
+      {(() => {
+        const preSinal = FASES_BOARD.filter(
+          (fase) => !FASES_POS_SINAL.includes(fase),
+        );
+        const negociacao = eventos.filter((e) =>
+          preSinal.includes(faseDe(e)),
+        );
+        const garantidos = eventos.filter(
+          (e) =>
+            FASES_POS_SINAL.includes(faseDe(e)) && e.status !== "Concluído",
+        );
+        const cartao = (rotulo, lista, corTexto, corFundo) => (
+          <div
+            style={{
+              flex: "1 1 180px",
+              backgroundColor: corFundo,
+              borderRadius: "12px",
+              padding: "10px 16px",
+              border: "1px solid #F0EBE0",
+            }}
+          >
+            <p
+              style={{
+                fontSize: "10px",
+                fontWeight: "600",
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                color: corTexto,
+                margin: "0 0 2px 0",
+              }}
+            >
+              {rotulo}
+            </p>
+            <p
+              style={{
+                fontSize: "17px",
+                fontWeight: "700",
+                color: corTexto,
+                margin: 0,
+              }}
+            >
+              {formatarEuros(somaValores(lista))}{" "}
+              <span
+                style={{
+                  fontSize: "11px",
+                  fontWeight: "400",
+                  color: "var(--gray-mid)",
+                }}
+              >
+                · {lista.length} {lista.length === 1 ? "evento" : "eventos"}
+              </span>
+            </p>
+          </div>
+        );
+        return (
+          <div
+            style={{
+              display: "flex",
+              gap: "10px",
+              flexWrap: "wrap",
+              marginBottom: "14px",
+            }}
+          >
+            {cartao(
+              "Em negociação",
+              negociacao,
+              "var(--gold-dark)",
+              "white",
+            )}
+            {cartao("Garantido (sinal pago)", garantidos, "#166534", "#F0FDF4")}
+          </div>
+        );
+      })()}
+
+      {avisoErro && (
+        <div
+          style={{
+            backgroundColor: "#FEF2F2",
+            border: "1px solid #FECACA",
+            color: "#B91C1C",
+            borderRadius: "10px",
+            padding: "10px 14px",
+            fontSize: "13px",
+            marginBottom: "12px",
+          }}
+        >
+          {avisoErro}
+        </div>
+      )}
+
       {/* Barra de topo: novo interessado (o caso Instagram: a Nádia
           transcreve a conversa) + filtro de perdidos */}
       <div
@@ -178,14 +292,61 @@ export default function FunilBoard({ eventTypes = [], onAbrirEvento }) {
           const f = FASE_COR[fase];
           const daColuna = eventos.filter((e) => {
             if (faseDe(e) !== fase) return false;
-            // A coluna Cliente é o "ganho recente", não o arquivo:
+            // As colunas pós-sinal são o "presente", não o arquivo:
             // eventos já CONCLUÍDOS saem do funil (o histórico vive na
-            // Logística, no Dashboard e na ficha da pessoa) — senão a
-            // coluna crescia para sempre. Fechados com data passada mas
-            // NÃO concluídos ficam, de propósito: é sinal de atenção.
-            if (fase === "cliente" && e.status === "Concluído") return false;
+            // Logística, no Dashboard e na ficha da pessoa) — senão as
+            // colunas cresciam para sempre. Fechados com data passada
+            // mas NÃO concluídos ficam, de propósito: é sinal de atenção.
+            if (FASES_POS_SINAL.includes(fase) && e.status === "Concluído")
+              return false;
             return true;
           });
+          // Coluna vazia e não expandida à mão → faixa fina vertical
+          if (daColuna.length === 0 && !expandidas[fase]) {
+            return (
+              <button
+                key={fase}
+                onClick={() =>
+                  setExpandidas((prev) => ({ ...prev, [fase]: true }))
+                }
+                title={`${FASE_LABEL[fase]} — sem eventos (clicar para expandir)`}
+                style={{
+                  flex: "0 0 44px",
+                  alignSelf: "stretch",
+                  minHeight: "190px",
+                  backgroundColor: f.bg,
+                  border: "none",
+                  borderRadius: "14px",
+                  cursor: "pointer",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "12px",
+                  padding: "12px 0",
+                }}
+              >
+                <span
+                  style={{
+                    writingMode: "vertical-rl",
+                    fontSize: "10px",
+                    fontWeight: "700",
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    color: f.cor,
+                  }}
+                >
+                  {FASE_LABEL[fase]}
+                </span>
+                <span
+                  style={{ fontSize: "12px", fontWeight: "700", color: f.cor }}
+                >
+                  0
+                </span>
+              </button>
+            );
+          }
+
           return (
             <div
               key={fase}
@@ -230,7 +391,47 @@ export default function FunilBoard({ eventTypes = [], onAbrirEvento }) {
                 >
                   {daColuna.length}
                 </span>
+                {daColuna.length === 0 && (
+                  <button
+                    onClick={() =>
+                      setExpandidas((prev) => ({ ...prev, [fase]: false }))
+                    }
+                    title="Recolher a coluna"
+                    style={{
+                      border: "none",
+                      background: "none",
+                      cursor: "pointer",
+                      fontSize: "13px",
+                      color: "var(--gray-mid)",
+                      padding: "0 2px",
+                      lineHeight: 1,
+                    }}
+                  >
+                    «
+                  </button>
+                )}
               </div>
+
+              {/* Total da coluna em € (na de Aguarda Sinal, também os
+                  sinais a receber). Sem valores acordados: um traço. */}
+              {fase !== "perdido" && (
+                <p
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: "700",
+                    color: f.cor,
+                    margin: "-4px 2px 8px 2px",
+                  }}
+                >
+                  {(() => {
+                    const total = somaValores(daColuna);
+                    if (total <= 0) return "—";
+                    return fase === "sinal"
+                      ? `${formatarEuros(total)} · sinais: ${formatarEuros(total / 2)}`
+                      : formatarEuros(total);
+                  })()}
+                </p>
+              )}
 
               {daColuna.length === 0 && (
                 <p
@@ -345,6 +546,7 @@ export default function FunilBoard({ eventTypes = [], onAbrirEvento }) {
               onSubmetido={() => {
                 setNovoInteressado(false);
                 carregar();
+                if (onDadosMudaram) onDadosMudaram();
               }}
             />
           </div>
@@ -422,6 +624,20 @@ function CardEvento({
           }}
         >
           {formatarEuros(evento.valor_acordado)}
+          {fase === "sinal" &&
+            ` · sinal (50%): ${formatarEuros(evento.valor_acordado / 2)}`}
+        </p>
+      )}
+      {!temValor && fase === "sinal" && (
+        <p
+          style={{
+            fontSize: "11px",
+            fontStyle: "italic",
+            color: "var(--gray-mid)",
+            margin: "0 0 10px 0",
+          }}
+        >
+          sem valor acordado — define-o no evento (✏️ Editar)
         </p>
       )}
 
@@ -521,7 +737,7 @@ function CardEvento({
                 whiteSpace: "nowrap",
               }}
             >
-              {aAtualizar ? "..." : `${FASE_LABEL[proxima]} →`}
+              {aAtualizar ? "..." : `${AVANCO_LABEL[fase] || FASE_LABEL[proxima]} →`}
             </button>
           )}
           <button

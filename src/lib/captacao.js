@@ -105,6 +105,31 @@ export const submeterCaptacao = async (payload) => {
   const contacto = limpar(payload.contacto);
   if (!nome) throw new Error("O nome é obrigatório.");
 
+  // 0) DEDUPLICAÇÃO pelo telefone (WhatsApp + contacto principal),
+  //    via função no Postgres — o anónimo pergunta "já existe?" e
+  //    recebe só ids, nunca a lista de clientes (migração 019).
+  const whatsappDedupe = limpar(payload.whatsapp);
+  const digitos = `${whatsappDedupe || ""} ${contacto || ""}`;
+  const dataDedupe = limpar(payload.dataEvento) || null;
+  let clienteExistenteId = null;
+  try {
+    const { data: dedupe } = await supabase.rpc("captacao_dedupe", {
+      p_digitos: digitos,
+      p_data: dataDedupe,
+    });
+    const hit = Array.isArray(dedupe) ? dedupe[0] : dedupe;
+    if (hit?.evento_id) {
+      // Mesmo telefone + mesma data com evento vivo: NÃO duplica —
+      // devolve o existente (mata o duplo clique e o reenvio).
+      return { id: hit.evento_id, duplicado: true };
+    }
+    if (hit?.cliente_id) clienteExistenteId = hit.cliente_id;
+  } catch (e) {
+    // Se a função ainda não existir (migração por correr), a captação
+    // continua a funcionar como antes — sem dedupe, mas sem quebrar.
+    console.warn("captacao_dedupe indisponível:", e?.message || e);
+  }
+
   // 1) Upload das imagens de referência (antes de criar registos;
   //    se a submissão falhar, ficam órfãs no bucket — aceitável)
   const ficheiros = (payload.ficheiros || []).slice(
@@ -116,18 +141,28 @@ export const submeterCaptacao = async (payload) => {
     imagens.push(await uploadImagemReferencia(f));
   }
 
-  // 2) Criar a PESSOA
-  const { data: cliente, error: erroCliente } = await supabase
-    .from("clientes")
-    .insert({ nome, contacto: contacto || null })
-    .select()
-    .single();
-  if (erroCliente) throw erroCliente;
+  // 2) A PESSOA: reutiliza a existente (mesmo telefone) ou cria nova.
+  //    Mesma pessoa, data diferente = novo evento no MESMO cliente —
+  //    a separação cliente↔evento a fazer o seu trabalho.
+  let cliente;
+  if (clienteExistenteId) {
+    cliente = { id: clienteExistenteId };
+  } else {
+    const { data: novoCliente, error: erroCliente } = await supabase
+      .from("clientes")
+      .insert({ nome, contacto: contacto || null })
+      .select()
+      .single();
+    if (erroCliente) throw erroCliente;
+    cliente = novoCliente;
+  }
 
   // 3) Criar o EVENTO em fase "interessado", com as respostas nas
   //    chaves canónicas (o resto do sistema lê-as sem código novo)
   const respostas = { nomeDoCliente: nome };
   if (contacto) respostas.contactoPrincipal = contacto;
+  const whatsapp = limpar(payload.whatsapp);
+  if (whatsapp) respostas.numeroWhatsapp = whatsapp;
   const dataEvento = limpar(payload.dataEvento);
   if (dataEvento) respostas.dataEvento = dataEvento;
   const local = limpar(payload.local);

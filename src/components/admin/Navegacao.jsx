@@ -82,6 +82,11 @@ export function Icone({ nome, tamanho = 18 }) {
         <path {...t} d="M9 11h6M9 14.5h6" />
       </>
     ),
+    funil: (
+      <>
+        <path {...t} d="M4.5 5h15l-5.5 6.5V17l-4 2.5v-8z" />
+      </>
+    ),
     mensagens: (
       <>
         <path

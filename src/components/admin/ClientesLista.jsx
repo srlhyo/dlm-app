@@ -6,6 +6,11 @@ import {
 } from "../../lib/clientes";
 import { FASE_LABEL, FASE_COR } from "./faseConfig";
 import FunilBoard from "./FunilBoard";
+import { Icone } from "./Navegacao";
+
+// Memória da última vista escolhida (dura a sessão): se a Nádia
+// estava no funil, voltar aos Clientes volta ao FUNIL, não à lista.
+let ultimaVista = "lista";
 
 // ============================================================
 // ClientesLista — a vista de Clientes: PESSOAS (não eventos), agora
@@ -45,6 +50,17 @@ const formatarData = (iso) => {
   return `${Number(d)} ${meses[Number(m) - 1]} ${a}`;
 };
 
+// Data e hora de criação do contacto — visível no card (os cards
+// vêm ordenados do mais recente para o mais antigo).
+const formatarCriado = (ts) => {
+  if (!ts) return "";
+  const d = new Date(ts);
+  const meses = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${d.getDate()} ${meses[d.getMonth()]} · ${hh}:${mm}`;
+};
+
 // A fase "mais avançada" de uma pessoa, para a pastilha do card da
 // lista: um cliente fechado sobrepõe-se a tudo; senão, o ponto mais
 // adiantado da negociação; só "perdido" quando todos os eventos o são.
@@ -52,15 +68,26 @@ const formatarData = (iso) => {
 const faseDaPessoa = (c) => {
   const fases = (c.submissions || []).map((e) => e.fase).filter(Boolean);
   if (fases.length === 0) return null;
-  for (const f of ["cliente", "contrato", "orcamento", "interessado"]) {
+  for (const f of [
+    "contrato",
+    "projecto",
+    "cliente",
+    "sinal",
+    "orcamento",
+    "interessado",
+  ]) {
     if (fases.includes(f)) return f;
   }
   if (fases.every((f) => f === "perdido")) return "perdido";
   return null;
 };
 
-export default function ClientesLista({ eventTypes = [], onAbrirEvento }) {
-  const [vista, setVista] = useState("lista"); // "lista" | "funil"
+export default function ClientesLista({
+  eventTypes = [],
+  onAbrirEvento,
+  onDadosMudaram,
+}) {
+  const [vista, setVista] = useState(ultimaVista); // "lista" | "funil"
   const [clientes, setClientes] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(null);
@@ -129,14 +156,14 @@ export default function ClientesLista({ eventTypes = [], onAbrirEvento }) {
   const alternador = (
     <div style={{ display: "flex", gap: "8px", marginBottom: "18px" }}>
       {[
-        { id: "lista", label: "👥 Lista" },
-        { id: "funil", label: "🧭 Funil" },
+        { id: "lista", label: "Lista", icone: "contactos" },
+        { id: "funil", label: "Funil", icone: "funil" },
       ].map((v) => {
         const ativo = vista === v.id;
         return (
           <button
             key={v.id}
-            onClick={() => setVista(v.id)}
+            onClick={() => { ultimaVista = v.id; setVista(v.id); }}
             style={{
               padding: "8px 20px",
               borderRadius: "999px",
@@ -149,7 +176,7 @@ export default function ClientesLista({ eventTypes = [], onAbrirEvento }) {
               transition: "all 0.2s",
             }}
           >
-            {v.label}
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}><Icone nome={v.icone} tamanho={15} />{v.label}</span>
           </button>
         );
       })}
@@ -161,7 +188,14 @@ export default function ClientesLista({ eventTypes = [], onAbrirEvento }) {
     return (
       <div>
         {alternador}
-        <FunilBoard eventTypes={eventTypes} onAbrirEvento={onAbrirEvento} />
+        <FunilBoard
+          eventTypes={eventTypes}
+          onAbrirEvento={onAbrirEvento}
+          onDadosMudaram={() => {
+            carregar(); // a lista de pessoas
+            if (onDadosMudaram) onDadosMudaram(); // Agenda/Início (AdminPage)
+          }}
+        />
       </div>
     );
   }
@@ -212,7 +246,7 @@ export default function ClientesLista({ eventTypes = [], onAbrirEvento }) {
               marginBottom: "14px",
               boxSizing: "border-box",
             }}
-            placeholder="🔍 Procurar por nome, contacto ou email..."
+            placeholder="Procurar por nome, contacto ou email..."
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
           />
@@ -236,7 +270,9 @@ export default function ClientesLista({ eventTypes = [], onAbrirEvento }) {
                   borderRadius: "14px",
                   padding: "14px 16px",
                   marginBottom: "10px",
-                  border: ativo ? "2px solid var(--gold)" : "1px solid #F0EBE0",
+                  border: ativo
+                    ? "2px solid var(--gold)"
+                    : "1px solid #F0EBE0",
                   boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
                   cursor: "pointer",
                   display: "flex",
@@ -286,7 +322,7 @@ export default function ClientesLista({ eventTypes = [], onAbrirEvento }) {
                   >
                     {c.totalEventos}{" "}
                     {c.totalEventos === 1 ? "evento" : "eventos"}
-                    {c.desdeAno ? ` · desde ${c.desdeAno}` : ""}
+                    {c.created_at ? ` · ${formatarCriado(c.created_at)}` : ""}
                   </p>
                 </div>
                 {corFase && (

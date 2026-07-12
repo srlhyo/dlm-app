@@ -24,7 +24,7 @@ const novaSeccao = () => ({
   descricao: "",
 });
 
-export default function GerarProposta({ prefill = null }) {
+export default function GerarProposta({ prefill = null, ativo = true }) {
   const [cliente, setCliente] = useState(prefill?.nomeCliente || "");
   const [tipoEvento, setTipoEvento] = useState(
     prefill ? prefill.tipoEvento || "" : "",
@@ -86,6 +86,7 @@ export default function GerarProposta({ prefill = null }) {
       {/* ===== Estilos de impressão =====
           Mesmo tratamento do orçamento: @page margin 0 mata os
           cabeçalhos do browser; capa e secções são páginas próprias. */}
+      {ativo && (
       <style>{`
         @media print {
           body * { visibility: hidden; }
@@ -103,6 +104,7 @@ export default function GerarProposta({ prefill = null }) {
           @page { size: A4; margin: 0; }
         }
       `}</style>
+      )}
 
       <div
         className="no-print"

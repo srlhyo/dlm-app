@@ -18,7 +18,7 @@ export const getClientes = async () => {
     .select(
       "id, nome, contacto, email, nif, morada, notas, created_at, submissions(id, data_evento, fase, event_type_id)",
     )
-    .order("nome");
+    .order("created_at", { ascending: false });
   if (error) throw error;
 
   return (data || []).map((c) => {
@@ -162,7 +162,10 @@ export const submeterQuestionario = async (payload) => {
 //     via FIELD_MAP_INVERSO — o mesmo padrão do drawer ao guardar)
 //   • a fase NÃO é tocada (é a Nádia que a gere no funil)
 // ============================================================
-export const atualizarEventoComQuestionario = async (submissionId, payload) => {
+export const atualizarEventoComQuestionario = async (
+  submissionId,
+  payload,
+) => {
   if (!submissionId) throw new Error("submissionId em falta.");
 
   // 1) respostas atuais do evento (para o merge não apagar nada)
@@ -203,6 +206,39 @@ export const atualizarEventoComQuestionario = async (submissionId, payload) => {
   return data;
 };
 
+// Guarda o TOTAL do orçamento como valor acordado do evento — é
+// este campo que alimenta o "sinal (50%)" do funil e o {VALOR}/
+// {SINAL} das mensagens-tipo. Chamado pelo botão no gerador de
+// orçamento (quando o documento vem de um evento).
+export const guardarValorAcordado = async (submissionId, valor) => {
+  const v = Number(valor);
+  if (!submissionId || !Number.isFinite(v)) {
+    throw new Error("Valor ou evento em falta.");
+  }
+  const { data, error } = await supabase
+    .from("submissions")
+    .update({ valor_acordado: v })
+    .eq("id", submissionId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+// Marca (ou desmarca) o pagamento final de um evento — a Nádia
+// recebe 50% de sinal e o resto até 48h ANTES do evento; o Início
+// alerta enquanto isto estiver a false com o evento próximo.
+export const marcarPagamentoFinal = async (submissionId, pago) => {
+  const { data, error } = await supabase
+    .from("submissions")
+    .update({ pagamento_final: !!pago })
+    .eq("id", submissionId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
 // ============================================================
 // Funil comercial — leitura e avanço de fases.
 // ============================================================
@@ -224,8 +260,10 @@ export const getEventosFunil = async () => {
 const FASES_VALIDAS = [
   "interessado",
   "orcamento",
-  "contrato",
+  "sinal",
   "cliente",
+  "projecto",
+  "contrato",
   "perdido",
 ];
 
@@ -288,7 +326,10 @@ export const getDadosParaDocumento = async (submission, eventTypes) => {
     contraentes = [
       {
         nome:
-          cliente?.nome || ler("nomeDoCliente") || ler("nomeResponsavel") || "",
+          cliente?.nome ||
+          ler("nomeDoCliente") ||
+          ler("nomeResponsavel") ||
+          "",
         nif: cliente?.nif || "",
       },
     ];

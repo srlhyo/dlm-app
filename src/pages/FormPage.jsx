@@ -412,6 +412,35 @@ export default function FormPage() {
       dataEvento: inv.data_evento,
       ...inv.respostas,
     }));
+
+    // Onboarding: o convite aponta a um evento — busca o que a
+    // captação já sabe e PRÉ-PREENCHE os campos do modelo que
+    // coincidam com chaves canónicas (editáveis pelo cliente).
+    // Uma verdade só: o EVENTO, lido no momento da abertura.
+    if (inv.submission_alvo_id) {
+      (async () => {
+        try {
+          const { data: alvo, error } = await supabase
+            .from("submissions")
+            .select("respostas, data_evento, numero_convidados")
+            .eq("id", inv.submission_alvo_id)
+            .single();
+          if (error || !alvo) return; // sem alvo legível, o form segue normal
+          const r = alvo.respostas || {};
+          setFormData((prev) => ({
+            ...prev,
+            ...r,
+            dataEvento: alvo.data_evento || r.dataEvento || prev.dataEvento,
+            numeroConvidados:
+              alvo.numero_convidados ??
+              r.numeroConvidados ??
+              prev.numeroConvidados,
+          }));
+        } catch (e) {
+          console.warn("Sem dados do evento-alvo:", e?.message || e);
+        }
+      })();
+    }
   }, []);
 
   // Tour curta — só depois do formulário estar mesmo visível, e só
@@ -798,6 +827,7 @@ export default function FormPage() {
           <div id="tour-form-progress">
             <ProgressStepper currentStep={currentStep} steps={steps} />
           </div>
+
         </div>
 
         {/* Barra sticky — FORA do div de 560px para colar ao topo durante o scroll */}

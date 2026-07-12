@@ -26,22 +26,23 @@ const OPCOES_SERVICOS = ["Mesa posta", "Buffet", "Cenário", "Balcão"];
 const OPCOES_BALCAO = [
   "Cocktail & bar",
   "Welcome drink",
-  "Waffles e panquecas",
+  "Waffles & panquecas",
   "Doces",
-  "Hambúrgueres",
-  "Hotdogs",
+  "Hambúrgueres & hotdogs",
 ];
 
 export default function CaptacaoForm({
   onSubmetido,
   textoBotao = "Enviar pedido",
+  dataInicial = "",
 }) {
   const [tipos, setTipos] = useState([]);
   const [nome, setNome] = useState("");
   const [contacto, setContacto] = useState("");
+  const [whatsapp, setWhatsapp] = useState(""); // canal de comunicação — obrigatório
   const [eventTypeId, setEventTypeId] = useState("");
   const [tipoOutro, setTipoOutro] = useState("");
-  const [dataEvento, setDataEvento] = useState("");
+  const [dataEvento, setDataEvento] = useState(dataInicial || "");
   const [numeroConvidados, setNumeroConvidados] = useState("");
   const [local, setLocal] = useState(""); // texto livre (ex: Cascais)
   const [localTipo, setLocalTipo] = useState(""); // tipo de espaço
@@ -70,10 +71,9 @@ export default function CaptacaoForm({
     setErros((prev) => ({ ...prev, servicos: undefined, balcao: undefined }));
   };
 
+  // Balcão: escolha ÚNICA — clicar noutra troca; clicar na mesma tira.
   const toggleBalcao = (opt) => {
-    setBalcao((prev) =>
-      prev.includes(opt) ? prev.filter((o) => o !== opt) : [...prev, opt],
-    );
+    setBalcao((prev) => (prev.includes(opt) ? [] : [opt]));
     setErros((prev) => ({ ...prev, balcao: undefined }));
   };
 
@@ -93,11 +93,13 @@ export default function CaptacaoForm({
   const validar = () => {
     const e = {};
     if (!nome.trim()) e.nome = "Indica o nome.";
+    if (!whatsapp.trim()) e.whatsapp = "Indica o número de WhatsApp.";
     const temTipo =
       (eventTypeId && eventTypeId !== "__outro__") || tipoOutro.trim();
     if (!temTipo) e.tipo = "Escolhe o tipo de evento.";
     // Data do evento: obrigatória e exata (em todas as portas)
     if (!dataEvento) e.data = "Indica a data do evento.";
+    if (!localTipo) e.espaco = "Escolhe o espaço onde vai ser realizado.";
     if (localTipo === "Outro" && !localOutro.trim())
       e.localOutro = "Descreve o local.";
     // Serviços só são pedidos (e obrigatórios) depois de escolhido o
@@ -106,7 +108,7 @@ export default function CaptacaoForm({
       if (servicos.length === 0)
         e.servicos = "Escolhe pelo menos um serviço.";
       if (servicos.includes("Balcão") && balcao.length === 0)
-        e.balcao = "Escolhe pelo menos uma opção do balcão.";
+        e.balcao = "Escolhe uma opção do balcão.";
     }
     setErros(e);
     return Object.keys(e).length === 0;
@@ -127,6 +129,7 @@ export default function CaptacaoForm({
       const submission = await submeterCaptacao({
         nome,
         contacto,
+        whatsapp,
         eventTypeId: tipoReal,
         tipoOutro: tipoReal ? null : tipoOutro,
         dataEvento,
@@ -163,14 +166,28 @@ export default function CaptacaoForm({
         />
       </Campo>
 
-      <Campo label="Telemóvel (opcional)" erro={erros.contacto}>
+      <Campo label="Contacto principal" erro={erros.contacto}>
         <input
           type="tel"
           style={inputStyle(erros.contacto)}
           value={contacto}
           onChange={(e) => {
-            setContacto(e.target.value);
+            // Só telefone: dígitos, espaços, +, - e parêntesis
+            setContacto(e.target.value.replace(/[^0-9+()\s-]/g, ""));
             setErros((p) => ({ ...p, contacto: undefined }));
+          }}
+          placeholder="ex: 912 345 678"
+        />
+      </Campo>
+
+      <Campo label="Número WhatsApp *" erro={erros.whatsapp}>
+        <input
+          type="tel"
+          style={inputStyle(erros.whatsapp)}
+          value={whatsapp}
+          onChange={(e) => {
+            setWhatsapp(e.target.value);
+            setErros((p) => ({ ...p, whatsapp: undefined }));
           }}
           placeholder="ex: 912 345 678"
         />
@@ -238,7 +255,7 @@ export default function CaptacaoForm({
         </Campo>
       </div>
 
-      <Campo label="Local (opcional)">
+      <Campo label="Local do evento">
         <input
           style={inputStyle()}
           value={local}
@@ -247,14 +264,17 @@ export default function CaptacaoForm({
         />
       </Campo>
 
-      <Campo label="Onde vai ser realizado (opcional)" erro={erros.localOutro}>
+      <Campo
+        label="Espaço onde vai ser realizado *"
+        erro={erros.espaco || erros.localOutro}
+      >
         <select
           style={inputStyle()}
           value={localTipo}
           onChange={(e) => {
             setLocalTipo(e.target.value);
             if (e.target.value !== "Outro") setLocalOutro("");
-            setErros((p) => ({ ...p, localOutro: undefined }));
+            setErros((p) => ({ ...p, espaco: undefined, localOutro: undefined }));
           }}
         >
           <option value="">Escolher...</option>

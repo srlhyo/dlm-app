@@ -18,7 +18,13 @@ import { formatarDataPT } from "./orcamentoConfig";
 //   iniciais chegam.
 // onLimpar() — descarta o contexto e volta ao modo manual (vazio).
 // ============================================================
-export default function DocumentosTab({ contexto = null, onLimpar }) {
+export default function DocumentosTab({
+  contexto = null,
+  onLimpar,
+  ativo = true,
+  onDadosMudaram,
+  onVoltarAoEvento,
+}) {
   const [sub, setSub] = useState(contexto?.tipoDoc || "orcamento");
 
   return (
@@ -122,12 +128,44 @@ export default function DocumentosTab({ contexto = null, onLimpar }) {
           >
             ✕ Limpar
           </button>
+            {onVoltarAoEvento && (
+              <button
+                onClick={onVoltarAoEvento}
+                style={{
+                  marginLeft: "8px",
+                  padding: "6px 14px",
+                  borderRadius: "999px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  border: "1.5px solid var(--gold)",
+                  backgroundColor: "white",
+                  color: "var(--gold-dark)",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                ← Voltar ao evento
+              </button>
+            )}
         </div>
       )}
 
-      {sub === "orcamento" && <GerarOrcamento prefill={contexto} />}
-      {sub === "contrato" && <GerarContrato prefill={contexto} />}
-      {sub === "proposta" && <GerarProposta prefill={contexto} />}
+      {/* Os TRÊS geradores ficam sempre montados (escondidos): o que
+          se escreveu sobrevive a trocas de sub-aba E de separador.
+          O `ativo` liga os estilos de impressão só ao visível. */}
+      <div style={{ display: sub === "orcamento" ? "block" : "none" }}>
+        <GerarOrcamento
+          prefill={contexto}
+          ativo={ativo && sub === "orcamento"}
+          onDadosMudaram={onDadosMudaram}
+        />
+      </div>
+      <div style={{ display: sub === "contrato" ? "block" : "none" }}>
+        <GerarContrato prefill={contexto} ativo={ativo && sub === "contrato"} />
+      </div>
+      <div style={{ display: sub === "proposta" ? "block" : "none" }}>
+        <GerarProposta prefill={contexto} ativo={ativo && sub === "proposta"} />
+      </div>
     </div>
   );
 }

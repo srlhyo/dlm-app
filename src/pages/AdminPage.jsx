@@ -38,10 +38,129 @@ import { motion, AnimatePresence } from "framer-motion";
 // uma "fonte" a partir da submissão real (se o convite já foi preenchido)
 // ou do que a irmã pré-preencheu no convite. Só acrescenta o código do
 // convite quando não há título real, para o card ter sempre um id útil.
+// Os dados que a captação já recolheu sobre o evento-alvo — para a
+// Nádia consultar e COPIAR enquanto compõe o formulário (em vez de
+// o cliente ver um cartão na página pública, que ela dispensou).
+function DadosCaptacao({ submissao }) {
+  const [aberto, setAberto] = useState(false);
+  const [copiado, setCopiado] = useState(null);
+  if (!submissao) return null;
+  const r = submissao.respostas || {};
+  const linhas = [
+    ["Nome", r.nomeDoCliente || r.nomeResponsavel],
+    ["WhatsApp", r.numeroWhatsapp],
+    ["Contacto", r.contactoPrincipal],
+    ["Data do evento", submissao.data_evento || r.dataEvento],
+    [
+      "Nº convidados",
+      submissao.numero_convidados ?? r.numeroConvidados ?? null,
+    ],
+    ["Local", r.localEvento],
+    ["Espaço", r.tipoLocal],
+    [
+      "Serviços",
+      [
+        ...(Array.isArray(r.servicos) ? r.servicos : []),
+        ...(Array.isArray(r.servicosBalcao) ? r.servicosBalcao : []),
+      ].join(", ") || null,
+    ],
+    ["Notas da conversa", r.mensagemInicial || r.maisDetalhes || null],
+  ].filter(([, v]) => v !== null && v !== undefined && `${v}`.trim() !== "");
+  if (linhas.length === 0) return null;
+
+  const copiar = async (rotulo, valor) => {
+    try {
+      await navigator.clipboard.writeText(`${valor}`);
+      setCopiado(rotulo);
+      setTimeout(() => setCopiado(null), 1600);
+    } catch {
+      /* clipboard indisponível — sem drama */
+    }
+  };
+
+  return (
+    <div style={{ marginTop: "10px" }}>
+      <button
+        onClick={() => setAberto(!aberto)}
+        style={{
+          border: "none",
+          background: "none",
+          cursor: "pointer",
+          fontSize: "11px",
+          fontWeight: "600",
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          color: "var(--gold-dark)",
+          padding: 0,
+        }}
+      >
+        {aberto ? "▾" : "▸"} Dados da captação ({linhas.length})
+      </button>
+      {aberto && (
+        <div
+          style={{
+            marginTop: "8px",
+            borderTop: "1px solid var(--gold-light)",
+            paddingTop: "8px",
+          }}
+        >
+          {linhas.map(([rotulo, valor]) => (
+            <div
+              key={rotulo}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "10px",
+                padding: "4px 0",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "12px",
+                  color: "var(--charcoal)",
+                  minWidth: 0,
+                  lineHeight: 1.5,
+                }}
+              >
+                <span style={{ color: "var(--gray-mid)" }}>{rotulo}: </span>
+                {`${valor}`}
+              </span>
+              <button
+                onClick={() => copiar(rotulo, valor)}
+                style={{
+                  flexShrink: 0,
+                  border: "1px solid var(--gold-light)",
+                  backgroundColor: "white",
+                  borderRadius: "999px",
+                  padding: "3px 10px",
+                  fontSize: "11px",
+                  color:
+                    copiado === rotulo ? "#166534" : "var(--gold-dark)",
+                  cursor: "pointer",
+                }}
+              >
+                {copiado === rotulo ? "✓ Copiado" : "Copiar"}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function getTituloConvite(invite, submissions, eventTypes) {
   let fonte = null;
   if (invite?.submission_id && submissions) {
     fonte = submissions.find((s) => s.id === invite.submission_id) || null;
+  }
+  // Convite AINDA por preencher mas apontado a um evento (onboarding):
+  // o nome vem do evento-alvo — senão o cartão fica "Casamento · CÓDIGO"
+  // e ninguém sabe de quem é o formulário.
+  if (!fonte && invite?.submission_alvo_id && submissions) {
+    fonte =
+      submissions.find((s) => s.id === invite.submission_alvo_id) || null;
   }
   if (!fonte) {
     fonte = {
@@ -566,6 +685,7 @@ export default function AdminPage() {
             eventTypes={eventTypes}
             onAbrirEvento={(ev) => setSelected(ev)}
             onNavegar={setActiveTab}
+            onDadosMudaram={fetchSubmissions}
           />
         )}
 
@@ -577,6 +697,7 @@ export default function AdminPage() {
           <ClientesLista
             eventTypes={eventTypes}
             onAbrirEvento={(ev) => setSelected(ev)}
+            onDadosMudaram={fetchSubmissions}
           />
         )}
 
@@ -763,6 +884,11 @@ export default function AdminPage() {
                               ? ` · ${eventoContexto.tipoNome}`
                               : ""}
                           </p>
+                          <DadosCaptacao
+                            submissao={submissions.find(
+                              (x) => x.id === newInvite.submissionAlvoId,
+                            )}
+                          />
                         </div>
                       )}
 
@@ -1017,6 +1143,7 @@ export default function AdminPage() {
             onSelectSubmission={(s) => setSelected(s)}
             onReservasChange={fetchReservas}
             onCriarQuestionario={handleCriarQuestionarioDeReserva}
+            onDadosMudaram={fetchSubmissions}
           />
         )}
 
@@ -1030,7 +1157,16 @@ export default function AdminPage() {
         {activeTab === "operacional" && (
           <OperacionalTab submissions={submissions} eventTypes={eventTypes} />
         )}
-        {activeTab === "orcamentos" && (
+        {/* Documentos fica SEMPRE montado (escondido quando não é o
+            separador ativo): o que a Nádia escreveu num orçamento/
+            contrato/projecto sobrevive a idas e voltas pela app.
+            O prop `ativo` desliga os estilos de impressão quando
+            escondido (senão um Ctrl+P noutro ecrã sairia em branco). */}
+        <div
+          style={{
+            display: activeTab === "orcamentos" ? "block" : "none",
+          }}
+        >
           <DocumentosTab
             key={
               documentoContexto
@@ -1039,8 +1175,21 @@ export default function AdminPage() {
             }
             contexto={documentoContexto}
             onLimpar={() => setDocumentoContexto(null)}
+            ativo={activeTab === "orcamentos"}
+            onDadosMudaram={fetchSubmissions}
+            onVoltarAoEvento={
+              documentoContexto?.submissionId
+                ? () => {
+                    const ev = submissions.find(
+                      (x) => x.id === documentoContexto.submissionId,
+                    );
+                    setActiveTab("clientes");
+                    if (ev) setSelected(ev);
+                  }
+                : null
+            }
           />
-        )}
+        </div>
       </div>
 
       </div>

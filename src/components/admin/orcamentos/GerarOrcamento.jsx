@@ -1,6 +1,7 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import logoUrl from "../../../assets/logo.png";
 import { uploadImagemReferencia } from "../../../lib/captacao";
+import { guardarValorAcordado } from "../../../lib/clientes";
 import {
   CATALOGO_SERVICOS,
   CONDICOES_ORCAMENTO,
@@ -41,7 +42,11 @@ const novaLinha = (base = {}) => ({
   ...base,
 });
 
-export default function GerarOrcamento({ prefill = null }) {
+export default function GerarOrcamento({
+  prefill = null,
+  ativo = true,
+  onDadosMudaram,
+}) {
   // Dados do cliente/evento — pré-preenchidos quando se chega de um
   // evento; senão, os defaults manuais de sempre.
   const [cliente, setCliente] = useState(prefill?.nomeCliente || "");
@@ -60,6 +65,9 @@ export default function GerarOrcamento({ prefill = null }) {
   // Entram no PDF como páginas de referências, a seguir ao orçamento.
   const [imagens, setImagens] = useState(prefill?.imagensReferencia || []);
   const [carregandoImg, setCarregandoImg] = useState(false);
+  // Guardar o total como valor acordado do evento (alimenta o funil)
+  const [aGuardarValor, setAGuardarValor] = useState(false);
+  const [valorGuardado, setValorGuardado] = useState(false);
   const inputImagens = useRef(null);
 
   const adicionarImagens = async (e) => {
@@ -96,6 +104,12 @@ export default function GerarOrcamento({ prefill = null }) {
       }, 0),
     [linhas],
   );
+
+  // Se o total mudar depois de guardado, volta a pedir para guardar
+  useEffect(() => {
+    setValorGuardado(false);
+  }, [total]);
+
 
   const atualizarLinha = (uid, campos) =>
     setLinhas((prev) =>
@@ -157,6 +171,7 @@ export default function GerarOrcamento({ prefill = null }) {
           browser (título + URL); as margens passam a ser o padding dos
           próprios "cartões-página". Cada imagem de referência é uma
           página inteira (.pagina-ref). */}
+      {ativo && (
       <style>{`
         @media print {
           body * { visibility: hidden; }
@@ -180,6 +195,7 @@ export default function GerarOrcamento({ prefill = null }) {
           @page { size: A4; margin: 0; }
         }
       `}</style>
+      )}
 
       <div
         className="no-print"
@@ -408,6 +424,43 @@ export default function GerarOrcamento({ prefill = null }) {
             >
               🖨 Imprimir / Guardar PDF
             </button>
+            {prefill?.submissionId && (
+              <button
+                onClick={async () => {
+                  setAGuardarValor(true);
+                  try {
+                    await guardarValorAcordado(prefill.submissionId, total);
+                    setValorGuardado(true);
+                    if (onDadosMudaram) onDadosMudaram();
+                  } catch (e) {
+                    console.error(e);
+                    alert("Não foi possível guardar o valor. Tenta novamente.");
+                  }
+                  setAGuardarValor(false);
+                }}
+                disabled={aGuardarValor || total <= 0}
+                style={{
+                  width: "100%",
+                  marginTop: "8px",
+                  padding: "10px",
+                  borderRadius: "10px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  border: valorGuardado
+                    ? "1.5px solid #16A34A"
+                    : "1.5px solid var(--gold)",
+                  backgroundColor: valorGuardado ? "#DCFCE7" : "white",
+                  color: valorGuardado ? "#166534" : "var(--gold-dark)",
+                  cursor: aGuardarValor ? "wait" : "pointer",
+                }}
+              >
+                {aGuardarValor
+                  ? "A guardar..."
+                  : valorGuardado
+                    ? "✓ Valor guardado no evento"
+                    : `💾 Guardar ${total}€ como valor acordado`}
+              </button>
+            )}
           </div>
         </div>
       </div>

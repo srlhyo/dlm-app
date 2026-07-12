@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { getResumoSubmissao } from "../../lib/submissionFields";
+import { FASES_POS_SINAL } from "./faseConfig";
 import CaptacaoForm from "../captacao/CaptacaoForm";
 
 // ============================================================
@@ -66,6 +67,7 @@ export default function InicioTab({
   eventTypes = [],
   onAbrirEvento,
   onNavegar,
+  onDadosMudaram,
 }) {
   const [novoInteressado, setNovoInteressado] = useState(false);
 
@@ -103,7 +105,7 @@ export default function InicioTab({
   const emConversa = vivos.filter((s) =>
     ["interessado", "orcamento"].includes(s.fase),
   ).length;
-  const aEsperaDoSinal = vivos.filter((s) => s.fase === "contrato").length;
+  const aEsperaDoSinal = vivos.filter((s) => s.fase === "sinal").length;
 
   // ---- "A precisar de ti" — as regras do dia a dia ----
   // Cada alerta: { chave, texto, evento } — clicar abre o drawer.
@@ -124,15 +126,40 @@ export default function InicioTab({
       }
     });
 
-  // b) Contrato entregue, sinal pendente
+  // b) Orçamento ACEITE, sinal por receber — o limbo perigoso:
+  // dinheiro prometido parado. Aparece sempre (sem mínimo de dias).
   vivos
-    .filter((s) => s.fase === "contrato")
+    .filter((s) => s.fase === "sinal")
     .forEach((s) => {
       alertas.push({
         chave: `sinal-${s.id}`,
-        texto: `${titulo(s)} · contrato entregue, sinal pendente`,
+        texto: `${titulo(s)} · aceitou o orçamento, sinal por receber`,
         evento: s,
         peso: 3,
+      });
+    });
+
+  // b2) PAGAMENTO FINAL (o pedido da Nádia): sinal de 50% recebido,
+  // mas o resto paga-se ATÉ 48H ANTES — alerta com o evento a ≤7
+  // dias sem pagamento_final; a ≤3 dias sobe para o topo com o prazo.
+  vivos
+    .filter(
+      (s) =>
+        FASES_POS_SINAL.includes(s.fase) &&
+        s.data_evento &&
+        !s.pagamento_final,
+    )
+    .forEach((s) => {
+      const dias = diasAte(s.data_evento);
+      if (dias === null || dias < 0 || dias > 7) return;
+      const urgente = dias <= 3;
+      alertas.push({
+        chave: `pag-${s.id}`,
+        texto: urgente
+          ? `${titulo(s)} · PRAZO: pagamento final até 48h antes — evento em ${dias === 0 ? "HOJE" : `${dias} dias`}`
+          : `${titulo(s)} · falta o pagamento final (até 48h antes do evento)`,
+        evento: s,
+        peso: urgente ? 6 : 4,
       });
     });
 
@@ -142,7 +169,7 @@ export default function InicioTab({
     invites.filter((i) => i.submission_id).map((i) => i.submission_id),
   );
   vivos
-    .filter((s) => s.fase === "cliente" && s.data_evento)
+    .filter((s) => FASES_POS_SINAL.includes(s.fase) && s.data_evento)
     .forEach((s) => {
       const dias = diasAte(s.data_evento);
       if (
@@ -624,6 +651,7 @@ export default function InicioTab({
               textoBotao="Criar interessado"
               onSubmetido={() => {
                 setNovoInteressado(false);
+                if (onDadosMudaram) onDadosMudaram();
                 if (onNavegar) onNavegar("clientes");
               }}
             />
