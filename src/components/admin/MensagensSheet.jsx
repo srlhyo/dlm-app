@@ -1,5 +1,22 @@
 import { useState, useEffect } from "react";
 import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  sortableKeyboardCoordinates,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   getMensagens,
   createMensagem,
   updateMensagem,
@@ -23,10 +40,93 @@ import {
 //   onFechar — fecha o painel (o drawer fica por baixo, intacto)
 // ============================================================
 
+// A pega ⠿ — copiada traço por traço do editor de modelos de evento,
+// para o gesto ser exatamente o mesmo em toda a app.
+function PegaArrastar({ attributes, listeners }) {
+  return (
+    <button
+      type="button"
+      {...attributes}
+      {...listeners}
+      title="Arrastar para reordenar"
+      style={{
+        cursor: "grab",
+        background: "none",
+        border: "none",
+        color: "var(--gray-mid)",
+        fontSize: "18px",
+        padding: "6px 4px",
+        flexShrink: 0,
+        touchAction: "none",
+        lineHeight: 1,
+      }}
+    >
+      ⠿
+    </button>
+  );
+}
+
+// O invólucro sortable de um cartão de mensagem: dá a pega ao filho
+// (render prop) e trata do fantasma/transições do dnd-kit.
+function MensagemArrastavel({ mensagem, children }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: mensagem.id });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+      }}
+    >
+      {children(
+        <PegaArrastar attributes={attributes} listeners={listeners} />,
+      )}
+    </div>
+  );
+}
+
 // O MIOLO (lista + copiar + editor) — partilhado entre a folha do
 // drawer e o separador Mensagens (biblioteca sem contexto de evento).
-export function MensagensConteudo({ dados }) {
+export function MensagensConteudo({ dados, reordenavel = false }) {
   const [mensagens, setMensagens] = useState([]);
+  // Reordenação por arrasto (só no separador Mensagens; a folha do
+  // drawer dispensa a pega — é um modal de copiar, não de gerir)
+  const [aArrastar, setAArrastar] = useState(null); // título do fantasma
+
+  const sensores = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  // Ao largar: reordena localmente e grava a ordem nova (1, 2, 3...)
+  const aoLargar = ({ active, over }) => {
+    setAArrastar(null);
+    if (!over || active.id === over.id) return;
+    setMensagens((prev) => {
+      const de = prev.findIndex((m) => m.id === active.id);
+      const para = prev.findIndex((m) => m.id === over.id);
+      if (de === -1 || para === -1) return prev;
+      const novas = arrayMove(prev, de, para);
+      // Persistir em fundo — a ordem local já está certa; se falhar,
+      // o refresh repõe a verdade da base de dados.
+      Promise.all(
+        novas.map((m, i) =>
+          m.ordem === i + 1 ? null : updateMensagem(m.id, { ordem: i + 1 }),
+        ),
+      ).catch((e) => console.error("Falha a gravar a ordem:", e));
+      return novas.map((m, i) => ({ ...m, ordem: i + 1 }));
+    });
+  };
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(null);
   const [copiadoId, setCopiadoId] = useState(null);
@@ -93,21 +193,10 @@ export function MensagensConteudo({ dados }) {
     }
   };
 
-  return (
-    <div>
-        {carregando && (
-          <p style={{ fontSize: "13px", color: "var(--gray-mid)" }}>
-            A carregar mensagens...
-          </p>
-        )}
-        {erro && <p style={{ fontSize: "13px", color: "#DC2626" }}>{erro}</p>}
-
-        {/* Lista de mensagens resolvidas */}
-        {!carregando &&
-          !erro &&
-          mensagens.map((m) => (
-            <div
-              key={m.id}
+  // O cartão de uma mensagem (partilhado entre a lista normal e a
+  // reordenável — a `pega` só existe quando reordenavel)
+  const renderCartao = (m, pega) => (
+    <div
               style={{
                 border: "1px solid #F0E6D0",
                 backgroundColor: "#FBF7EF",
@@ -125,8 +214,10 @@ export function MensagensConteudo({ dados }) {
                   marginBottom: "6px",
                 }}
               >
+                {pega}
                 <p
                   style={{
+                    flex: 1,
                     fontSize: "11px",
                     fontWeight: "700",
                     color: "var(--gold-dark)",
@@ -225,10 +316,12 @@ export function MensagensConteudo({ dados }) {
                 )}
               </div>
             </div>
-          ))}
+  );
 
-        {/* Editor (nova ou existente) */}
-        {editando ? (
+  // O editor — abre NO LUGAR do cartão clicado (edição no sítio,
+  // zero scroll); para mensagem nova, abre em baixo, onde o botão está.
+  const renderEditor = () => (
+
           <div
             style={{
               border: "1.5px solid var(--gold-light)",
@@ -315,6 +408,90 @@ export function MensagensConteudo({ dados }) {
               </button>
             </div>
           </div>
+  );
+
+  return (
+    <div>
+        {carregando && (
+          <p style={{ fontSize: "13px", color: "var(--gray-mid)" }}>
+            A carregar mensagens...
+          </p>
+        )}
+        {erro && <p style={{ fontSize: "13px", color: "#DC2626" }}>{erro}</p>}
+
+        {/* Lista de mensagens resolvidas */}
+        {!carregando &&
+          !erro &&
+          (reordenavel ? (
+            <DndContext
+              sensors={sensores}
+              collisionDetection={closestCenter}
+              onDragStart={({ active }) => {
+                const m = mensagens.find((x) => x.id === active.id);
+                setAArrastar(m?.titulo || "Mensagem");
+              }}
+              onDragEnd={aoLargar}
+              onDragCancel={() => setAArrastar(null)}
+            >
+              <p
+                style={{
+                  fontSize: "11px",
+                  color: "var(--gray-mid)",
+                  margin: "0 0 10px 0",
+                }}
+              >
+                ⠿ Arrasta pela pega para reordenar as mensagens.
+              </p>
+              <SortableContext
+                items={mensagens
+                  .filter((m) => m.id !== editando?.id)
+                  .map((m) => m.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {mensagens.map((m) =>
+                  editando?.id === m.id ? (
+                    <div key={m.id}>{renderEditor()}</div>
+                  ) : (
+                    <MensagemArrastavel key={m.id} mensagem={m}>
+                      {(pega) => renderCartao(m, pega)}
+                    </MensagemArrastavel>
+                  ),
+                )}
+              </SortableContext>
+              <DragOverlay>
+                {aArrastar ? (
+                  <div
+                    style={{
+                      backgroundColor: "white",
+                      borderRadius: "12px",
+                      padding: "14px 18px",
+                      boxShadow: "0 10px 32px rgba(0,0,0,0.2)",
+                      border: "1.5px solid var(--gold)",
+                      fontSize: "13px",
+                      fontWeight: "600",
+                      color: "var(--charcoal)",
+                      fontFamily: "Inter, sans-serif",
+                    }}
+                  >
+                    ⠿ {aArrastar}
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+          ) : (
+            mensagens.map((m) =>
+              editando?.id === m.id ? (
+                <div key={m.id}>{renderEditor()}</div>
+              ) : (
+                <div key={m.id}>{renderCartao(m, null)}</div>
+              ),
+            )
+          ))}
+
+        {/* Em baixo: o editor de NOVA mensagem, ou o botão para a criar.
+            (A edição de existentes abre no lugar do cartão, lá em cima.) */}
+        {editando && !editando.id ? (
+          renderEditor()
         ) : (
           !carregando && (
             <button

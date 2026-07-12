@@ -38,13 +38,13 @@ export default function MensagensTab() {
           maxWidth: "560px",
         }}
       >
-        Os teus textos prontos para o Instagram. Aqui os campos automáticos
-        aparecem como <strong>___</strong> — abre as mensagens a partir de um
-        evento (💬 no cartão do cliente) para os veres preenchidos com o nome, a
-        data e os valores certos.
+        Os teus textos prontos para o Instagram. Aqui os campos
+        automáticos aparecem como <strong>___</strong> — abre as
+        mensagens a partir de um evento (💬 no cartão do cliente) para
+        os veres preenchidos com o nome, a data e os valores certos.
       </p>
       <div style={{ maxWidth: "560px" }}>
-        <MensagensConteudo dados={null} />
+        <MensagensConteudo dados={null} reordenavel />
       </div>
     </motion.div>
   );
