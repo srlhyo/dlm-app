@@ -1224,6 +1224,8 @@ export default function AdminPage() {
         }}
         onGerarDocumento={handleGerarDocumento}
         onFormulario={handleFormularioDoEvento}
+        invites={invites}
+        onNavegar={setActiveTab}
       />
 
       {/* Modal de partilha */}

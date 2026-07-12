@@ -22,6 +22,7 @@ import {
   updateMensagem,
   removerMensagem,
   resolverMensagem,
+  linkWhatsApp,
 } from "../../lib/mensagens";
 
 // ============================================================
@@ -95,7 +96,11 @@ function MensagemArrastavel({ mensagem, children }) {
 
 // O MIOLO (lista + copiar + editor) — partilhado entre a folha do
 // drawer e o separador Mensagens (biblioteca sem contexto de evento).
-export function MensagensConteudo({ dados, reordenavel = false }) {
+export function MensagensConteudo({
+  dados,
+  reordenavel = false,
+  whatsapp = null,
+}) {
   const [mensagens, setMensagens] = useState([]);
   // Reordenação por arrasto (só no separador Mensagens; a folha do
   // drawer dispensa a pega — é um modal de copiar, não de gerir)
@@ -249,6 +254,33 @@ export function MensagensConteudo({ dados, reordenavel = false }) {
                 >
                   {copiadoId === m.id ? "Copiado ✓" : "Copiar"}
                 </button>
+                {linkWhatsApp(whatsapp) && (
+                  <button
+                    onClick={() =>
+                      window.open(
+                        linkWhatsApp(
+                          whatsapp,
+                          resolverMensagem(m.corpo, dados),
+                        ),
+                        "_blank",
+                      )
+                    }
+                    title="Abrir no WhatsApp com esta mensagem"
+                    style={{
+                      flexShrink: 0,
+                      padding: "5px 14px",
+                      borderRadius: "999px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      border: "1.5px solid #BBF7D0",
+                      backgroundColor: "#F0FDF4",
+                      color: "#166534",
+                      cursor: "pointer",
+                    }}
+                  >
+                    💬 WhatsApp
+                  </button>
+                )}
               </div>
 
               {/* Texto resolvido — tocar abre a edição (com placeholders crus) */}
@@ -517,7 +549,11 @@ export function MensagensConteudo({ dados, reordenavel = false }) {
 
 // A folha que abre do drawer de um evento (💬): overlay + cabeçalho
 // com o nome do cliente + o miolo partilhado.
-export default function MensagensSheet({ dados, onFechar }) {
+export default function MensagensSheet({
+  dados,
+  whatsapp = null,
+  onFechar,
+}) {
   return (
     <div
       onClick={onFechar}
@@ -589,7 +625,7 @@ export default function MensagensSheet({ dados, onFechar }) {
           Já preenchidas com os dados deste evento — toca em Copiar e cola
           no Instagram.
         </p>
-        <MensagensConteudo dados={dados} />
+        <MensagensConteudo dados={dados} whatsapp={whatsapp} />
       </div>
     </div>
   );

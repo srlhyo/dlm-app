@@ -3,7 +3,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../lib/supabase";
 import { getValorAtual, getResumoSubmissao } from "../../lib/submissionFields";
 import { marcarPagamentoFinal } from "../../lib/clientes";
+import { FASES_POS_SINAL } from "./faseConfig";
+import { formatarEuros } from "./orcamentos/orcamentoConfig";
 import SeletorPaleta, { AmostraPaleta } from "./SeletorPaleta";
+import MensagensSheet from "./MensagensSheet";
+import { linkWhatsApp } from "../../lib/mensagens";
 
 // ============================================================
 // SubmissionDrawer — painel lateral de detalhes de um evento.
@@ -111,8 +115,11 @@ export default function SubmissionDrawer({
   onSaved,
   onGerarDocumento,
   onFormulario,
+  invites = [],
+  onNavegar,
 }) {
   const [aMarcarPagamento, setAMarcarPagamento] = useState(false);
+  const [folhaMensagens, setFolhaMensagens] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState({});
   const [saving, setSaving] = useState(false);
@@ -122,6 +129,21 @@ export default function SubmissionDrawer({
   const tipo = eventTypes?.find((et) => et.id === selected.event_type_id);
   const seccoes = seccoesDoModelo(tipo);
   const resumo = getResumoSubmissao(selected, eventTypes);
+
+  // O WhatsApp do evento (captação) — a última milha das mensagens:
+  // escolher a mensagem-tipo → abre a conversa certa com o texto pronto.
+  const numeroWhatsapp =
+    getValorAtual(selected, "numeroWhatsapp") ||
+    getValorAtual(selected, "contactoPrincipal") ||
+    null;
+  const dadosMensagens = {
+    nomeCliente: resumo.titulo,
+    tipoEvento:
+      (eventTypes?.find((et) => et.id === selected.event_type_id) || {})
+        .nome || "",
+    dataEvento: selected.data_evento || resumo.data || "",
+    valor: selected.valor_acordado,
+  };
 
   const formatData = (d) => {
     if (!d) return "Sem data";
@@ -303,6 +325,26 @@ export default function SubmissionDrawer({
               </div>
             </div>
 
+            {/* ===== A JORNADA — a linha de vida do evento ===== */}
+            <Jornada
+              submissao={selected}
+              invites={invites}
+              onEtapa={(id) => {
+                if (id === "orcamento")
+                  onGerarDocumento && onGerarDocumento(selected, "orcamento");
+                else if (id === "projecto")
+                  onGerarDocumento && onGerarDocumento(selected, "proposta");
+                else if (id === "contrato")
+                  onGerarDocumento && onGerarDocumento(selected, "contrato");
+                else if (id === "formulario")
+                  onFormulario && onFormulario(selected);
+                else if (id === "preparacao" && onNavegar) {
+                  onClose();
+                  onNavegar("operacional");
+                }
+              }}
+            />
+
             {/* Ações do evento: briefing em largura total (destaque) +
                 grelha 2×2 de formulário e documentos (outline) */}
             <div
@@ -362,8 +404,41 @@ export default function SubmissionDrawer({
               >
                 📃 Contrato
               </button>
+              <button
+                onClick={() => setFolhaMensagens(true)}
+                title={
+                  linkWhatsApp(numeroWhatsapp)
+                    ? "Escolher uma mensagem e abrir no WhatsApp"
+                    : "Mensagens-tipo (sem número de WhatsApp neste evento — só copiar)"
+                }
+                style={{
+                  gridColumn: "1 / -1",
+                  padding: "9px 8px",
+                  borderRadius: "10px",
+                  fontSize: "12px",
+                  fontWeight: "500",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  backgroundColor: "#F0FDF4",
+                  color: "#166534",
+                  border: "1.5px solid #BBF7D0",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                💬 Enviar por WhatsApp
+              </button>
             </div>
           </div>
+
+          {/* Folha de mensagens do evento — cada mensagem com Copiar e,
+              havendo número, o botão que abre a conversa já escrita */}
+          {folhaMensagens && (
+            <MensagensSheet
+              dados={dadosMensagens}
+              whatsapp={numeroWhatsapp}
+              onFechar={() => setFolhaMensagens(false)}
+            />
+          )}
 
           {/* Estado do evento */}
           <div style={{ marginBottom: "28px" }}>
@@ -790,6 +865,272 @@ function CampoEdicao({ campo, valor, onChange }) {
         onChange={(e) => onChange(e.target.value)}
         style={inputStyle}
       />
+    </div>
+  );
+}
+
+// ============================================================
+// A JORNADA — a linha de vida do evento, do primeiro "olá" ao
+// grande dia. Oito etapas derivadas da fase comercial, do estado
+// operacional e dos formulários — zero queries novas.
+// Três estados: feito (dourado, ✓) · atual (anel dourado) ·
+// futuro (cinza). O Formulário é independente da ordem (acende
+// quando o cliente responde, seja quando for): ✓ preenchido,
+// ◐ criado por preencher, ○ nem criado.
+// ============================================================
+const FASE_ORDEM_JORNADA = [
+  "interessado",
+  "orcamento",
+  "sinal",
+  "cliente",
+  "projecto",
+  "contrato",
+];
+
+function Jornada({ submissao, invites = [], onEtapa }) {
+  const s = submissao;
+  if (!s) return null;
+
+  // Percurso terminado — sem jornada, só a lápide discreta
+  if (s.fase === "perdido") {
+    return (
+      <div
+        style={{
+          backgroundColor: "#F9FAFB",
+          border: "1px solid #E5E7EB",
+          borderRadius: "12px",
+          padding: "10px 14px",
+          marginBottom: "14px",
+          fontSize: "12px",
+          color: "var(--gray-mid)",
+        }}
+      >
+        Percurso terminado (perdido) — pode ser recuperado no funil.
+      </div>
+    );
+  }
+
+  const idxFase = FASE_ORDEM_JORNADA.indexOf(s.fase);
+  const posSinal = FASES_POS_SINAL.includes(s.fase);
+  const valor = Number(s.valor_acordado) || 0;
+  const concluido = s.status === "Concluído";
+  const emPreparacao =
+    ["Em Preparação", "Confirmado"].includes(s.status) || concluido;
+
+  // Formulário: ✓ preenchido · ◐ criado por preencher · ○ nem criado
+  const invitesDoEvento = (invites || []).filter(
+    (i) => i.submission_id === s.id || i.submission_alvo_id === s.id,
+  );
+  const formularioFeito = invitesDoEvento.some((i) => i.submission_id);
+  const formularioAMeio = !formularioFeito && invitesDoEvento.length > 0;
+
+  const dataCurta = (d) =>
+    d
+      ? new Date(d).toLocaleDateString("pt-PT", {
+          day: "numeric",
+          month: "short",
+        })
+      : null;
+
+  const etapas = [
+    {
+      id: "interessado",
+      rotulo: "Interessada",
+      feito: true,
+      sub: dataCurta(s.created_at),
+    },
+    {
+      id: "orcamento",
+      rotulo: "Orçamento",
+      feito: idxFase >= 1,
+      sub: valor > 0 ? formatarEuros(valor) : null,
+      clicavel: true,
+    },
+    {
+      id: "sinal",
+      rotulo: "Sinal",
+      feito: posSinal,
+      sub:
+        !posSinal && s.fase === "sinal" && valor > 0
+          ? `${formatarEuros(valor / 2)} por receber`
+          : posSinal && valor > 0
+            ? formatarEuros(valor / 2)
+            : null,
+    },
+    {
+      id: "formulario",
+      rotulo: "Formulário",
+      feito: formularioFeito,
+      aMeio: formularioAMeio,
+      clicavel: true,
+    },
+    {
+      id: "projecto",
+      rotulo: "Projecto",
+      feito: idxFase >= 4,
+      clicavel: true,
+    },
+    {
+      id: "contrato",
+      rotulo: "Contrato",
+      feito: idxFase >= 5,
+      clicavel: true,
+    },
+    {
+      id: "preparacao",
+      rotulo: "Preparação",
+      feito: emPreparacao,
+      clicavel: true,
+    },
+    {
+      id: "grandeDia",
+      rotulo: "O grande dia",
+      feito: concluido,
+      emoji: "🥂",
+      sub: dataCurta(s.data_evento),
+    },
+  ];
+
+  // A etapa ATUAL: a primeira por fazer na cadeia (o Formulário fica
+  // de fora — é independente da ordem)
+  const atual = etapas.find((e) => e.id !== "formulario" && !e.feito);
+
+  // A frase "→ A seguir" — a app a apontar o próximo gesto
+  const proximoGesto = (() => {
+    if (!atual) return null;
+    if (atual.id === "orcamento") return "enviar o orçamento";
+    if (atual.id === "sinal")
+      return valor > 0
+        ? `registar o sinal (${formatarEuros(valor / 2)})`
+        : "registar o sinal";
+    if (atual.id === "projecto") return "criar o projecto";
+    if (atual.id === "contrato") return "preparar o contrato";
+    if (atual.id === "preparacao") return "preparar o evento (Logística)";
+    if (atual.id === "grandeDia") return "está tudo pronto — falta o grande dia 🥂";
+    return null;
+  })();
+
+  return (
+    <div
+      style={{
+        backgroundColor: "#FBF7EF",
+        border: "1px solid var(--gold-light)",
+        borderRadius: "12px",
+        padding: "14px 10px 10px",
+        marginBottom: "14px",
+      }}
+    >
+      <p
+        style={{
+          fontSize: "9px",
+          fontWeight: "700",
+          letterSpacing: "0.14em",
+          textTransform: "uppercase",
+          color: "var(--gold-dark)",
+          margin: "0 4px 12px",
+        }}
+      >
+        A Jornada
+      </p>
+      <div style={{ display: "flex", alignItems: "flex-start" }}>
+        {etapas.map((e, i) => {
+          const ehAtual = atual && atual.id === e.id;
+          const corBola = e.feito
+            ? "var(--gold)"
+            : e.aMeio
+              ? "#EAD9AC"
+              : "#F1EBDD";
+          return (
+            <div
+              key={e.id}
+              onClick={e.clicavel && onEtapa ? () => onEtapa(e.id) : undefined}
+              title={e.clicavel ? "Abrir" : undefined}
+              style={{
+                flex: 1,
+                textAlign: "center",
+                position: "relative",
+                cursor: e.clicavel ? "pointer" : "default",
+                minWidth: 0,
+              }}
+            >
+              {i < etapas.length - 1 && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "10px",
+                    left: "50%",
+                    right: "-50%",
+                    height: "2px",
+                    backgroundColor: e.feito ? "var(--gold)" : "#E5DCC3",
+                  }}
+                />
+              )}
+              <div
+                style={{
+                  position: "relative",
+                  width: ehAtual ? "24px" : "21px",
+                  height: ehAtual ? "24px" : "21px",
+                  borderRadius: "50%",
+                  backgroundColor: ehAtual ? "white" : corBola,
+                  border: ehAtual ? "2.5px solid var(--gold)" : "none",
+                  boxShadow: ehAtual
+                    ? "0 0 0 4px rgba(201,168,76,0.22)"
+                    : "none",
+                  margin: `${ehAtual ? "-1px" : "0"} auto 5px`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: e.emoji ? "11px" : "10px",
+                  color: e.feito ? "white" : "var(--gray-mid)",
+                  fontWeight: "700",
+                }}
+              >
+                {e.emoji ? e.emoji : e.feito ? "✓" : ehAtual ? "●" : "○"}
+              </div>
+              <p
+                style={{
+                  fontSize: "9px",
+                  fontWeight: e.feito || ehAtual ? "600" : "400",
+                  color: ehAtual
+                    ? "var(--gold-dark)"
+                    : e.feito
+                      ? "var(--charcoal)"
+                      : "var(--gray-mid)",
+                  margin: 0,
+                  lineHeight: 1.25,
+                }}
+              >
+                {e.rotulo}
+              </p>
+              {e.sub && (
+                <p
+                  style={{
+                    fontSize: "8.5px",
+                    color: ehAtual ? "#B45309" : "var(--gray-mid)",
+                    fontWeight: ehAtual ? "600" : "400",
+                    margin: 0,
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {e.sub}
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {proximoGesto && (
+        <p
+          style={{
+            fontSize: "11px",
+            fontStyle: "italic",
+            color: "var(--gold-dark)",
+            margin: "10px 4px 0",
+          }}
+        >
+          → A seguir: {proximoGesto}
+        </p>
+      )}
     </div>
   );
 }

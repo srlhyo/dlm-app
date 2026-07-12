@@ -37,12 +37,7 @@ export const createMensagem = async ({ titulo, corpo }) => {
   const { data, error } = await supabase
     .from("mensagens_tipo")
     .insert([
-      {
-        chave,
-        titulo: titulo.trim(),
-        corpo: corpo.trim(),
-        ordem: proximaOrdem,
-      },
+      { chave, titulo: titulo.trim(), corpo: corpo.trim(), ordem: proximaOrdem },
     ])
     .select()
     .single();
@@ -70,8 +65,7 @@ export const updateMensagem = async (id, campos) => {
 };
 
 // Remover = desativar (soft-delete, padrão da casa) — reversível na BD.
-export const removerMensagem = async (id) =>
-  updateMensagem(id, { ativo: false });
+export const removerMensagem = async (id) => updateMensagem(id, { ativo: false });
 
 // ---- Resolução de placeholders ----
 
@@ -96,10 +90,7 @@ const euros = (v) => {
 // falta preencher à mão antes de enviar.
 export const resolverMensagem = (corpo, dados = null) => {
   const valorNum =
-    dados &&
-    dados.valor !== "" &&
-    dados.valor !== null &&
-    dados.valor !== undefined
+    dados && dados.valor !== "" && dados.valor !== null && dados.valor !== undefined
       ? Number(dados.valor)
       : null;
   const temValor = valorNum !== null && Number.isFinite(valorNum);
@@ -116,4 +107,19 @@ export const resolverMensagem = (corpo, dados = null) => {
     (texto, [chave, valor]) => texto.split(chave).join(valor),
     corpo,
   );
+};
+
+// ============================================================
+// linkWhatsApp — constrói o link wa.me com a mensagem pronta.
+// Normalização: só dígitos; "00" inicial cai; 9 dígitos = número
+// português → ganha o 351. Com indicativo já lá (>9 dígitos),
+// respeita-se. Menos de 9 dígitos: não há link (devolve null).
+// ============================================================
+export const linkWhatsApp = (numero, texto = "") => {
+  let d = String(numero || "").replace(/\D/g, "");
+  if (d.startsWith("00")) d = d.slice(2);
+  if (d.length === 9) d = `351${d}`;
+  if (d.length < 9) return null;
+  const query = texto ? `?text=${encodeURIComponent(texto)}` : "";
+  return `https://wa.me/${d}${query}`;
 };
