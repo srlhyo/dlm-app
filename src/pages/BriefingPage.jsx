@@ -1,7 +1,22 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { normalizeSubmission } from "../lib/submissionFields";
+import {
+  normalizeSubmission,
+  getValorAtual,
+  getResumoSubmissao,
+} from "../lib/submissionFields";
+
+// ============================================================
+// BriefingPage — o resumo imprimível de UM evento.
+//
+// GENÉRICO desde a reescrita: as secções vêm dos PASSOS do modelo
+// do evento e os campos das respostas (via getValorAtual — dupla
+// fonte: colunas fixas + JSONB). Funciona para qualquer modelo,
+// presente ou futuro. Campos vazios não aparecem; secções sem
+// nenhum campo preenchido também não. O antigo lia colunas fixas
+// do casamento original — por isso os outros tipos saíam vazios.
+// ============================================================
 
 /* ===== Ícones SVG dourados (linha fina) ===== */
 function IconCal() {
@@ -79,6 +94,19 @@ function IconPrint() {
   );
 }
 
+// Um valor de resposta vira texto imprimível (arrays, paletas, sim/não)
+function paraTexto(valor) {
+  if (valor === null || valor === undefined) return "";
+  if (Array.isArray(valor)) {
+    return valor
+      .map((v) => (v && typeof v === "object" && v.nome ? v.nome : String(v)))
+      .filter((t) => t && t.trim() !== "")
+      .join(", ");
+  }
+  if (typeof valor === "boolean") return valor ? "Sim" : "Não";
+  return String(valor);
+}
+
 function Section({ title, children }) {
   return (
     <div style={{ marginBottom: "28px", breakInside: "avoid" }}>
@@ -120,47 +148,16 @@ function Section({ title, children }) {
   );
 }
 
-function Field({ label, value }) {
-  if (!value && value !== 0) return null;
-  const display = Array.isArray(value) ? value.join(", ") : String(value);
-  if (!display || display === "") return null;
-  return (
-    <div style={{ borderBottom: "1px solid #F5ECD7", paddingBottom: "8px" }}>
-      <p
-        style={{
-          fontSize: "9px",
-          color: "#6B7280",
-          textTransform: "uppercase",
-          letterSpacing: "0.08em",
-          margin: "0 0 2px 0",
-        }}
-      >
-        {label}
-      </p>
-      <p
-        style={{
-          fontSize: "12px",
-          color: "#1A1A1A",
-          margin: 0,
-          lineHeight: "1.5",
-        }}
-      >
-        {display}
-      </p>
-    </div>
-  );
-}
-
-function FieldFull({ label, value }) {
-  if (!value && value !== 0) return null;
-  const display = Array.isArray(value) ? value.join(", ") : String(value);
-  if (!display || display === "") return null;
+// Um campo do briefing. `largo` ocupa a linha inteira (textos longos).
+function Field({ label, value, largo = false }) {
+  const display = paraTexto(value);
+  if (!display) return null;
   return (
     <div
       style={{
         borderBottom: "1px solid #F5ECD7",
         paddingBottom: "8px",
-        gridColumn: "1 / -1",
+        ...(largo ? { gridColumn: "1 / -1" } : {}),
       }}
     >
       <p
@@ -188,9 +185,24 @@ function FieldFull({ label, value }) {
   );
 }
 
+// Campos "largos" no papel: textos longos e listas ficam a toda a largura
+const TIPOS_LARGOS = ["textarea", "checkbox", "paleta"];
+
+// A secção da captação — as chaves canónicas que podem não estar no
+// modelo (a primeira conversa com o cliente também é briefing)
+const CAMPOS_CAPTACAO = [
+  ["contactoPrincipal", "Contacto Principal", false],
+  ["numeroWhatsapp", "WhatsApp", false],
+  ["tipoLocal", "Espaço", false],
+  ["servicos", "Serviços Pedidos", true],
+  ["servicosBalcao", "Opção de Balcão", false],
+  ["mensagemInicial", "Notas da Primeira Conversa", true],
+];
+
 export default function BriefingPage() {
   const { id } = useParams();
   const [submission, setSubmission] = useState(null);
+  const [tipoEvento, setTipoEvento] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -200,7 +212,17 @@ export default function BriefingPage() {
         .select("*")
         .eq("id", id)
         .single();
-      setSubmission(normalizeSubmission(data));
+      const sub = normalizeSubmission(data);
+      setSubmission(sub);
+      // O modelo do evento — é dele que nascem as secções
+      if (sub?.event_type_id) {
+        const { data: tipo } = await supabase
+          .from("event_types")
+          .select("*")
+          .eq("id", sub.event_type_id)
+          .single();
+        setTipoEvento(tipo || null);
+      }
       setLoading(false);
     };
     fetch();
@@ -249,6 +271,49 @@ export default function BriefingPage() {
         </p>
       </div>
     );
+
+  // Título pela cadeia canónica (nomeNoivo & nomeNoiva → nomeDoCliente
+  // → ... → tipo) — a mesma da app inteira. Adeus "&" órfão.
+  const resumo = getResumoSubmissao(
+    submission,
+    tipoEvento ? [tipoEvento] : [],
+  );
+
+  const localEvento = getValorAtual(submission, "localEvento");
+  const convidados = getValorAtual(submission, "numeroConvidados");
+
+  // As secções do MODELO: cada passo com pelo menos um campo respondido
+  const seccoesModelo = (tipoEvento?.steps || [])
+    .map((step) => {
+      const campos = (step.fields || [])
+        .map((f) => ({
+          label: f.label,
+          valor: getValorAtual(submission, f.id),
+          largo: TIPOS_LARGOS.includes(f.type),
+        }))
+        .filter((c) => paraTexto(c.valor) !== "");
+      return { titulo: step.title, campos };
+    })
+    .filter((s) => s.campos.length > 0);
+
+  // A secção da captação (só chaves não cobertas pelo modelo)
+  const idsDoModelo = new Set(
+    (tipoEvento?.steps || []).flatMap((s) =>
+      (s.fields || []).map((f) => f.id),
+    ),
+  );
+  const camposCaptacao = CAMPOS_CAPTACAO.filter(
+    ([id_]) => !idsDoModelo.has(id_),
+  )
+    .map(([id_, label, largo]) => ({
+      label,
+      valor: getValorAtual(submission, id_),
+      largo,
+    }))
+    .filter((c) => paraTexto(c.valor) !== "");
+
+  const nadaPreenchido =
+    seccoesModelo.length === 0 && camposCaptacao.length === 0;
 
   return (
     <>
@@ -320,7 +385,7 @@ export default function BriefingPage() {
           <IconPrint /> Imprimir / Guardar PDF
         </button>
         <p className="briefing-hint">
-          Para guardar como PDf, escolhe “Guardar como PDF” no destino da
+          Para guardar como PDF, escolhe “Guardar como PDF” no destino da
           impressão.
         </p>
       </div>
@@ -395,7 +460,7 @@ export default function BriefingPage() {
             </div>
           </div>
 
-          {/* Nome dos noivos */}
+          {/* Nome + dados principais */}
           <div
             className="briefing-names"
             style={{
@@ -411,7 +476,7 @@ export default function BriefingPage() {
                 margin: "0 0 10px 0",
               }}
             >
-              {submission.nome_noivo} & {submission.nome_noiva}
+              {resumo.titulo}
             </h2>
             <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
               <p
@@ -426,7 +491,7 @@ export default function BriefingPage() {
               >
                 <IconCal /> {formatDate(submission.data_evento)}
               </p>
-              {submission.local_evento && (
+              {localEvento && (
                 <p
                   style={{
                     fontSize: "13px",
@@ -437,10 +502,10 @@ export default function BriefingPage() {
                     gap: "6px",
                   }}
                 >
-                  <IconPin /> {submission.local_evento}
+                  <IconPin /> {paraTexto(localEvento)}
                 </p>
               )}
-              {submission.numero_convidados && (
+              {convidados && (
                 <p
                   style={{
                     fontSize: "13px",
@@ -451,12 +516,36 @@ export default function BriefingPage() {
                     gap: "6px",
                   }}
                 >
-                  <IconGuests /> {submission.numero_convidados} convidados
+                  <IconGuests /> {paraTexto(convidados)} convidados
                 </p>
               )}
             </div>
 
-            <div style={{ marginTop: "12px" }}>
+            <div
+              style={{
+                marginTop: "12px",
+                display: "flex",
+                gap: "8px",
+                flexWrap: "wrap",
+              }}
+            >
+              {tipoEvento?.nome && (
+                <span
+                  style={{
+                    fontSize: "11px",
+                    padding: "4px 12px",
+                    borderRadius: "999px",
+                    backgroundColor: "#FEF9EC",
+                    color: "#C9A84C",
+                    border: "1px solid #E8D5A3",
+                    fontWeight: "500",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  {tipoEvento.nome}
+                </span>
+              )}
               <span
                 style={{
                   fontSize: "11px",
@@ -473,153 +562,48 @@ export default function BriefingPage() {
             </div>
           </div>
 
-          {/* Conteúdo */}
+          {/* Conteúdo — as secções do MODELO + a captação */}
           <div className="briefing-body" style={{ padding: "28px 40px" }}>
-            <Section title="Horários">
-              <Field label="Hora de Início" value={submission.hora_inicio} />
-              <Field label="Hora de Término" value={submission.hora_termino} />
-              <Field
-                label="Hora de Montagem"
-                value={submission.hora_montagem}
-              />
-              <Field
-                label="Hora Limite de Montagem"
-                value={submission.hora_limite_montagem}
-              />
-              <Field label="Hora de Recolha" value={submission.hora_recolha} />
-              <Field
-                label="Recolha no Dia Seguinte"
-                value={submission.recolha_dia_seguinte}
-              />
-            </Section>
+            {camposCaptacao.length > 0 && (
+              <Section title="Contactos & Primeira Conversa">
+                {camposCaptacao.map((c) => (
+                  <Field
+                    key={c.label}
+                    label={c.label}
+                    value={c.valor}
+                    largo={c.largo}
+                  />
+                ))}
+              </Section>
+            )}
 
-            <Section title="Contactos">
-              <Field
-                label="Contacto Principal"
-                value={submission.contacto_principal}
-              />
-              <Field label="Email" value={submission.email} />
-              <Field
-                label="Responsável no Dia"
-                value={submission.nome_responsavel}
-              />
-              <Field
-                label="Contacto do Responsável"
-                value={submission.contacto_responsavel}
-              />
-              <Field
-                label="Relação com os Noivos"
-                value={submission.relacao_responsavel}
-              />
-            </Section>
+            {seccoesModelo.map((sec) => (
+              <Section key={sec.titulo} title={sec.titulo}>
+                {sec.campos.map((c) => (
+                  <Field
+                    key={c.label}
+                    label={c.label}
+                    value={c.valor}
+                    largo={c.largo}
+                  />
+                ))}
+              </Section>
+            ))}
 
-            <Section title="Estilo e Cores">
-              <FieldFull
-                label="Estilo do Evento"
-                value={submission.estilo_evento}
-              />
-              <FieldFull
-                label="Paleta de Cores"
-                value={submission.paleta_cores}
-              />
-              <FieldFull
-                label="Observações da Paleta"
-                value={submission.paleta_observacoes}
-              />
-              <Field label="Outro Estilo" value={submission.estilo_outro} />
-            </Section>
-
-            <Section title="Mesa dos Noivos">
-              <FieldFull label="Opções" value={submission.mesa_noivos} />
-              <Field
-                label="Cartões nos Pratos"
-                value={submission.cartoes_pratos}
-              />
-              <FieldFull
-                label="Observações dos Cartões"
-                value={submission.observacoes_cartoes}
-              />
-              <FieldFull
-                label="Descrição"
-                value={submission.descricao_mesa_noivos}
-              />
-            </Section>
-
-            <Section title="Cenário de Palco">
-              <FieldFull label="Opções" value={submission.cenario_palco} />
-              <FieldFull
-                label="Descrição"
-                value={submission.descricao_cenario}
-              />
-              <FieldFull
-                label="Medidas / Limitações"
-                value={submission.medidas_espaco}
-              />
-            </Section>
-
-            <Section title="Mesas dos Convidados">
-              <FieldFull
-                label="Centros de Mesa"
-                value={submission.centros_mesa}
-              />
-              <FieldFull
-                label="Tipo de Flores"
-                value={submission.tipo_flores}
-              />
-              <Field label="Nº de Mesas" value={submission.numero_mesas} />
-              <Field
-                label="Formato das Mesas"
-                value={submission.formato_mesas}
-              />
-              <Field
-                label="Lugares por Mesa"
-                value={submission.lugares_por_mesa}
-              />
-              <FieldFull
-                label="Observações"
-                value={submission.observacoes_mesas}
-              />
-            </Section>
-
-            <Section title="Placa de Boas-Vindas">
-              <FieldFull
-                label="Texto Principal"
-                value={submission.texto_principal_placa}
-              />
-              <FieldFull
-                label="Texto Secundário"
-                value={submission.texto_secundario_placa}
-              />
-              <FieldFull
-                label="Estilo da Placa"
-                value={submission.estilo_placa}
-              />
-              <FieldFull label="Notas" value={submission.notas_placa} />
-            </Section>
-
-            <Section title="Logística">
-              <FieldFull
-                label="Morada Exacta"
-                value={submission.morada_exacta}
-              />
-              <Field
-                label="Pessoa que Abre o Espaço"
-                value={submission.pessoa_abre_espaco}
-              />
-              <Field label="Contacto" value={submission.contacto_pessoa_abre} />
-              <FieldFull
-                label="Acesso para Cargas"
-                value={submission.acesso_local}
-              />
-              <FieldFull
-                label="Notas de Acesso"
-                value={submission.notas_acesso}
-              />
-              <FieldFull
-                label="Observações Gerais"
-                value={submission.observacoes_gerais}
-              />
-            </Section>
+            {nadaPreenchido && (
+              <p
+                style={{
+                  fontSize: "13px",
+                  color: "#6B7280",
+                  fontStyle: "italic",
+                  textAlign: "center",
+                  padding: "24px 0",
+                }}
+              >
+                Ainda não há respostas do questionário — o briefing enche-se
+                quando o formulário do evento for preenchido.
+              </p>
+            )}
           </div>
 
           {/* Rodapé */}
