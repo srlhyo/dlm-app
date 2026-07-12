@@ -117,8 +117,20 @@ export default function FunilBoard({
 
   // O nome no card: o cliente (a pessoa que contrata); se o evento não
   // tiver cliente ligado, o título do resumo (dupla fonte).
-  const nomeCard = (ev) =>
-    ev.clientes?.nome || getResumoSubmissao(ev, eventTypes).titulo;
+  // O card é do EVENTO: mostra o nome digitado na captação (resumo).
+  // Só cai no nome do CLIENTE quando o evento não tem nome próprio
+  // (o resumo devolveu o genérico) — importa quando a deduplicação
+  // pendura um evento novo num cliente antigo: sem isto, o nome novo
+  // ficava escondido atrás do antigo.
+  const nomeCard = (ev) => {
+    const resumo = getResumoSubmissao(ev, eventTypes);
+    const tipo = eventTypes.find((t) => t.id === ev.event_type_id);
+    const generico =
+      !resumo.titulo ||
+      resumo.titulo === "Evento" ||
+      (tipo && resumo.titulo === tipo.nome);
+    return generico ? ev.clientes?.nome || resumo.titulo : resumo.titulo;
+  };
 
   if (carregando) {
     return (

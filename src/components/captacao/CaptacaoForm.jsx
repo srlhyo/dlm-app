@@ -93,7 +93,7 @@ export default function CaptacaoForm({
   const validar = () => {
     const e = {};
     if (!nome.trim()) e.nome = "Indica o nome.";
-    if (!whatsapp.trim()) e.whatsapp = "Indica o número de WhatsApp.";
+    if (!contacto.trim()) e.contacto = "Indica o contacto principal.";
     const temTipo =
       (eventTypeId && eventTypeId !== "__outro__") || tipoOutro.trim();
     if (!temTipo) e.tipo = "Escolhe o tipo de evento.";
@@ -166,7 +166,7 @@ export default function CaptacaoForm({
         />
       </Campo>
 
-      <Campo label="Contacto principal" erro={erros.contacto}>
+      <Campo label="Contacto principal *" erro={erros.contacto}>
         <input
           type="tel"
           style={inputStyle(erros.contacto)}
@@ -180,7 +180,7 @@ export default function CaptacaoForm({
         />
       </Campo>
 
-      <Campo label="Número WhatsApp *" erro={erros.whatsapp}>
+      <Campo label="Número WhatsApp" erro={erros.whatsapp}>
         <input
           type="tel"
           style={inputStyle(erros.whatsapp)}
@@ -428,7 +428,7 @@ export default function CaptacaoForm({
         />
       </Campo>
 
-      <Campo label="Mais detalhes (opcional)">
+      <Campo label="Mais detalhes">
         <textarea
           style={{ ...inputStyle(), minHeight: "70px", resize: "vertical" }}
           value={mensagem}

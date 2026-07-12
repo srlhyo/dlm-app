@@ -50,6 +50,28 @@ const formatarData = (iso) => {
   return `${Number(d)} ${meses[Number(m) - 1]} ${a}`;
 };
 
+// Os tipos de evento do cliente ("Casamento", "Casamento + Aniversário",
+// "Casamento + Aniversário +1"...) — a Nádia quer VER o evento no
+// cartão, não contar eventos. Sem tipo conhecido, cai na contagem.
+const tiposDoCliente = (c, eventTypes) => {
+  const nomes = [
+    ...new Set(
+      (c.submissions || [])
+        .map(
+          (e) => (eventTypes || []).find((t) => t.id === e.event_type_id)?.nome,
+        )
+        .filter(Boolean),
+    ),
+  ];
+  if (nomes.length === 0)
+    return `${c.totalEventos} ${c.totalEventos === 1 ? "evento" : "eventos"}`;
+  const visiveis = nomes.slice(0, 2).join(" + ");
+  const resto = nomes.length - 2;
+  const contagem =
+    c.totalEventos > nomes.length ? ` (${c.totalEventos} eventos)` : "";
+  return `${visiveis}${resto > 0 ? ` +${resto}` : ""}${contagem}`;
+};
+
 // Data e hora de criação do contacto — visível no card (os cards
 // vêm ordenados do mais recente para o mais antigo).
 const formatarCriado = (ts) => {
@@ -320,8 +342,7 @@ export default function ClientesLista({
                       margin: 0,
                     }}
                   >
-                    {c.totalEventos}{" "}
-                    {c.totalEventos === 1 ? "evento" : "eventos"}
+                    {tiposDoCliente(c, eventTypes)}
                     {c.created_at ? ` · ${formatarCriado(c.created_at)}` : ""}
                   </p>
                 </div>
