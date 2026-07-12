@@ -823,6 +823,7 @@ export default function InicioTab({
               Transcreve o que a pessoa te disse na conversa.
             </p>
             <CaptacaoForm
+              modoInterno
               textoBotao="Criar interessado"
               onSubmetido={() => {
                 setNovoInteressado(false);

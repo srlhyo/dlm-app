@@ -956,6 +956,7 @@ export default function CalendarioTab({
               opcional.
             </p>
             <CaptacaoForm
+              modoInterno
               textoBotao="Criar reserva"
               dataInicial={modalReserva.dataInicial}
               onSubmetido={() => {

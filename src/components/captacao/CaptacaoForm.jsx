@@ -35,6 +35,7 @@ export default function CaptacaoForm({
   onSubmetido,
   textoBotao = "Enviar pedido",
   dataInicial = "",
+  modoInterno = false,
 }) {
   const [tipos, setTipos] = useState([]);
   const [nome, setNome] = useState("");
@@ -54,6 +55,10 @@ export default function CaptacaoForm({
   const [erros, setErros] = useState({});
   const [enviando, setEnviando] = useState(false);
   const [erroGeral, setErroGeral] = useState(null);
+  // Aviso de deduplicação (SÓ no modo interno — a página pública fica
+  // muda de propósito: revelar que um número já existe seria fuga de
+  // privacidade). { tipo: "duplicado"|"reutilizado", submission }
+  const [avisoDedupe, setAvisoDedupe] = useState(null);
   const inputImagens = useRef(null);
 
   useEffect(() => {
@@ -142,6 +147,18 @@ export default function CaptacaoForm({
         mensagem,
         ficheiros,
       });
+      if (
+        modoInterno &&
+        (submission.duplicado || submission.clienteReutilizado)
+      ) {
+        // Não fecha já: primeiro conta à Nádia o que aconteceu
+        setAvisoDedupe({
+          tipo: submission.duplicado ? "duplicado" : "reutilizado",
+          submission,
+        });
+        setEnviando(false);
+        return;
+      }
       if (onSubmetido) onSubmetido(submission);
     } catch (err) {
       console.error(err);
@@ -151,6 +168,65 @@ export default function CaptacaoForm({
     }
     setEnviando(false);
   };
+
+  if (avisoDedupe) {
+    const duplicado = avisoDedupe.tipo === "duplicado";
+    return (
+      <div
+        style={{
+          backgroundColor: "#FEF9EC",
+          border: "1.5px solid var(--gold-light)",
+          borderRadius: "14px",
+          padding: "20px 18px",
+        }}
+      >
+        <p
+          style={{
+            fontSize: "15px",
+            fontWeight: "600",
+            color: "var(--charcoal)",
+            margin: "0 0 8px 0",
+          }}
+        >
+          {duplicado
+            ? "Este pedido já existia"
+            : "Telefone conhecido — juntámos ao cliente existente"}
+        </p>
+        <p
+          style={{
+            fontSize: "13px",
+            color: "var(--gray-mid)",
+            margin: "0 0 16px 0",
+            lineHeight: 1.6,
+          }}
+        >
+          {duplicado
+            ? "Já havia um evento vivo deste contacto nesta data — não foi criado nada de novo (proteção contra envios repetidos). Se é mesmo um evento diferente, muda a data ou o contacto."
+            : "Este telefone já pertencia a um cliente, por isso o evento novo ficou guardado na ficha dele — a mesma pessoa não se duplica. Procura pelo nome do evento ou abre o cliente para confirmar."}
+        </p>
+        <button
+          onClick={() => {
+            const sub = avisoDedupe.submission;
+            setAvisoDedupe(null);
+            if (onSubmetido) onSubmetido(sub);
+          }}
+          style={{
+            width: "100%",
+            padding: "11px",
+            borderRadius: "10px",
+            fontSize: "13px",
+            fontWeight: "600",
+            border: "none",
+            backgroundColor: "var(--gold)",
+            color: "white",
+            cursor: "pointer",
+          }}
+        >
+          Entendido
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div>

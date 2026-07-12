@@ -109,21 +109,28 @@ export const submeterCaptacao = async (payload) => {
   //    via função no Postgres — o anónimo pergunta "já existe?" e
   //    recebe só ids, nunca a lista de clientes (migração 019).
   const whatsappDedupe = limpar(payload.whatsapp);
-  const digitos = `${whatsappDedupe || ""} ${contacto || ""}`;
   const dataDedupe = limpar(payload.dataEvento) || null;
   let clienteExistenteId = null;
   try {
-    const { data: dedupe } = await supabase.rpc("captacao_dedupe", {
-      p_digitos: digitos,
-      p_data: dataDedupe,
-    });
-    const hit = Array.isArray(dedupe) ? dedupe[0] : dedupe;
-    if (hit?.evento_id) {
-      // Mesmo telefone + mesma data com evento vivo: NÃO duplica —
-      // devolve o existente (mata o duplo clique e o reenvio).
-      return { id: hit.evento_id, duplicado: true };
+    // Cada número é verificado POR SI (a função lê os últimos 9
+    // dígitos do que recebe — concatenar os dois só verificava um).
+    const numeros = [...new Set([whatsappDedupe, contacto].filter(Boolean))];
+    for (const numero of numeros) {
+      const { data: dedupe } = await supabase.rpc("captacao_dedupe", {
+        p_digitos: numero,
+        p_data: dataDedupe,
+      });
+      const hit = Array.isArray(dedupe) ? dedupe[0] : dedupe;
+      if (hit?.evento_id) {
+        // Mesmo telefone + mesma data com evento vivo: NÃO duplica —
+        // devolve o existente (mata o duplo clique e o reenvio).
+        return { id: hit.evento_id, duplicado: true };
+      }
+      if (hit?.cliente_id) {
+        clienteExistenteId = hit.cliente_id;
+        break; // primeira correspondência chega
+      }
     }
-    if (hit?.cliente_id) clienteExistenteId = hit.cliente_id;
   } catch (e) {
     // Se a função ainda não existir (migração por correr), a captação
     // continua a funcionar como antes — sem dedupe, mas sem quebrar.
@@ -211,6 +218,9 @@ export const submeterCaptacao = async (payload) => {
     throw erroSub;
   }
 
+  // A porta interna usa esta bandeira para avisar a Nádia de que o
+  // telefone já existia (a pública ignora-a — privacidade).
+  if (clienteExistenteId) return { ...submission, clienteReutilizado: true };
   return submission;
 };
 
