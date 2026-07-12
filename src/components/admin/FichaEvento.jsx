@@ -10,6 +10,10 @@ import {
 } from "../../lib/materiais";
 import { imprimirFicha } from "../../lib/imprimirFicha";
 import { getResumoSubmissao } from "../../lib/submissionFields";
+import SeletorPaleta, {
+  AmostraPaleta,
+  normalizarCores,
+} from "./SeletorPaleta";
 
 // Título legível de uma submissão — usa a lógica genérica (papéis),
 // consistente com Clientes e Questionários.
@@ -31,6 +35,24 @@ function formatData(data) {
     year: "numeric",
   });
 }
+
+// ============================================================
+// Cores da linha de material — a coluna `cores` continua TEXTO
+// ("Branco, Dourado"): o PDF imprime igual e as fichas antigas
+// abrem sem migração. O SeletorPaleta é só a interface: ao abrir,
+// o texto vira seleção (nomes do catálogo acendem as bolinhas;
+// nomes desconhecidos ficam como personalizadas); ao escolher,
+// a seleção volta a texto.
+// ============================================================
+const textoParaCores = (txt) =>
+  normalizarCores(
+    String(txt || "")
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean),
+  );
+
+const coresParaTexto = (arr) => (arr || []).map((c) => c.nome).join(", ");
 
 export default function FichaEvento({
   submissions = [],
@@ -385,7 +407,6 @@ function FichaMateriais({
 
   // linhas agrupadas por categoria (para mostrar a ficha)
   const gruposFicha = useMemo(() => {
-    const rank = new Map();
     // agruparPorCategoria trabalha sobre objetos com .material aqui
     return agruparPorCategoria(
       linhas.map((l) => ({ ...l, categoria: l.material?.categoria })),
@@ -647,8 +668,12 @@ function LinhaMaterial({ linha, onUpdate, onRemove }) {
 
   // valores locais para os campos de texto (para digitação fluida)
   const [quantidade, setQuantidade] = useState(linha.quantidade ?? 0);
-  const [cores, setCores] = useState(linha.cores ?? "");
   const [observacoes, setObservacoes] = useState(linha.observacoes ?? "");
+
+  // Cores: guardadas como TEXTO na BD (retrocompatível + PDF igual),
+  // editadas pelo SeletorPaleta. Local: array de {nome, hex}.
+  const [cores, setCores] = useState(() => textoParaCores(linha.cores));
+  const [paletaAberta, setPaletaAberta] = useState(false);
 
   // agenda gravação debounced de um conjunto de campos
   const agendarGravacao = (campos) => {
@@ -666,6 +691,12 @@ function LinhaMaterial({ linha, onUpdate, onRemove }) {
 
   const toggleLista = (campo) => {
     onUpdate(linha.id, { [campo]: !linha[campo] });
+  };
+
+  // Cada clique numa bolinha é uma intenção — grava logo (sem debounce)
+  const mudarCores = (novas) => {
+    setCores(novas);
+    onUpdate(linha.id, { cores: coresParaTexto(novas) });
   };
 
   return (
@@ -716,7 +747,7 @@ function LinhaMaterial({ linha, onUpdate, onRemove }) {
         </button>
       </div>
 
-      {/* Quantidade + Cores (lado a lado; empilham em ecrã estreito) */}
+      {/* Quantidade */}
       <div
         style={{
           display: "flex",
@@ -725,7 +756,7 @@ function LinhaMaterial({ linha, onUpdate, onRemove }) {
           flexWrap: "wrap",
         }}
       >
-        <div style={{ flex: "1 1 100px", minWidth: "100px" }}>
+        <div style={{ flex: "1 1 100px", minWidth: "100px", maxWidth: "180px" }}>
           <label style={miniLabel}>Quantidade ({m?.unidade || "un"})</label>
           <input
             type="number"
@@ -740,19 +771,71 @@ function LinhaMaterial({ linha, onUpdate, onRemove }) {
             style={miniInput}
           />
         </div>
-        <div style={{ flex: "2 1 140px", minWidth: "140px" }}>
-          <label style={miniLabel}>Cores</label>
-          <input
-            type="text"
-            value={cores}
-            onChange={(e) => {
-              setCores(e.target.value);
-              agendarGravacao({ cores: e.target.value });
+      </div>
+
+      {/* Cores — pastilhas do que está escolhido + seletor no sítio */}
+      <div style={{ marginBottom: "10px" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "10px",
+            marginBottom: "6px",
+          }}
+        >
+          <label style={{ ...miniLabel, marginBottom: 0 }}>Cores</label>
+          <button
+            type="button"
+            onClick={() => setPaletaAberta((v) => !v)}
+            style={{
+              padding: "4px 12px",
+              borderRadius: "999px",
+              fontSize: "11px",
+              fontWeight: "600",
+              border: `1.5px solid ${paletaAberta ? "var(--gold)" : "var(--gold-light)"}`,
+              backgroundColor: paletaAberta ? "#FEF9EC" : "white",
+              color: "var(--gold-dark)",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
             }}
-            placeholder="ex: branco, dourado"
-            style={miniInput}
-          />
+          >
+            {paletaAberta
+              ? "Concluído"
+              : cores.length > 0
+                ? "🎨 Alterar"
+                : "🎨 Escolher cores"}
+          </button>
         </div>
+        {cores.length > 0 ? (
+          <AmostraPaleta value={cores} />
+        ) : (
+          !paletaAberta && (
+            <p
+              style={{
+                fontSize: "12px",
+                fontStyle: "italic",
+                color: "var(--gray-mid)",
+                margin: 0,
+              }}
+            >
+              Sem cores definidas.
+            </p>
+          )
+        )}
+        {paletaAberta && (
+          <div
+            style={{
+              marginTop: "10px",
+              padding: "14px",
+              borderRadius: "12px",
+              border: "1.5px solid var(--gold-light)",
+              backgroundColor: "#FBF7EF",
+            }}
+          >
+            <SeletorPaleta value={cores} onChange={mudarCores} compact />
+          </div>
+        )}
       </div>
 
       {/* Observações */}

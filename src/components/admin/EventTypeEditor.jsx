@@ -4,7 +4,6 @@ import {
   DndContext,
   DragOverlay,
   closestCenter,
-  pointerWithin,
   PointerSensor,
   KeyboardSensor,
   useSensor,
@@ -131,12 +130,6 @@ function buildStepsForSave(steps) {
       if (field.placeholder && field.placeholder.trim())
         campoFinal.placeholder = field.placeholder.trim();
       if (validate) campoFinal.validate = validate;
-      if (["radio", "checkbox"].includes(field.type)) {
-        campoFinal.options = field.options
-          .map((o) => o.value.trim())
-          .filter((o) => o !== "");
-      }
-
       if (["radio", "checkbox"].includes(field.type)) {
         campoFinal.options = field.options
           .map((o) => o.value.trim())
@@ -397,7 +390,6 @@ function FieldRow({
   onUpdateOption,
   onAddOption,
   onRemoveOption,
-  onMoveOptions,
 }) {
   const showPlaceholder = [
     "text",
@@ -597,7 +589,6 @@ function StepCard({
   onUpdateOption,
   onAddOption,
   onRemoveOption,
-  onMoveOptions,
 }) {
   const {
     attributes,
@@ -615,6 +606,71 @@ function StepCard({
   const combineRefs = (el) => {
     setStepRef(el);
   };
+
+  // ===== MODO COMPACTO (a cura da leveza) =====
+  // Ao arrastar um PASSO, todos os passos colapsam para cartões-resumo
+  // finos e uniformes — como as Mensagens. O DOM fica leve, o
+  // closestCenter acerta sempre, e 10 passos cabem no ecrã enquanto
+  // reordenas. Ao largar, tudo reabre onde estava.
+  if (draggingType === "step") {
+    return (
+      <div
+        ref={combineRefs}
+        style={{
+          transform: CSS.Transform.toString(transform),
+          transition,
+          opacity: isDragging ? 0.4 : 1,
+        }}
+      >
+        <div
+          style={{
+            backgroundColor: "white",
+            borderRadius: "12px",
+            padding: "10px 14px",
+            marginBottom: "10px",
+            border: "1.5px solid var(--gold-light)",
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+          }}
+        >
+          <DragHandle
+            attributes={attributes}
+            listeners={listeners}
+            title="Arrastar para reordenar o passo"
+          />
+          <div style={{ minWidth: 0 }}>
+            <p
+              style={{
+                fontSize: "10px",
+                fontWeight: "700",
+                color: "var(--gold)",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                margin: 0,
+              }}
+            >
+              Passo {stepIndex + 1}
+            </p>
+            <p
+              style={{
+                fontSize: "13px",
+                fontWeight: "600",
+                color: "var(--charcoal)",
+                margin: 0,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {step.title || "Sem título"} · {step.fields.length}{" "}
+              {step.fields.length === 1 ? "campo" : "campos"}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -695,61 +751,32 @@ function StepCard({
           </button>
         </div>
 
-        {/* Só activa o SortableContext dos campos quando não está a arrastar um passo */}
-        {draggingType !== "step" ? (
-          <SortableContext
-            items={step.fields.map((f) => `${FIELD_PREFIX}${f.uid}`)}
-            strategy={verticalListSortingStrategy}
-          >
-            <div
-              ref={setDropRef}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "14px",
-                minHeight: "12px",
-                borderRadius: "10px",
-                outline:
-                  isOver && draggingType === "field"
-                    ? "2px dashed var(--gold)"
-                    : "none",
-                outlineOffset: "4px",
-                transition: "outline 0.15s",
-              }}
-            >
-              {step.fields.map((field) => (
-                <SortableFieldRow
-                  key={field.uid}
-                  field={field}
-                  stepUid={step.uid}
-                  draggingType={draggingType}
-                  onUpdate={(changes) => onUpdateField(field.uid, changes)}
-                  onRemove={() => onRemoveField(field.uid)}
-                  onTypeChange={(newType) => onTypeChange(field.uid, newType)}
-                  onUpdateOption={(idx, val) =>
-                    onUpdateOption(field.uid, idx, val)
-                  }
-                  onAddOption={() => onAddOption(field.uid)}
-                  onRemoveOption={(idx) => onRemoveOption(field.uid, idx)}
-                />
-              ))}
-            </div>
-          </SortableContext>
-        ) : (
+        <SortableContext
+          items={step.fields.map((f) => `${FIELD_PREFIX}${f.uid}`)}
+          strategy={verticalListSortingStrategy}
+        >
           <div
+            ref={setDropRef}
             style={{
               display: "flex",
               flexDirection: "column",
               gap: "14px",
               minHeight: "12px",
+              borderRadius: "10px",
+              outline:
+                isOver && draggingType === "field"
+                  ? "2px dashed var(--gold)"
+                  : "none",
+              outlineOffset: "4px",
+              transition: "outline 0.15s",
             }}
           >
             {step.fields.map((field) => (
-              <FieldRow
+              <SortableFieldRow
                 key={field.uid}
                 field={field}
-                draggingFieldOrOpt={false}
-                dragHandle={<div style={{ width: "30px", flexShrink: 0 }} />}
+                stepUid={step.uid}
+                draggingType={draggingType}
                 onUpdate={(changes) => onUpdateField(field.uid, changes)}
                 onRemove={() => onRemoveField(field.uid)}
                 onTypeChange={(newType) => onTypeChange(field.uid, newType)}
@@ -761,7 +788,7 @@ function StepCard({
               />
             ))}
           </div>
-        )}
+        </SortableContext>
 
         <button
           onClick={onAddField}
@@ -1276,14 +1303,13 @@ export default function EventTypeEditor({
             }}
           >
             ⠿ Arrasta pela pega para reordenar passos, campos e opções. Um campo
-            pode ser arrastado para outro passo.
+            pode ser arrastado para outro passo. (Ao pegar num passo, a lista
+            compacta-se para reordenares num relance.)
           </p>
 
           <DndContext
             sensors={sensors}
-            collisionDetection={
-              draggingType === "step" ? pointerWithin : closestCenter
-            }
+            collisionDetection={closestCenter}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             onDragCancel={handleDragCancel}

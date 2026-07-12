@@ -1,4 +1,6 @@
 import { getResumoSubmissao } from "../../lib/submissionFields";
+import { FASES_POS_SINAL } from "./faseConfig";
+import { formatarEuros } from "./orcamentos/orcamentoConfig";
 import { motion } from "framer-motion";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts";
 
@@ -118,6 +120,60 @@ export default function DashboardTab({
   // eventos que não são casamento.
   const tituloDe = (s) => getResumoSubmissao(s, eventTypes).titulo;
 
+  // ===== A camada financeira — tudo do valor_acordado + fases =====
+  const somaValores = (lista) =>
+    lista.reduce((acc, e) => acc + (Number(e.valor_acordado) || 0), 0);
+
+  // Garantido POR REALIZAR: sinal pago, evento ainda por acontecer
+  const garantidosPorRealizar = ativos.filter(
+    (s) => FASES_POS_SINAL.includes(s.fase) && s.status !== "Concluído",
+  );
+  // Em negociação: o dinheiro possível (pré-sinal)
+  const emNegociacaoLista = ativos.filter((s) =>
+    ["interessado", "orcamento", "sinal"].includes(s.fase),
+  );
+  // Concluído este ano: a receita já feita — que hoje não aparecia
+  // em lado nenhum (os Concluídos saem do funil e do radar)
+  const anoAtual = new Date().getFullYear();
+  const concluidosAno = ativos.filter(
+    (s) =>
+      s.status === "Concluído" &&
+      s.data_evento &&
+      new Date(s.data_evento).getFullYear() === anoAtual,
+  );
+  // Valor médio por evento (só os que têm valor acordado)
+  const comValor = ativos.filter((s) => Number(s.valor_acordado) > 0);
+  const valorMedio =
+    comValor.length > 0 ? somaValores(comValor) / comValor.length : 0;
+
+  // Receita por mês: barras "feito" (garantido/concluído, dourado cheio)
+  // e "possível" (em negociação, dourado claro) — lado a lado.
+  const receitaPorMes = () => {
+    const buckets = {};
+    ativos.forEach((s) => {
+      const v = Number(s.valor_acordado) || 0;
+      if (!v || !s.data_evento) return;
+      const d = new Date(s.data_evento);
+      const chave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      if (!buckets[chave]) {
+        buckets[chave] = {
+          chave,
+          mes: d.toLocaleDateString("pt-PT", {
+            month: "short",
+            year: "2-digit",
+          }),
+          feito: 0,
+          possivel: 0,
+        };
+      }
+      if (FASES_POS_SINAL.includes(s.fase)) buckets[chave].feito += v;
+      else buckets[chave].possivel += v;
+    });
+    return Object.values(buckets).sort((a, b) =>
+      a.chave.localeCompare(b.chave),
+    );
+  };
+
   const eventosPorMes = () => {
     const counts = {};
     ativos.forEach((s) => {
@@ -170,41 +226,6 @@ export default function DashboardTab({
       total: invites.length,
       pct: Math.round((preenchidos / invites.length) * 100),
     };
-  };
-
-  // Próximo evento (o mais próximo no futuro, não concluído)
-  const proximoEvento = () => {
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    const futuros = submissions
-      .filter((s) => s.data_evento && s.status !== "Concluído")
-      .filter((s) => new Date(s.data_evento) >= hoje)
-      .sort((a, b) => new Date(a.data_evento) - new Date(b.data_evento));
-    return futuros[0] || null;
-  };
-
-  // Eventos que precisam de atenção: próximos 60 dias e ainda "Recebido"
-  const eventosAtencao = () => {
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    const limite = new Date(hoje);
-    limite.setDate(limite.getDate() + 60);
-    return submissions
-      .filter((s) => s.data_evento && s.status === "Recebido")
-      .filter((s) => {
-        const d = new Date(s.data_evento);
-        return d >= hoje && d <= limite;
-      })
-      .sort((a, b) => new Date(a.data_evento) - new Date(b.data_evento));
-  };
-
-  // Dias até uma data (para etiquetas "faltam X dias")
-  const diasAte = (date) => {
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    return Math.round((d - hoje) / (1000 * 60 * 60 * 24));
   };
 
   const pipelineData = STATUS_OPTIONS.map((status) => ({
@@ -276,142 +297,133 @@ export default function DashboardTab({
         </div>
       </div>
 
-      {/* Próximo evento — destaque */}
-      {proximoEvento() && (
+      {/* ===== ZONA 2 — O negócio em euros =====
+          (O "Próximo evento" e o "A precisar de atenção" mudaram-se
+          para o Início, onde são mais ricos e acionáveis. O Dashboard
+          é o retrato: aqui vive o dinheiro.) */}
+      <p
+        style={{
+          fontSize: "12px",
+          fontWeight: "600",
+          color: "var(--gray-mid)",
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+          margin: "8px 0 12px 4px",
+        }}
+      >
+        O negócio em euros
+      </p>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(2, 1fr)",
+          gap: "12px",
+          marginBottom: "20px",
+        }}
+      >
         <div
-          onClick={() => onSelectSubmission(proximoEvento())}
           style={{
-            backgroundColor: "var(--gold)",
-            borderRadius: "16px",
-            padding: "20px 24px",
-            marginBottom: "28px",
-            cursor: "pointer",
-            boxShadow: "0 4px 20px rgba(201,168,76,0.3)",
-            color: "white",
+            ...kpiCardStyle,
+            backgroundColor: "#F0FDF4",
+            border: "1px solid #BBF7D0",
           }}
         >
-          <p
-            style={{
-              fontSize: "10px",
-              textTransform: "uppercase",
-              letterSpacing: "0.15em",
-              margin: "0 0 8px 0",
-              opacity: 0.85,
-            }}
-          >
-            Próximo Evento
+          <p style={{ ...kpiValueStyle, color: "#166534" }}>
+            {formatarEuros(somaValores(garantidosPorRealizar))}
           </p>
-          <p
-            style={{
-              fontSize: "20px",
-              fontFamily: "Playfair Display, serif",
-              margin: "0 0 6px 0",
-            }}
-          >
-            {tituloDe(proximoEvento())}
-          </p>
-          <p style={{ fontSize: "13px", margin: 0, opacity: 0.95 }}>
-            {formatDate(proximoEvento().data_evento)}
-            {(() => {
-              const dias = diasAte(proximoEvento().data_evento);
-              if (dias === 0) return " · É hoje!";
-              if (dias === 1) return " · Amanhã";
-              return ` · Faltam ${dias} dias`;
-            })()}
+          <p style={{ ...kpiLabelStyle, color: "#166534" }}>
+            Garantido (por realizar) ·{" "}
+            {garantidosPorRealizar.length}{" "}
+            {garantidosPorRealizar.length === 1 ? "evento" : "eventos"}
           </p>
         </div>
-      )}
+        <div style={kpiCardStyle}>
+          <p style={{ ...kpiValueStyle, color: "var(--gold-dark)" }}>
+            {formatarEuros(somaValores(emNegociacaoLista))}
+          </p>
+          <p style={kpiLabelStyle}>
+            Em negociação · {emNegociacaoLista.length}{" "}
+            {emNegociacaoLista.length === 1 ? "evento" : "eventos"}
+          </p>
+        </div>
+        <div style={kpiCardStyle}>
+          <p style={{ ...kpiValueStyle, color: "var(--charcoal)" }}>
+            {formatarEuros(somaValores(concluidosAno))}
+          </p>
+          <p style={kpiLabelStyle}>Concluído em {anoAtual}</p>
+        </div>
+        <div style={kpiCardStyle}>
+          <p style={{ ...kpiValueStyle, color: "var(--charcoal)" }}>
+            {formatarEuros(Math.round(valorMedio))}
+          </p>
+          <p style={kpiLabelStyle}>Valor médio por evento</p>
+        </div>
+      </div>
 
-      {/* ===== ZONA 2 — A precisar de atenção ===== */}
-      {eventosAtencao().length > 0 && (
-        <div style={{ marginBottom: "28px" }}>
-          <p
-            style={{
-              fontSize: "12px",
-              fontWeight: "600",
-              color: "var(--gray-mid)",
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              margin: "0 0 12px 4px",
-            }}
-          >
-            A precisar de atenção
-          </p>
-          <div
-            style={{
-              backgroundColor: "#FEF9EC",
-              borderRadius: "16px",
-              padding: "8px",
-              border: "1px solid var(--gold-light)",
-            }}
-          >
-            {eventosAtencao().map((s, i) => {
-              const dias = diasAte(s.data_evento);
-              return (
-                <div
-                  key={s.id}
-                  onClick={() => onSelectSubmission(s)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "12px 14px",
-                    borderBottom:
-                      i < eventosAtencao().length - 1
-                        ? "1px solid rgba(201,168,76,0.15)"
-                        : "none",
-                    cursor: "pointer",
-                    gap: "12px",
+      {/* Receita por mês (€) */}
+      <ChartCard title="Receita por Mês (€)">
+        {receitaPorMes().length === 0 ? (
+          <EmptyChart />
+        ) : (
+          <>
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart
+                data={receitaPorMes()}
+                margin={{ top: 24, right: 10, left: -10, bottom: 0 }}
+              >
+                <XAxis
+                  dataKey="mes"
+                  tick={{ fontSize: 12, fill: "var(--gray-mid)" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tick={{ fontSize: 11, fill: "var(--gray-mid)" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Bar
+                  dataKey="feito"
+                  fill="var(--gold)"
+                  radius={[6, 6, 0, 0]}
+                  name="Garantido"
+                  label={{
+                    position: "top",
+                    fontSize: 11,
+                    fill: "var(--gold-dark)",
+                    fontWeight: 600,
+                    formatter: (v) => (v > 0 ? formatarEuros(v) : ""),
                   }}
-                >
-                  <div style={{ minWidth: 0 }}>
-                    <p
-                      style={{
-                        fontSize: "14px",
-                        fontWeight: "500",
-                        color: "var(--charcoal)",
-                        margin: "0 0 2px 0",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {tituloDe(s)}
-                    </p>
-                    <p
-                      style={{
-                        fontSize: "12px",
-                        color: "var(--gray-mid)",
-                        margin: 0,
-                      }}
-                    >
-                      {formatDate(s.data_evento)}
-                    </p>
-                  </div>
-                  <span
-                    style={{
-                      fontSize: "11px",
-                      fontWeight: "600",
-                      color: dias <= 14 ? "#DC2626" : "var(--gold-dark)",
-                      backgroundColor: "white",
-                      padding: "4px 10px",
-                      borderRadius: "999px",
-                      whiteSpace: "nowrap",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {dias === 0
-                      ? "Hoje"
-                      : dias === 1
-                        ? "Amanhã"
-                        : `${dias} dias`}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+                />
+                <Bar
+                  dataKey="possivel"
+                  fill="#EAD9AC"
+                  radius={[6, 6, 0, 0]}
+                  name="Possível"
+                  label={{
+                    position: "top",
+                    fontSize: 11,
+                    fill: "#B08A2E",
+                    formatter: (v) => (v > 0 ? `${formatarEuros(v)}?` : ""),
+                  }}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+            <p
+              style={{
+                fontSize: "11px",
+                color: "var(--gray-mid)",
+                fontStyle: "italic",
+                margin: "6px 0 0 0",
+              }}
+            >
+              Dourado cheio = garantido/concluído · claro com "?" = em
+              negociação (possível)
+            </p>
+          </>
+        )}
+      </ChartCard>
 
       {/* ===== ZONA 2.5 — Por tipo de evento ===== */}
       {(() => {
@@ -711,7 +723,9 @@ export default function DashboardTab({
             }}
           >
             {STATUS_OPTIONS.map((status) => {
-              const total = ativos.filter((s) => s.status === status).length;
+              const total = ativos.filter(
+                (s) => s.status === status,
+              ).length;
               const max = ativos.length || 1;
               const pct = Math.round((total / max) * 100);
               const colors = STATUS_COLORS[status];

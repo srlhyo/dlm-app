@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { getResumoSubmissao } from "../../lib/submissionFields";
 import { FASES_POS_SINAL } from "./faseConfig";
+import { formatarEuros } from "./orcamentos/orcamentoConfig";
 import CaptacaoForm from "../captacao/CaptacaoForm";
 
 // ============================================================
@@ -83,6 +84,29 @@ export default function InicioTab({
   const titulo = (s) => getResumoSubmissao(s, eventTypes).titulo;
   const vivos = submissions.filter((s) => s.fase !== "perdido");
 
+  // Procura rápida — da chamada telefónica à ficha em dois segundos.
+  // Procura no título (nome da pessoa), tipo e local, sobre os dados
+  // que o Início já tem em memória. Máximo 7 resultados.
+  const [busca, setBusca] = useState("");
+  const resultadosBusca = (() => {
+    const q = busca.trim().toLowerCase();
+    if (q.length < 2) return [];
+    const nomeTipoDe = (s) => {
+      const t = (eventTypes || []).find((et) => et.id === s.event_type_id);
+      return t ? t.nome : "";
+    };
+    return submissions
+      .filter((s) => {
+        const resumo = getResumoSubmissao(s, eventTypes);
+        return (
+          (resumo.titulo || "").toLowerCase().includes(q) ||
+          nomeTipoDe(s).toLowerCase().includes(q) ||
+          (s.local_evento || "").toLowerCase().includes(q)
+        );
+      })
+      .slice(0, 7);
+  })();
+
   // ---- Próximo evento (com data futura, não concluído) ----
   const futuros = vivos
     .filter((s) => s.data_evento && s.status !== "Concluído")
@@ -102,10 +126,25 @@ export default function InicioTab({
 
   // ---- Números do momento ----
   const estaSemana = futuros.filter((s) => diasAte(s.data_evento) <= 7).length;
-  const emConversa = vivos.filter((s) =>
+  const somaValores = (lista) =>
+    lista.reduce((acc, e) => acc + (Number(e.valor_acordado) || 0), 0);
+
+  const listaEmConversa = vivos.filter((s) =>
     ["interessado", "orcamento"].includes(s.fase),
-  ).length;
-  const aEsperaDoSinal = vivos.filter((s) => s.fase === "sinal").length;
+  );
+  const emConversa = listaEmConversa.length;
+  const valorEmConversa = somaValores(listaEmConversa);
+
+  const listaAEsperaDoSinal = vivos.filter((s) => s.fase === "sinal");
+  const aEsperaDoSinal = listaAEsperaDoSinal.length;
+  // "à porta" = os sinais (50%) por receber
+  const valorSinaisAPorta = somaValores(listaAEsperaDoSinal) / 2;
+
+  // O garantido — o mesmo recorte do funil: pós-sinal, sem Concluídos
+  const listaGarantidos = vivos.filter(
+    (s) => FASES_POS_SINAL.includes(s.fase) && s.status !== "Concluído",
+  );
+  const valorGarantido = somaValores(listaGarantidos);
 
   // ---- "A precisar de ti" — as regras do dia a dia ----
   // Cada alerta: { chave, texto, evento } — clicar abre o drawer.
@@ -237,6 +276,123 @@ export default function InicioTab({
           ? ` · ${estaSemana} ${estaSemana === 1 ? "evento" : "eventos"} esta semana`
           : ""}
       </p>
+
+      {/* Procura rápida */}
+      <div
+        style={{ position: "relative", maxWidth: "560px", margin: "-10px 0 22px 0" }}
+      >
+        <input
+          type="text"
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          placeholder="Procurar cliente ou evento..."
+          style={{
+            width: "100%",
+            padding: "11px 16px",
+            borderRadius: "12px",
+            border: "1.5px solid var(--gold-light)",
+            fontSize: "13px",
+            outline: "none",
+            fontFamily: "Inter, sans-serif",
+            boxSizing: "border-box",
+            backgroundColor: "white",
+          }}
+          onFocus={(e) => (e.target.style.borderColor = "var(--gold)")}
+          onBlur={(e) => (e.target.style.borderColor = "var(--gold-light)")}
+        />
+        {busca.trim().length >= 2 && (
+          <>
+            <div
+              onClick={() => setBusca("")}
+              style={{ position: "fixed", inset: 0, zIndex: 40 }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                top: "calc(100% + 6px)",
+                left: 0,
+                right: 0,
+                zIndex: 41,
+                backgroundColor: "white",
+                borderRadius: "12px",
+                border: "1px solid var(--gold-light)",
+                boxShadow: "0 8px 24px rgba(0,0,0,0.1)",
+                overflow: "hidden",
+              }}
+            >
+              {resultadosBusca.length === 0 ? (
+                <p
+                  style={{
+                    fontSize: "12px",
+                    color: "var(--gray-mid)",
+                    padding: "12px 16px",
+                    margin: 0,
+                  }}
+                >
+                  Nenhum cliente ou evento encontrado.
+                </p>
+              ) : (
+                resultadosBusca.map((s) => {
+                  const resumo = getResumoSubmissao(s, eventTypes);
+                  const tipo = (eventTypes || []).find(
+                    (et) => et.id === s.event_type_id,
+                  );
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => {
+                        setBusca("");
+                        if (onAbrirEvento) onAbrirEvento(s);
+                      }}
+                      style={{
+                        width: "100%",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "flex-start",
+                        padding: "10px 16px",
+                        border: "none",
+                        borderBottom: "1px solid #F5ECD7",
+                        backgroundColor: "white",
+                        cursor: "pointer",
+                        textAlign: "left",
+                      }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.backgroundColor = "#FBF7EF")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.backgroundColor = "white")
+                      }
+                    >
+                      <span
+                        style={{
+                          fontSize: "13px",
+                          fontWeight: "500",
+                          color: "var(--charcoal)",
+                        }}
+                      >
+                        {resumo.titulo}
+                      </span>
+                      <span
+                        style={{ fontSize: "11px", color: "var(--gray-mid)" }}
+                      >
+                        {tipo ? `${tipo.nome} · ` : ""}
+                        {s.data_evento
+                          ? new Date(s.data_evento).toLocaleDateString(
+                              "pt-PT",
+                              { day: "numeric", month: "short" },
+                            )
+                          : "sem data"}
+                        {s.fase === "perdido" ? " · perdido" : ""}
+                      </span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </>
+        )}
+      </div>
 
       {/* Próximo evento */}
       {proximo && (
@@ -530,11 +686,30 @@ export default function InicioTab({
                   ? "interessado em conversa"
                   : "interessados em conversa"
               }
+              dinheiro={
+                valorEmConversa > 0
+                  ? `${formatarEuros(valorEmConversa)} possíveis`
+                  : null
+              }
               onClick={() => onNavegar && onNavegar("clientes")}
             />
             <CartaoNumero
               numero={aEsperaDoSinal}
               legenda="à espera do sinal"
+              dinheiro={
+                valorSinaisAPorta > 0
+                  ? `${formatarEuros(valorSinaisAPorta)} à porta`
+                  : null
+              }
+              onClick={() => onNavegar && onNavegar("clientes")}
+            />
+            {/* O garantido — o pulso verde do funil, na porta de entrada */}
+            <CartaoNumero
+              numero={formatarEuros(valorGarantido)}
+              legenda={`garantidos · ${listaGarantidos.length} ${
+                listaGarantidos.length === 1 ? "evento" : "eventos"
+              }`}
+              verde
               onClick={() => onNavegar && onNavegar("clientes")}
             />
             <button
@@ -662,15 +837,15 @@ export default function InicioTab({
   );
 }
 
-function CartaoNumero({ numero, legenda, onClick }) {
+function CartaoNumero({ numero, legenda, dinheiro, verde, onClick }) {
   return (
     <div
       onClick={onClick}
       style={{
-        backgroundColor: "white",
+        backgroundColor: verde ? "#F0FDF4" : "white",
         borderRadius: "12px",
         padding: "12px 16px",
-        border: "1px solid #F0E6D0",
+        border: verde ? "1px solid #BBF7D0" : "1px solid #F0E6D0",
         cursor: onClick ? "pointer" : "default",
       }}
     >
@@ -678,7 +853,7 @@ function CartaoNumero({ numero, legenda, onClick }) {
         style={{
           fontSize: "24px",
           fontWeight: "600",
-          color: "var(--gold-dark)",
+          color: verde ? "#166534" : "var(--gold-dark)",
           margin: 0,
           lineHeight: 1.2,
         }}
@@ -688,6 +863,18 @@ function CartaoNumero({ numero, legenda, onClick }) {
       <p style={{ fontSize: "13px", color: "var(--gray-mid)", margin: 0 }}>
         {legenda}
       </p>
+      {dinheiro && (
+        <p
+          style={{
+            fontSize: "12px",
+            fontWeight: "700",
+            color: verde ? "#166534" : "var(--gold-dark)",
+            margin: "4px 0 0 0",
+          }}
+        >
+          {dinheiro}
+        </p>
+      )}
     </div>
   );
 }
