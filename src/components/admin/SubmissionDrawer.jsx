@@ -136,9 +136,12 @@ export default function SubmissionDrawer({
     getValorAtual(selected, "numeroWhatsapp") ||
     getValorAtual(selected, "contactoPrincipal") ||
     null;
-  // O formulário deste evento já existe? (criado — preenchido ou não)
-  const temFormulario = (invites || []).some(
-    (i) => i.submission_id === selected.id || i.submission_alvo_id === selected.id,
+  // O formulário deste evento já foi SUBMETIDO? (criado mas por
+  // preencher não conta — a Nádia ainda pode precisar de o gerir)
+  const formularioSubmetido = (invites || []).some(
+    (i) =>
+      i.submission_id === selected.id ||
+      (i.submission_alvo_id === selected.id && i.submission_id),
   );
 
   const dadosMensagens = {
@@ -381,14 +384,14 @@ export default function SubmissionDrawer({
               </button>
               <button
                 onClick={() => onFormulario && onFormulario(selected)}
-                disabled={temFormulario}
+                disabled={formularioSubmetido}
                 title={
-                  temFormulario
-                    ? "O formulário deste evento já foi criado — vê-o em Formulários"
-                    : "Criar o formulário de onboarding deste evento"
+                  formularioSubmetido
+                    ? "O formulário deste evento já foi preenchido"
+                    : "Criar ou gerir o formulário de onboarding deste evento"
                 }
                 style={
-                  temFormulario
+                  formularioSubmetido
                     ? {
                         ...btnDocumento,
                         opacity: 0.45,
@@ -397,7 +400,9 @@ export default function SubmissionDrawer({
                     : btnDocumento
                 }
               >
-                {temFormulario ? "✓ Formulário criado" : "📋 Formulário"}
+                {formularioSubmetido
+                  ? "✓ Formulário preenchido"
+                  : "📋 Formulário"}
               </button>
               <button
                 onClick={() =>
@@ -981,7 +986,8 @@ function Jornada({ submissao, invites = [], onEtapa }) {
       rotulo: "Formulário",
       feito: formularioFeito,
       aMeio: formularioAMeio,
-      clicavel: true,
+      // Submetido = nada a abrir; por criar/preencher = clicável
+      clicavel: !formularioFeito,
     },
     {
       id: "projecto",
