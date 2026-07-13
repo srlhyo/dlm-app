@@ -115,6 +115,7 @@ export default function SubmissionDrawer({
   onSaved,
   onGerarDocumento,
   onFormulario,
+  onVerFormulario,
   invites = [],
   onNavegar,
 }) {
@@ -136,13 +137,29 @@ export default function SubmissionDrawer({
     getValorAtual(selected, "numeroWhatsapp") ||
     getValorAtual(selected, "contactoPrincipal") ||
     null;
-  // O formulário deste evento já foi SUBMETIDO? (criado mas por
-  // preencher não conta — a Nádia ainda pode precisar de o gerir)
-  const formularioSubmetido = (invites || []).some(
+  // Os TRÊS estados do formulário deste evento:
+  //   sem convite  → criar (painel Novo Formulário)
+  //   pendente     → abrir para PREENCHER (como o ✏ do cartão)
+  //   submetido    → nada a abrir (botão desativado, etapa morta)
+  const conviteDoEvento = (invites || []).find(
     (i) =>
       i.submission_id === selected.id ||
-      (i.submission_alvo_id === selected.id && i.submission_id),
+      i.submission_alvo_id === selected.id,
   );
+  const formularioSubmetido = !!(
+    conviteDoEvento &&
+    (conviteDoEvento.submission_id === selected.id ||
+      conviteDoEvento.submission_id)
+  );
+  const temConvitePendente = !!conviteDoEvento && !formularioSubmetido;
+  const abrirFormulario = () => {
+    if (formularioSubmetido) return;
+    if (temConvitePendente) {
+      if (onVerFormulario) onVerFormulario(selected);
+    } else if (onFormulario) {
+      onFormulario(selected);
+    }
+  };
 
   const dadosMensagens = {
     nomeCliente: resumo.titulo,
@@ -344,8 +361,7 @@ export default function SubmissionDrawer({
                   onGerarDocumento && onGerarDocumento(selected, "proposta");
                 else if (id === "contrato")
                   onGerarDocumento && onGerarDocumento(selected, "contrato");
-                else if (id === "formulario")
-                  onFormulario && onFormulario(selected);
+                else if (id === "formulario") abrirFormulario();
                 else if (id === "preparacao" && onNavegar) {
                   onClose();
                   onNavegar("operacional");
@@ -383,26 +399,26 @@ export default function SubmissionDrawer({
                 📄 Briefing
               </button>
               <button
-                onClick={() => onFormulario && onFormulario(selected)}
+                onClick={abrirFormulario}
                 disabled={formularioSubmetido}
                 title={
                   formularioSubmetido
                     ? "O formulário deste evento já foi preenchido"
-                    : "Criar ou gerir o formulário de onboarding deste evento"
+                    : temConvitePendente
+                      ? "Abrir o formulário para preencher"
+                      : "Criar o formulário de onboarding deste evento"
                 }
                 style={
                   formularioSubmetido
-                    ? {
-                        ...btnDocumento,
-                        opacity: 0.45,
-                        cursor: "not-allowed",
-                      }
+                    ? { ...btnDocumento, opacity: 0.45, cursor: "not-allowed" }
                     : btnDocumento
                 }
               >
                 {formularioSubmetido
                   ? "✓ Formulário preenchido"
-                  : "📋 Formulário"}
+                  : temConvitePendente
+                    ? "📋 Preencher formulário"
+                    : "📋 Formulário"}
               </button>
               <button
                 onClick={() =>
@@ -986,7 +1002,7 @@ function Jornada({ submissao, invites = [], onEtapa }) {
       rotulo: "Formulário",
       feito: formularioFeito,
       aMeio: formularioAMeio,
-      // Submetido = nada a abrir; por criar/preencher = clicável
+      // Submetido (✓) = morto; pendente (◐) preenche; ausente (○) cria
       clicavel: !formularioFeito,
     },
     {

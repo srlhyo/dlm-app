@@ -296,6 +296,25 @@ export default function AdminPage() {
   // de criar cliente + evento novos. Segue o padrão da reserva: o tipo
   // vem pré-selecionado do evento e a data pré-preenchida se o modelo
   // tiver campo de data.
+  // Abrir o formulário PENDENTE de um evento para PREENCHER — o mesmo
+  // destino do botão "✏ Preencher" do cartão. É para onde vão o botão
+  // do drawer e a etapa da Jornada quando o convite existe por
+  // preencher (nunca há caminho para duplicados).
+  const handleVerFormularioDoEvento = (submissao) => {
+    const convite = invites.find(
+      (i) =>
+        i.submission_alvo_id === submissao.id ||
+        i.submission_id === submissao.id,
+    );
+    if (convite && !convite.submission_id) {
+      handlePreencherFormulario(convite);
+    } else {
+      // rede de segurança: sem convite legível, ao menos a lista
+      setActiveTab("convites");
+      setShowNewInvite(false);
+    }
+  };
+
   const handleFormularioDoEvento = (submissao) => {
     const tipoId = submissao.event_type_id || eventTypes[0]?.id || "";
     const tipo = eventTypes.find((et) => et.id === tipoId);
@@ -1224,6 +1243,7 @@ export default function AdminPage() {
         }}
         onGerarDocumento={handleGerarDocumento}
         onFormulario={handleFormularioDoEvento}
+        onVerFormulario={handleVerFormularioDoEvento}
         invites={invites}
         onNavegar={setActiveTab}
       />
