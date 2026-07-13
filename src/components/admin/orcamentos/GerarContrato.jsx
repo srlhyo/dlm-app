@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useRascunho } from "../../../lib/rascunho";
 import logoUrl from "../../../assets/logo.png";
 import {
   EMPRESA,
@@ -36,45 +37,47 @@ const novoContraente = (base = {}) => ({
 });
 
 export default function GerarContrato({ prefill = null, ativo = true }) {
+  // Rascunho persistente: cada documento (evento ou manual) tem o seu
+  const rid = `contrato:${prefill?.submissionId || "manual"}`;
   // 1.ª Contraente — cliente(s). Com prefill, os contraentes vêm já
   // resolvidos (casal = 2, restantes eventos = 1).
-  const [contraentes, setContraentes] = useState(() =>
+  const [contraentes, setContraentes] = useRascunho(`${rid}:contraentes`, () =>
     prefill?.contraentes?.length
       ? prefill.contraentes.map((c) => novoContraente(c))
       : [novoContraente()],
   );
-  const [morada, setMorada] = useState(prefill?.morada || "");
-  const [contacto, setContacto] = useState(prefill?.contacto || "");
+  const [morada, setMorada] = useRascunho(`${rid}:morada`, prefill?.morada || "");
+  const [contacto, setContacto] = useRascunho(`${rid}:contacto`, prefill?.contacto || "");
 
   // Objeto
-  const [tipoEvento, setTipoEvento] = useState(
+  const [tipoEvento, setTipoEvento] = useRascunho(`${rid}:tipoEvento`, 
     prefill ? prefill.tipoEvento || "" : "Casamento",
   );
-  const [dataEvento, setDataEvento] = useState(prefill?.dataEvento || "");
-  const [horaInicio, setHoraInicio] = useState(prefill?.horaInicio || "");
-  const [horaFim, setHoraFim] = useState(prefill?.horaFim || "");
-  const [local, setLocal] = useState(prefill?.localCompleto || "");
+  const [dataEvento, setDataEvento] = useRascunho(`${rid}:dataEvento`, prefill?.dataEvento || "");
+  const [horaInicio, setHoraInicio] = useRascunho(`${rid}:horaInicio`, prefill?.horaInicio || "");
+  const [horaFim, setHoraFim] = useRascunho(`${rid}:horaFim`, prefill?.horaFim || "");
+  const [local, setLocal] = useRascunho(`${rid}:local`, prefill?.localCompleto || "");
 
   // Serviços (texto livre multilinha, pré-preenchido com a composição habitual)
-  const [lugares, setLugares] = useState(prefill?.lugares || "");
-  const [composicao, setComposicao] = useState(
+  const [lugares, setLugares] = useRascunho(`${rid}:lugares`, prefill?.lugares || "");
+  const [composicao, setComposicao] = useRascunho(`${rid}:composicao`, 
     COMPOSICAO_LUGAR_SUGERIDA.join("\n"),
   );
-  const [servicosExtra, setServicosExtra] = useState("");
+  const [servicosExtra, setServicosExtra] = useRascunho(`${rid}:servicosExtra`, "");
 
   // Valor — o extenso deriva automaticamente do valor, mas fica editável
-  const [valor, setValor] = useState(
+  const [valor, setValor] = useRascunho(`${rid}:valor`, 
     prefill?.valor !== undefined && prefill?.valor !== null
       ? String(prefill.valor)
       : "",
   );
-  const [valorExtenso, setValorExtenso] = useState(
+  const [valorExtenso, setValorExtenso] = useRascunho(`${rid}:valorExtenso`, 
     prefill?.valor ? valorPorExtensoPT(prefill.valor) : "",
   );
 
   // Assinatura (local + data)
-  const [localAssinatura, setLocalAssinatura] = useState("Ericeira");
-  const [dataAssinatura, setDataAssinatura] = useState(
+  const [localAssinatura, setLocalAssinatura] = useRascunho(`${rid}:localAssinatura`, "Ericeira");
+  const [dataAssinatura, setDataAssinatura] = useRascunho(`${rid}:dataAssinatura`, 
     new Date().toISOString().slice(0, 10),
   );
 

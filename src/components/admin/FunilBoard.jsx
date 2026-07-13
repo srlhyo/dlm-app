@@ -66,9 +66,6 @@ export default function FunilBoard({
   const [atualizando, setAtualizando] = useState(null); // id do evento
   const [novoInteressado, setNovoInteressado] = useState(false); // modal aberto
   const [avisoErro, setAvisoErro] = useState(null); // toast discreto (adeus alert)
-  // Colunas VAZIAS colapsam em faixas finas (clicar expande); uma
-  // coluna com eventos expande-se sozinha. Poupa o scroll horizontal.
-  const [expandidas, setExpandidas] = useState({});
 
   const carregar = async () => {
     setCarregando(true);
@@ -148,100 +145,6 @@ export default function FunilBoard({
 
   return (
     <div>
-      {/* ===== BARRA-RESUMO: o pulso financeiro do funil =====
-          Em negociação = fases pré-sinal (dinheiro possível);
-          Garantido = pós-sinal, sem Concluídos (a data está vendida).
-          Lê exatamente o que o quadro mostra. */}
-      {(() => {
-        const preSinal = FASES_BOARD.filter(
-          (fase) => !FASES_POS_SINAL.includes(fase),
-        );
-        const negociacao = eventos.filter((e) =>
-          preSinal.includes(faseDe(e)),
-        );
-        const garantidos = eventos.filter(
-          (e) =>
-            FASES_POS_SINAL.includes(faseDe(e)) && e.status !== "Concluído",
-        );
-        const cartao = (rotulo, lista, corTexto, corFundo) => (
-          <div
-            style={{
-              flex: "1 1 180px",
-              backgroundColor: corFundo,
-              borderRadius: "12px",
-              padding: "10px 16px",
-              border: "1px solid #F0EBE0",
-            }}
-          >
-            <p
-              style={{
-                fontSize: "10px",
-                fontWeight: "600",
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-                color: corTexto,
-                margin: "0 0 2px 0",
-              }}
-            >
-              {rotulo}
-            </p>
-            <p
-              style={{
-                fontSize: "17px",
-                fontWeight: "700",
-                color: corTexto,
-                margin: 0,
-              }}
-            >
-              {formatarEuros(somaValores(lista))}{" "}
-              <span
-                style={{
-                  fontSize: "11px",
-                  fontWeight: "400",
-                  color: "var(--gray-mid)",
-                }}
-              >
-                · {lista.length} {lista.length === 1 ? "evento" : "eventos"}
-              </span>
-            </p>
-          </div>
-        );
-        return (
-          <div
-            style={{
-              display: "flex",
-              gap: "10px",
-              flexWrap: "wrap",
-              marginBottom: "14px",
-            }}
-          >
-            {cartao(
-              "Em negociação",
-              negociacao,
-              "var(--gold-dark)",
-              "white",
-            )}
-            {cartao("Garantido (sinal pago)", garantidos, "#166534", "#F0FDF4")}
-          </div>
-        );
-      })()}
-
-      {avisoErro && (
-        <div
-          style={{
-            backgroundColor: "#FEF2F2",
-            border: "1px solid #FECACA",
-            color: "#B91C1C",
-            borderRadius: "10px",
-            padding: "10px 14px",
-            fontSize: "13px",
-            marginBottom: "12px",
-          }}
-        >
-          {avisoErro}
-        </div>
-      )}
-
       {/* Barra de topo: novo interessado (o caso Instagram: a Nádia
           transcreve a conversa) + filtro de perdidos */}
       <div
@@ -289,198 +192,157 @@ export default function FunilBoard({
         </button>
       </div>
 
-      {/* Colunas com scroll horizontal (mobile-first) */}
-      <div
-        style={{
-          display: "flex",
-          gap: "12px",
-          overflowX: "auto",
-          WebkitOverflowScrolling: "touch",
-          paddingBottom: "10px",
-          alignItems: "flex-start",
-        }}
-      >
-        {colunas.map((fase) => {
-          const f = FASE_COR[fase];
-          const daColuna = eventos.filter((e) => {
-            if (faseDe(e) !== fase) return false;
-            // As colunas pós-sinal são o "presente", não o arquivo:
-            // eventos já CONCLUÍDOS saem do funil (o histórico vive na
-            // Logística, no Dashboard e na ficha da pessoa) — senão as
-            // colunas cresciam para sempre. Fechados com data passada
-            // mas NÃO concluídos ficam, de propósito: é sinal de atenção.
-            if (FASES_POS_SINAL.includes(fase) && e.status === "Concluído")
-              return false;
-            return true;
+      {/* ===== AS DUAS COLUNAS DA NÁDIA =====
+          Interessados (pré-sinal) | Clientes (pós-sinal). As ETAPAS
+          viram pastilhas nos cartões; "Sinal recebido →" atravessa o
+          cartão para a direita sozinho (é só a fase a mudar). O € vive
+          nos cabeçalhos — a antiga barra-resumo era isto. */}
+      {(() => {
+        const FASES_ESQ = ["interessado", "orcamento", "sinal"];
+        const FASES_DIR = ["cliente", "projecto", "contrato"];
+        const ordemFase = (f) => FASES_BOARD.indexOf(f);
+        const ordenar = (lista) =>
+          [...lista].sort((a, b) => {
+            const df = ordemFase(faseDe(a)) - ordemFase(faseDe(b));
+            if (df !== 0) return df;
+            if (!a.data_evento) return 1;
+            if (!b.data_evento) return -1;
+            return new Date(a.data_evento) - new Date(b.data_evento);
           });
-          // Coluna vazia e não expandida à mão → faixa fina vertical
-          if (daColuna.length === 0 && !expandidas[fase]) {
-            return (
-              <button
-                key={fase}
-                onClick={() =>
-                  setExpandidas((prev) => ({ ...prev, [fase]: true }))
-                }
-                title={`${FASE_LABEL[fase]} — sem eventos (clicar para expandir)`}
-                style={{
-                  flex: "0 0 44px",
-                  alignSelf: "stretch",
-                  minHeight: "190px",
-                  backgroundColor: f.bg,
-                  border: "none",
-                  borderRadius: "14px",
-                  cursor: "pointer",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "12px",
-                  padding: "12px 0",
-                }}
-              >
-                <span
-                  style={{
-                    writingMode: "vertical-rl",
-                    fontSize: "10px",
-                    fontWeight: "700",
-                    letterSpacing: "0.12em",
-                    textTransform: "uppercase",
-                    color: f.cor,
-                  }}
-                >
-                  {FASE_LABEL[fase]}
-                </span>
-                <span
-                  style={{ fontSize: "12px", fontWeight: "700", color: f.cor }}
-                >
-                  0
-                </span>
-              </button>
-            );
-          }
+        const interessados = ordenar(
+          eventos.filter((e) => FASES_ESQ.includes(faseDe(e))),
+        );
+        const clientes = ordenar(
+          eventos.filter(
+            (e) => FASES_DIR.includes(faseDe(e)) && e.status !== "Concluído",
+          ),
+        );
 
-          return (
+        const Coluna = ({ titulo, cor, fundo, borda, lista, legendaEuros }) => (
+          <div
+            style={{
+              backgroundColor: fundo,
+              borderRadius: "14px",
+              padding: "14px",
+              border: `1px solid ${borda}`,
+              minWidth: 0,
+            }}
+          >
             <div
-              key={fase}
               style={{
-                flex: "0 0 240px",
-                backgroundColor: "#FBF7EF",
-                borderRadius: "14px",
-                padding: "12px",
-                border: "1px solid #F0EBE0",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "baseline",
               }}
             >
-              {/* Cabeçalho da coluna */}
-              <div
+              <p
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  marginBottom: "10px",
-                  padding: "0 2px",
+                  fontSize: "12px",
+                  fontWeight: "700",
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  color: cor,
+                  margin: 0,
                 }}
               >
-                <span
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: "700",
-                    padding: "3px 10px",
-                    borderRadius: "999px",
-                    backgroundColor: f.bg,
-                    color: f.cor,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  {FASE_LABEL[fase]}
-                </span>
-                <span
-                  style={{
-                    fontSize: "12px",
-                    fontWeight: "600",
-                    color: "var(--gray-mid)",
-                  }}
-                >
-                  {daColuna.length}
-                </span>
-                {daColuna.length === 0 && (
-                  <button
-                    onClick={() =>
-                      setExpandidas((prev) => ({ ...prev, [fase]: false }))
-                    }
-                    title="Recolher a coluna"
-                    style={{
-                      border: "none",
-                      background: "none",
-                      cursor: "pointer",
-                      fontSize: "13px",
-                      color: "var(--gray-mid)",
-                      padding: "0 2px",
-                      lineHeight: 1,
-                    }}
-                  >
-                    «
-                  </button>
-                )}
-              </div>
-
-              {/* Total da coluna em € (na de Aguarda Sinal, também os
-                  sinais a receber). Sem valores acordados: um traço. */}
-              {fase !== "perdido" && (
-                <p
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: "700",
-                    color: f.cor,
-                    margin: "-4px 2px 8px 2px",
-                  }}
-                >
-                  {(() => {
-                    const total = somaValores(daColuna);
-                    if (total <= 0) return "—";
-                    return fase === "sinal"
-                      ? `${formatarEuros(total)} · sinais: ${formatarEuros(total / 2)}`
-                      : formatarEuros(total);
-                  })()}
-                </p>
-              )}
-
-              {daColuna.length === 0 && (
-                <p
-                  style={{
-                    fontSize: "12px",
-                    color: "var(--gray-mid)",
-                    fontStyle: "italic",
-                    textAlign: "center",
-                    padding: "14px 0",
-                    margin: 0,
-                  }}
-                >
-                  Sem eventos nesta fase.
-                </p>
-              )}
-
-              {daColuna.map((ev) => (
+                {titulo}
+              </p>
+              <span style={{ fontSize: "12px", color: "var(--gray-mid)" }}>
+                {lista.length}
+              </span>
+            </div>
+            <p
+              style={{
+                fontSize: "15px",
+                fontWeight: "700",
+                color: cor,
+                margin: "2px 0 14px 0",
+              }}
+            >
+              {formatarEuros(somaValores(lista))}{" "}
+              <span
+                style={{
+                  fontSize: "10px",
+                  fontWeight: "400",
+                  color: "var(--gray-mid)",
+                }}
+              >
+                {legendaEuros}
+              </span>
+            </p>
+            {lista.length === 0 ? (
+              <p
+                style={{
+                  fontSize: "12px",
+                  fontStyle: "italic",
+                  color: "var(--gray-mid)",
+                  textAlign: "center",
+                  padding: "18px 0",
+                  margin: 0,
+                }}
+              >
+                Sem eventos nesta coluna.
+              </p>
+            ) : (
+              lista.map((ev) => (
                 <CardEvento
                   key={ev.id}
                   evento={ev}
-                  fase={fase}
+                  fase={faseDe(ev)}
                   nome={nomeCard(ev)}
                   tipo={nomeTipo(ev.event_type_id)}
                   aAtualizar={atualizando === ev.id}
                   aConfirmarPerda={confirmandoPerda === ev.id}
                   onAbrir={() => onAbrirEvento && onAbrirEvento(ev)}
-                  onAvancar={() => mudarFase(ev, PROXIMA_FASE[fase])}
+                  onAvancar={() => mudarFase(ev, PROXIMA_FASE[faseDe(ev)])}
                   onPedirPerda={() => setConfirmandoPerda(ev.id)}
                   onCancelarPerda={() => setConfirmandoPerda(null)}
                   onConfirmarPerda={() => mudarFase(ev, "perdido")}
                   onRecuperar={() => mudarFase(ev, "interessado")}
                 />
-              ))}
-            </div>
-          );
-        })}
-      </div>
+              ))
+            )}
+          </div>
+        );
+
+        return (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+              gap: "14px",
+              alignItems: "start",
+            }}
+          >
+            <Coluna
+              titulo="Interessados"
+              cor="var(--gold-dark)"
+              fundo="#FBF7EF"
+              borda="#F0EBE0"
+              lista={interessados}
+              legendaEuros="em negociação"
+            />
+            <Coluna
+              titulo="Clientes"
+              cor="#166534"
+              fundo="#F6FBF6"
+              borda="#CDEBD3"
+              lista={clientes}
+              legendaEuros="garantidos (sinal pago)"
+            />
+            {mostrarPerdidos && (
+              <Coluna
+                titulo="Perdidos"
+                cor="var(--gray-mid)"
+                fundo="#F9FAFB"
+                borda="#E5E7EB"
+                lista={perdidos}
+                legendaEuros=""
+              />
+            )}
+          </div>
+        );
+      })()}
 
       {/* Modal: novo interessado — reutiliza o CaptacaoForm da página
           pública (uma UI, duas portas). Ao criar, recarrega o funil. */}
@@ -605,19 +467,46 @@ function CardEvento({
         opacity: ehPerdido ? 0.85 : 1,
       }}
     >
-      <p
+      <div
         style={{
-          fontSize: "13px",
-          fontWeight: "600",
-          color: ehPerdido ? "var(--gray-mid)" : "var(--charcoal)",
-          margin: "0 0 2px 0",
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "8px",
+          marginBottom: "2px",
         }}
       >
-        {nome}
-      </p>
+        <p
+          style={{
+            fontSize: "13px",
+            fontWeight: "600",
+            color: ehPerdido ? "var(--gray-mid)" : "var(--charcoal)",
+            margin: 0,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            minWidth: 0,
+          }}
+        >
+          {nome}
+        </p>
+        {/* A etapa — era uma coluna, agora é uma pastilha */}
+        <span
+          style={{
+            flexShrink: 0,
+            fontSize: "8.5px",
+            fontWeight: "700",
+            letterSpacing: "0.05em",
+            textTransform: "uppercase",
+            padding: "3px 9px",
+            borderRadius: "999px",
+            backgroundColor: (FASE_COR[fase] || {}).bg || "#F3F4F6",
+            color: (FASE_COR[fase] || {}).cor || "var(--gray-mid)",
+          }}
+        >
+          {FASE_LABEL[fase] || fase}
+        </span>
+      </div>
       <p
         style={{
           fontSize: "12px",

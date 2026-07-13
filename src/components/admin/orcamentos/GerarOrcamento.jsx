@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import { useRascunho } from "../../../lib/rascunho";
 import logoUrl from "../../../assets/logo.png";
 import { uploadImagemReferencia } from "../../../lib/captacao";
 import { guardarValorAcordado } from "../../../lib/clientes";
@@ -47,23 +48,25 @@ export default function GerarOrcamento({
   ativo = true,
   onDadosMudaram,
 }) {
+  // Rascunho persistente: cada documento (evento ou manual) tem o seu
+  const rid = `orcamento:${prefill?.submissionId || "manual"}`;
   // Dados do cliente/evento — pré-preenchidos quando se chega de um
   // evento; senão, os defaults manuais de sempre.
-  const [cliente, setCliente] = useState(prefill?.nomeCliente || "");
-  const [tipoEvento, setTipoEvento] = useState(
+  const [cliente, setCliente] = useRascunho(`${rid}:cliente`, prefill?.nomeCliente || "");
+  const [tipoEvento, setTipoEvento] = useRascunho(`${rid}:tipoEvento`, 
     prefill ? prefill.tipoEvento || "" : "Casamento",
   );
-  const [dataEvento, setDataEvento] = useState(prefill?.dataEvento || "");
-  const [local, setLocal] = useState(prefill?.local || "");
-  const [subtitulo, setSubtitulo] = useState(""); // linha opcional (ex: "Decoração desenvolvida...")
+  const [dataEvento, setDataEvento] = useRascunho(`${rid}:dataEvento`, prefill?.dataEvento || "");
+  const [local, setLocal] = useRascunho(`${rid}:local`, prefill?.local || "");
+  const [subtitulo, setSubtitulo] = useRascunho(`${rid}:subtitulo`, ""); // linha opcional (ex: "Decoração desenvolvida...")
 
   // Linhas de serviço
-  const [linhas, setLinhas] = useState([novaLinha()]);
+  const [linhas, setLinhas] = useRascunho(`${rid}:linhas`, [novaLinha()]);
 
   // Imagens de referência DO CLIENTE — pré-preenchidas da captação;
   // a Nádia pode remover ou juntar as que chegaram por Instagram.
   // Entram no PDF como páginas de referências, a seguir ao orçamento.
-  const [imagens, setImagens] = useState(prefill?.imagensReferencia || []);
+  const [imagens, setImagens] = useRascunho(`${rid}:imagens`, prefill?.imagensReferencia || []);
   const [carregandoImg, setCarregandoImg] = useState(false);
   // Guardar o total como valor acordado do evento (alimenta o funil)
   const [aGuardarValor, setAGuardarValor] = useState(false);

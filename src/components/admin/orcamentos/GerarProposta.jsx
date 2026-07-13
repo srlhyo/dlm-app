@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useRascunho } from "../../../lib/rascunho";
 import logoUrl from "../../../assets/logo.png";
 import { formatarDataPT } from "./orcamentoConfig";
 import { uploadImagemProposta } from "../../../lib/propostas";
@@ -25,15 +26,17 @@ const novaSeccao = () => ({
 });
 
 export default function GerarProposta({ prefill = null, ativo = true }) {
-  const [cliente, setCliente] = useState(prefill?.nomeCliente || "");
-  const [tipoEvento, setTipoEvento] = useState(
+  // Rascunho persistente: cada documento (evento ou manual) tem o seu
+  const rid = `proposta:${prefill?.submissionId || "manual"}`;
+  const [cliente, setCliente] = useRascunho(`${rid}:cliente`, prefill?.nomeCliente || "");
+  const [tipoEvento, setTipoEvento] = useRascunho(`${rid}:tipoEvento`, 
     prefill ? prefill.tipoEvento || "" : "",
   );
-  const [dataEvento, setDataEvento] = useState(prefill?.dataEvento || "");
-  const [subtitulo, setSubtitulo] = useState(
+  const [dataEvento, setDataEvento] = useRascunho(`${rid}:dataEvento`, prefill?.dataEvento || "");
+  const [subtitulo, setSubtitulo] = useRascunho(`${rid}:subtitulo`, 
     "Decoração desenvolvida dentro da estética Do Luxo à Mesa.",
   );
-  const [seccoes, setSeccoes] = useState([novaSeccao()]);
+  const [seccoes, setSeccoes] = useRascunho(`${rid}:seccoes`, [novaSeccao()]);
   const [carregandoImg, setCarregandoImg] = useState(null); // uid da secção
   const inputImagem = useRef(null);
   const seccaoAlvo = useRef(null); // uid da secção que pediu upload
