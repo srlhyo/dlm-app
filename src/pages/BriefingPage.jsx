@@ -6,6 +6,7 @@ import {
   getValorAtual,
   getResumoSubmissao,
 } from "../lib/submissionFields";
+import { normalizarCores } from "../components/admin/SeletorPaleta";
 
 // ============================================================
 // BriefingPage — o resumo imprimível de UM evento.
@@ -149,9 +150,65 @@ function Section({ title, children }) {
 }
 
 // Um campo do briefing. `largo` ocupa a linha inteira (textos longos).
-function Field({ label, value, largo = false }) {
+function Field({ label, value, largo = false, paleta = null }) {
   const display = paraTexto(value);
   if (!display) return null;
+
+  // Campos de paleta: bolinha da cor ao lado do nome. O
+  // printColorAdjust força o browser a IMPRIMIR o fundo da bolinha
+  // (sem ele, no papel sairiam círculos brancos).
+  if (paleta && paleta.length > 0) {
+    return (
+      <div
+        style={{
+          borderBottom: "1px solid #F5ECD7",
+          paddingBottom: "8px",
+          ...(largo ? { gridColumn: "1 / -1" } : {}),
+        }}
+      >
+        <p
+          style={{
+            fontSize: "9px",
+            color: "#6B7280",
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            margin: "0 0 4px 0",
+          }}
+        >
+          {label}
+        </p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 14px" }}>
+          {paleta.map((c) => (
+            <span
+              key={c.nome}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                fontSize: "12px",
+                color: "#1A1A1A",
+                lineHeight: "1.5",
+              }}
+            >
+              <span
+                style={{
+                  width: "13px",
+                  height: "13px",
+                  borderRadius: "50%",
+                  backgroundColor: c.hex || "#E5E7EB",
+                  border: "1px solid rgba(0,0,0,0.15)",
+                  flexShrink: 0,
+                  printColorAdjust: "exact",
+                  WebkitPrintColorAdjust: "exact",
+                }}
+              />
+              {c.nome}
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+  }
   return (
     <div
       style={{
@@ -290,6 +347,10 @@ export default function BriefingPage() {
           label: f.label,
           valor: getValorAtual(submission, f.id),
           largo: TIPOS_LARGOS.includes(f.type),
+          paleta:
+            f.type === "paleta"
+              ? normalizarCores(getValorAtual(submission, f.id) || [])
+              : null,
         }))
         .filter((c) => paraTexto(c.valor) !== "");
       return { titulo: step.title, campos };
@@ -585,6 +646,7 @@ export default function BriefingPage() {
                     label={c.label}
                     value={c.valor}
                     largo={c.largo}
+                    paleta={c.paleta}
                   />
                 ))}
               </Section>
