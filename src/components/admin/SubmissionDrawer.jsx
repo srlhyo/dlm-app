@@ -136,6 +136,11 @@ export default function SubmissionDrawer({
     getValorAtual(selected, "numeroWhatsapp") ||
     getValorAtual(selected, "contactoPrincipal") ||
     null;
+  // O formulário deste evento já existe? (criado — preenchido ou não)
+  const temFormulario = (invites || []).some(
+    (i) => i.submission_id === selected.id || i.submission_alvo_id === selected.id,
+  );
+
   const dadosMensagens = {
     nomeCliente: resumo.titulo,
     tipoEvento:
@@ -250,7 +255,7 @@ export default function SubmissionDrawer({
           style={{
             backgroundColor: "white",
             width: "100%",
-            maxWidth: "480px",
+            maxWidth: "560px", // largo o suficiente para a Jornada respirar
             height: "100%",
             overflowY: "auto",
             padding: "28px 24px",
@@ -376,9 +381,23 @@ export default function SubmissionDrawer({
               </button>
               <button
                 onClick={() => onFormulario && onFormulario(selected)}
-                style={btnDocumento}
+                disabled={temFormulario}
+                title={
+                  temFormulario
+                    ? "O formulário deste evento já foi criado — vê-o em Formulários"
+                    : "Criar o formulário de onboarding deste evento"
+                }
+                style={
+                  temFormulario
+                    ? {
+                        ...btnDocumento,
+                        opacity: 0.45,
+                        cursor: "not-allowed",
+                      }
+                    : btnDocumento
+                }
               >
-                📋 Formulário
+                {temFormulario ? "✓ Formulário criado" : "📋 Formulário"}
               </button>
               <button
                 onClick={() =>
@@ -1089,15 +1108,16 @@ function Jornada({ submissao, invites = [], onEtapa }) {
               </div>
               <p
                 style={{
-                  fontSize: "9px",
+                  fontSize: "8.5px",
                   fontWeight: e.feito || ehAtual ? "600" : "400",
                   color: ehAtual
                     ? "var(--gold-dark)"
                     : e.feito
                       ? "var(--charcoal)"
                       : "var(--gray-mid)",
-                  margin: 0,
+                  margin: "0 2px",
                   lineHeight: 1.25,
+                  overflowWrap: "break-word",
                 }}
               >
                 {e.rotulo}
