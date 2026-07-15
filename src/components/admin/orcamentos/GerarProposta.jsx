@@ -1,20 +1,29 @@
-import { useState, useRef } from "react";
-import { useRascunho } from "../../../lib/rascunho";
+import { useState, useRef, useEffect } from "react";
+import { useDocumento, rotuloEstadoGravacao } from "../../../lib/documentos";
 import logoUrl from "../../../assets/logo.png";
 import { formatarDataPT } from "./orcamentoConfig";
 import { uploadImagemProposta } from "../../../lib/propostas";
 
 // ============================================================
-// GerarProposta — o documento que vende o sonho (passo 5 da jornada).
-// Capa (logo, PROPOSTA, cliente/tipo/data) + secções repetíveis, cada
-// uma com título, UMA imagem grande (da Nádia) e descrição por linhas.
-// No PDF: capa em página própria + UMA SECÇÃO POR PÁGINA, sem
-// cabeçalhos do browser (mesmo tratamento do orçamento).
+// GerarProposta v2 — o documento que vende o sonho (passo 5 da
+// jornada), agora com persistência no Supabase (Biblioteca de
+// Documentos, migração 021). Mesmo padrão do GerarOrcamento:
 //
-// prefill (opcional) — dados do evento (getDadosParaDocumento). As
-// imagensReferencia DO CLIENTE aparecem numa faixa de CONSULTA no
-// editor (não entram no PDF — a proposta é a visão da Nádia).
-// Sem valor: dinheiro é assunto do orçamento.
+//   • GerarProposta (shell) — resolve ONDE o documento vive:
+//       - prefill.submissionId (drawer 🎨) OU documentoId (biblioteca)
+//         → tabela `documentos` via useDocumento (lazy-create na
+//         primeira edição; gravação debounced ~800ms com indicador)
+//       - manual (sem evento nem id) → localStorage TRANSITÓRIO num
+//         objeto único com a MESMA forma dos `dados`
+//   • PropostaEditor — capa (logo, PROJECTO, cliente/tipo/data) +
+//     secções repetíveis (título, UMA imagem grande da Nádia,
+//     descrição por linhas). No PDF: capa em página própria + UMA
+//     SECÇÃO POR PÁGINA, sem cabeçalhos do browser.
+//
+// Precedência de hidratação: documento.dados > prefill > defaults.
+// As imagensReferencia DO CLIENTE aparecem numa faixa de CONSULTA no
+// editor (não entram no PDF nem nos `dados` — a proposta é a visão
+// da Nádia). Sem valor: dinheiro é assunto do orçamento.
 // ============================================================
 
 let seqSec = 0;
@@ -25,23 +34,118 @@ const novaSeccao = () => ({
   descricao: "",
 });
 
-export default function GerarProposta({ prefill = null, ativo = true }) {
-  // Rascunho persistente: cada documento (evento ou manual) tem o seu
-  const rid = `proposta:${prefill?.submissionId || "manual"}`;
-  const [cliente, setCliente] = useRascunho(`${rid}:cliente`, prefill?.nomeCliente || "");
-  const [tipoEvento, setTipoEvento] = useRascunho(`${rid}:tipoEvento`, 
-    prefill ? prefill.tipoEvento || "" : "",
+// ---- rascunho manual (transitório, até à vista biblioteca) ----
+const CHAVE_RASCUNHO_MANUAL = "dlm_rascunho_proposta:manual:dados";
+
+const lerRascunhoManual = () => {
+  try {
+    const bruto = localStorage.getItem(CHAVE_RASCUNHO_MANUAL);
+    if (bruto !== null) return JSON.parse(bruto);
+  } catch {
+    /* storage indisponível ou JSON corrompido — segue vazio */
+  }
+  return null;
+};
+
+const gravarRascunhoManual = (dados) => {
+  try {
+    localStorage.setItem(CHAVE_RASCUNHO_MANUAL, JSON.stringify(dados));
+  } catch {
+    /* quota cheia ou privado — o pior caso é perder o rascunho manual */
+  }
+};
+
+export default function GerarProposta({
+  prefill = null,
+  ativo = true,
+  documentoId = null,
+}) {
+  const submissionId = prefill?.submissionId || null;
+  const modoPersistente = !!(submissionId || documentoId);
+
+  // O hook chama-se SEMPRE (regras dos hooks); sem ids não carrega nada
+  // e nós nunca chamamos `gravar` no modo manual — zero linhas fantasma.
+  const { carregado, documento, gravar, estado } = useDocumento({
+    tipo: "proposta",
+    submissionId,
+    documentoId,
+  });
+
+  if (modoPersistente && !carregado) {
+    return (
+      <p
+        style={{
+          fontSize: "13px",
+          color: "var(--gray-mid)",
+          padding: "24px 0",
+        }}
+      >
+        A carregar o documento…
+      </p>
+    );
+  }
+
+  // Fonte da hidratação: BD > localStorage manual > prefill > defaults
+  const d = modoPersistente ? documento?.dados || null : lerRascunhoManual();
+
+  const dadosIniciais = {
+    cliente: d?.cliente ?? prefill?.nomeCliente ?? "",
+    tipoEvento: d?.tipoEvento ?? (prefill ? prefill.tipoEvento || "" : ""),
+    dataEvento: d?.dataEvento ?? prefill?.dataEvento ?? "",
+    subtitulo:
+      d?.subtitulo ??
+      "Decoração desenvolvida dentro da estética Do Luxo à Mesa.",
+    seccoes:
+      Array.isArray(d?.seccoes) && d.seccoes.length > 0
+        ? d.seccoes
+        : [novaSeccao()],
+  };
+
+  return (
+    <PropostaEditor
+      dadosIniciais={dadosIniciais}
+      referencias={prefill?.imagensReferencia || []}
+      ativo={ativo}
+      estadoGravacao={modoPersistente ? estado : null}
+      onMudou={modoPersistente ? gravar : gravarRascunhoManual}
+    />
   );
-  const [dataEvento, setDataEvento] = useRascunho(`${rid}:dataEvento`, prefill?.dataEvento || "");
-  const [subtitulo, setSubtitulo] = useRascunho(`${rid}:subtitulo`, 
-    "Decoração desenvolvida dentro da estética Do Luxo à Mesa.",
-  );
-  const [seccoes, setSeccoes] = useRascunho(`${rid}:seccoes`, [novaSeccao()]);
+}
+
+// ------------------------------------------------------------
+// PropostaEditor — o editor + páginas imprimíveis. Não sabe onde os
+// dados vivem: hidrata de `dadosIniciais` e avisa `onMudou(dados)` a
+// cada mudança.
+// ------------------------------------------------------------
+function PropostaEditor({
+  dadosIniciais,
+  referencias,
+  ativo,
+  estadoGravacao,
+  onMudou,
+}) {
+  const [cliente, setCliente] = useState(dadosIniciais.cliente);
+  const [tipoEvento, setTipoEvento] = useState(dadosIniciais.tipoEvento);
+  const [dataEvento, setDataEvento] = useState(dadosIniciais.dataEvento);
+  const [subtitulo, setSubtitulo] = useState(dadosIniciais.subtitulo);
+  const [seccoes, setSeccoes] = useState(dadosIniciais.seccoes);
   const [carregandoImg, setCarregandoImg] = useState(null); // uid da secção
   const inputImagem = useRef(null);
   const seccaoAlvo = useRef(null); // uid da secção que pediu upload
 
-  const referencias = prefill?.imagensReferencia || [];
+  // Uma gravação por documento (não por campo): sempre que QUALQUER
+  // campo muda, o estado completo segue para onMudou (Supabase
+  // debounced ou localStorage manual). A guarda salta o 1.º render —
+  // hidratar não é editar (senão criava linhas na BD só de abrir).
+  const primeiraRenderRef = useRef(true);
+  useEffect(() => {
+    if (primeiraRenderRef.current) {
+      primeiraRenderRef.current = false;
+      return;
+    }
+    onMudou({ cliente, tipoEvento, dataEvento, subtitulo, seccoes });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cliente, tipoEvento, dataEvento, subtitulo, seccoes]);
 
   const atualizarSeccao = (uid, campos) =>
     setSeccoes((prev) =>
@@ -414,6 +518,25 @@ export default function GerarProposta({ prefill = null, ativo = true }) {
             >
               🖨 Imprimir / Guardar PDF
             </button>
+            {/* Indicador de gravação — só nos documentos persistidos
+                na BD (o manual continua no localStorage, silencioso) */}
+            {estadoGravacao && rotuloEstadoGravacao(estadoGravacao) && (
+              <p
+                style={{
+                  fontSize: "11px",
+                  textAlign: "center",
+                  margin: "10px 0 0 0",
+                  color:
+                    estadoGravacao === "erro"
+                      ? "#DC2626"
+                      : estadoGravacao === "guardado"
+                        ? "#166534"
+                        : "var(--gray-mid)",
+                }}
+              >
+                {rotuloEstadoGravacao(estadoGravacao)}
+              </p>
+            )}
           </div>
         </div>
       </div>

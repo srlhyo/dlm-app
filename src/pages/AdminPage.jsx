@@ -19,6 +19,8 @@ import ShareSheet from "../components/admin/ShareSheet";
 import CalendarioTab from "../components/admin/CalendarioTab";
 import OperacionalTab from "../components/admin/OperacionalTab";
 import DocumentosTab from "../components/admin/orcamentos/DocumentosTab";
+import DocumentoEventoPage from "../components/admin/orcamentos/DocumentoEventoPage";
+import { migrarRascunhosLocais } from "../lib/migracaoRascunhos";
 import InviteDetailModal from "../components/admin/InviteDetailModal";
 import InviteCreatedModal from "../components/admin/InviteCreatedModal";
 import InvitesList from "../components/admin/InvitesList";
@@ -135,8 +137,7 @@ function DadosCaptacao({ submissao }) {
                   borderRadius: "999px",
                   padding: "3px 10px",
                   fontSize: "11px",
-                  color:
-                    copiado === rotulo ? "#166534" : "var(--gold-dark)",
+                  color: copiado === rotulo ? "#166534" : "var(--gold-dark)",
                   cursor: "pointer",
                 }}
               >
@@ -159,8 +160,7 @@ function getTituloConvite(invite, submissions, eventTypes) {
   // o nome vem do evento-alvo — senão o cartão fica "Casamento · CÓDIGO"
   // e ninguém sabe de quem é o formulário.
   if (!fonte && invite?.submission_alvo_id && submissions) {
-    fonte =
-      submissions.find((s) => s.id === invite.submission_alvo_id) || null;
+    fonte = submissions.find((s) => s.id === invite.submission_alvo_id) || null;
   }
   if (!fonte) {
     fonte = {
@@ -283,7 +283,7 @@ export default function AdminPage() {
       const dados = await getDadosParaDocumento(submissao, eventTypes);
       setDocumentoContexto({ ...dados, tipoDoc });
       setSelected(null);
-      setActiveTab("orcamentos");
+      setActiveTab("documentoEvento");
     } catch (e) {
       console.error("Erro ao preparar o documento:", e);
       alert("Não foi possível preparar o documento. Tenta novamente.");
@@ -391,6 +391,7 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
+    migrarRascunhosLocais();
     fetchSubmissions();
     fetchReservas();
     fetchInvites();
@@ -682,95 +683,95 @@ export default function AdminPage() {
 
       {/* Conteúdo */}
       <div style={{ flex: 1, minWidth: 0 }}>
-      <div
-        style={{
-          // O Início é um PAINEL de 3 colunas: merece a largura toda
-          // (com uma moldura simétrica em ecrãs gigantes). Os outros
-          // ecrãs são listas/formulários: leem-se melhor contidos.
-          maxWidth: activeTab === "inicio" ? "1480px" : "960px",
-          margin: "0 auto",
-          padding: ehDesktop
-            ? activeTab === "inicio"
-              ? "36px 40px"
-              : "32px 24px"
-            : "24px 16px 96px",
-        }}
-      >
-        {/* ---- TAB INÍCIO (a porta de entrada) ---- */}
-        {activeTab === "inicio" && (
-          <InicioTab
-            submissions={submissions}
-            invites={invites}
-            eventTypes={eventTypes}
-            onAbrirEvento={(ev) => setSelected(ev)}
-            onNavegar={setActiveTab}
-            onDadosMudaram={fetchSubmissions}
-          />
-        )}
-
-        {/* ---- TAB MENSAGENS (biblioteca de mensagens-tipo) ---- */}
-        {activeTab === "mensagens" && <MensagensTab />}
-
-        {/* ---- TAB CLIENTES ---- */}
-        {activeTab === "clientes" && (
-          <ClientesLista
-            eventTypes={eventTypes}
-            onAbrirEvento={(ev) => setSelected(ev)}
-            onDadosMudaram={fetchSubmissions}
-          />
-        )}
-
-        {/* ---- TAB CONVITES (label Formulários) ---- */}
-        {activeTab === "convites" && (
-          <motion.div
-            key="tab-convites"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, ease: "easeOut" }}
-          >
-            {/* Notificação de convite criado */}
-            <InviteCreatedModal
-              invite={createdInvite}
+        <div
+          style={{
+            // O Início é um PAINEL de 3 colunas: merece a largura toda
+            // (com uma moldura simétrica em ecrãs gigantes). Os outros
+            // ecrãs são listas/formulários: leem-se melhor contidos.
+            maxWidth: activeTab === "inicio" ? "1480px" : "960px",
+            margin: "0 auto",
+            padding: ehDesktop
+              ? activeTab === "inicio"
+                ? "36px 40px"
+                : "32px 24px"
+              : "24px 16px 96px",
+          }}
+        >
+          {/* ---- TAB INÍCIO (a porta de entrada) ---- */}
+          {activeTab === "inicio" && (
+            <InicioTab
+              submissions={submissions}
+              invites={invites}
               eventTypes={eventTypes}
-              onClose={() => setCreatedInvite(null)}
-              onShare={() => setShareTarget(createdInvite)}
-              getShareMessage={getShareMessage}
-              getTitulo={(invite) =>
-                getTituloConvite(invite, submissions, eventTypes)
-              }
+              onAbrirEvento={(ev) => setSelected(ev)}
+              onNavegar={setActiveTab}
+              onDadosMudaram={fetchSubmissions}
             />
+          )}
 
-            {/* Botão novo Formulário */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                marginBottom: "20px",
-              }}
+          {/* ---- TAB MENSAGENS (biblioteca de mensagens-tipo) ---- */}
+          {activeTab === "mensagens" && <MensagensTab />}
+
+          {/* ---- TAB CLIENTES ---- */}
+          {activeTab === "clientes" && (
+            <ClientesLista
+              eventTypes={eventTypes}
+              onAbrirEvento={(ev) => setSelected(ev)}
+              onDadosMudaram={fetchSubmissions}
+            />
+          )}
+
+          {/* ---- TAB CONVITES (label Formulários) ---- */}
+          {activeTab === "convites" && (
+            <motion.div
+              key="tab-convites"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
             >
-              <button
-                onClick={() => {
-                  setShowNewInvite(true);
-                  setCreatedInvite(null);
-                }}
+              {/* Notificação de convite criado */}
+              <InviteCreatedModal
+                invite={createdInvite}
+                eventTypes={eventTypes}
+                onClose={() => setCreatedInvite(null)}
+                onShare={() => setShareTarget(createdInvite)}
+                getShareMessage={getShareMessage}
+                getTitulo={(invite) =>
+                  getTituloConvite(invite, submissions, eventTypes)
+                }
+              />
+
+              {/* Botão novo Formulário */}
+              <div
                 style={{
-                  padding: "10px 22px",
-                  borderRadius: "10px",
-                  fontSize: "13px",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                  backgroundColor: "var(--gold)",
-                  color: "white",
-                  border: "none",
-                  boxShadow: "0 4px 12px rgba(201,168,76,0.3)",
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  marginBottom: "20px",
                 }}
               >
-                + Novo Formulário
-              </button>
-            </div>
+                <button
+                  onClick={() => {
+                    setShowNewInvite(true);
+                    setCreatedInvite(null);
+                  }}
+                  style={{
+                    padding: "10px 22px",
+                    borderRadius: "10px",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    backgroundColor: "var(--gold)",
+                    color: "white",
+                    border: "none",
+                    boxShadow: "0 4px 12px rgba(201,168,76,0.3)",
+                  }}
+                >
+                  + Novo Formulário
+                </button>
+              </div>
 
-            {/* Formulário novo Formulário */}
-            <style>{`
+              {/* Formulário novo Formulário */}
+              <style>{`
               .painel-convite-scroll::-webkit-scrollbar { width: 6px; }
               .painel-convite-scroll::-webkit-scrollbar-thumb {
                 background-color: var(--gold-light);
@@ -779,438 +780,435 @@ export default function AdminPage() {
               .painel-convite-scroll::-webkit-scrollbar-track { background: transparent; }
             `}</style>
 
-            {showNewInvite &&
-              (() => {
-                const tipoActual = eventTypes.find(
-                  (et) => et.id === newInvite.eventTypeId,
-                );
-                const todosOsCampos = getAllFields(tipoActual);
-                const camposActivosInfo = getCamposActivosInfo(
-                  eventTypes,
-                  newInvite,
-                );
-                const camposDisponiveis = todosOsCampos.filter(
-                  (f) => !newInvite.camposAtivos.includes(f.id),
-                );
+              {showNewInvite &&
+                (() => {
+                  const tipoActual = eventTypes.find(
+                    (et) => et.id === newInvite.eventTypeId,
+                  );
+                  const todosOsCampos = getAllFields(tipoActual);
+                  const camposActivosInfo = getCamposActivosInfo(
+                    eventTypes,
+                    newInvite,
+                  );
+                  const camposDisponiveis = todosOsCampos.filter(
+                    (f) => !newInvite.camposAtivos.includes(f.id),
+                  );
 
-                return (
-                  <div
-                    style={{
-                      backgroundColor: "white",
-                      borderRadius: "16px",
-                      boxShadow: "0 2px 16px rgba(0,0,0,0.06)",
-                      marginBottom: "20px",
-                      border: "1px solid var(--gold-light)",
-                      display: "flex",
-                      flexDirection: "column",
-                      maxHeight: "min(640px, 80vh)",
-                    }}
-                  >
-                    {/* Corpo — ganha scroll próprio quando há muitos campos.
-                        A barra de scroll é estilizada (mais fina, dourada)
-                        para ficar claro que esta zona desliza */}
+                  return (
                     <div
-                      className="painel-convite-scroll"
                       style={{
-                        padding: "24px",
-                        overflowY: "auto",
-                        flex: 1,
-                        scrollbarWidth: "thin",
-                        scrollbarColor: "var(--gold-light) transparent",
+                        backgroundColor: "white",
+                        borderRadius: "16px",
+                        boxShadow: "0 2px 16px rgba(0,0,0,0.06)",
+                        marginBottom: "20px",
+                        border: "1px solid var(--gold-light)",
+                        display: "flex",
+                        flexDirection: "column",
+                        maxHeight: "min(640px, 80vh)",
                       }}
                     >
-                      <h3
+                      {/* Corpo — ganha scroll próprio quando há muitos campos.
+                        A barra de scroll é estilizada (mais fina, dourada)
+                        para ficar claro que esta zona desliza */}
+                      <div
+                        className="painel-convite-scroll"
                         style={{
-                          fontSize: "14px",
-                          color: "var(--charcoal)",
-                          margin: "0 0 20px 0",
-                          fontFamily: "Playfair Display, serif",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.06em",
+                          padding: "24px",
+                          overflowY: "auto",
+                          flex: 1,
+                          scrollbarWidth: "thin",
+                          scrollbarColor: "var(--gold-light) transparent",
                         }}
                       >
-                        Novo Formulário
-                      </h3>
-
-                      {reservaContexto && (
-                        <div
+                        <h3
                           style={{
-                            backgroundColor: "#FBF7EF",
-                            border: "1px solid var(--gold-light)",
-                            borderRadius: "10px",
-                            padding: "12px 14px",
-                            marginBottom: "16px",
+                            fontSize: "14px",
+                            color: "var(--charcoal)",
+                            margin: "0 0 20px 0",
+                            fontFamily: "Playfair Display, serif",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.06em",
                           }}
                         >
-                          <p
-                            style={{
-                              fontSize: "10px",
-                              color: "var(--gray-mid)",
-                              textTransform: "uppercase",
-                              letterSpacing: "0.06em",
-                              margin: "0 0 4px 0",
-                            }}
-                          >
-                            A criar para a reserva de
-                          </p>
-                          <p
-                            style={{
-                              fontSize: "14px",
-                              fontWeight: "600",
-                              color: "var(--charcoal)",
-                              margin: 0,
-                            }}
-                          >
-                            {reservaContexto.nome_cliente}
-                            {reservaContexto.contacto
-                              ? ` · ${reservaContexto.contacto}`
-                              : ""}
-                          </p>
-                        </div>
-                      )}
+                          Novo Formulário
+                        </h3>
 
-                      {eventoContexto && (
-                        <div
-                          style={{
-                            backgroundColor: "#FBF7EF",
-                            border: "1px solid var(--gold-light)",
-                            borderRadius: "10px",
-                            padding: "12px 14px",
-                            marginBottom: "16px",
-                          }}
-                        >
-                          <p
+                        {reservaContexto && (
+                          <div
                             style={{
-                              fontSize: "10px",
-                              color: "var(--gold-dark)",
-                              textTransform: "uppercase",
-                              letterSpacing: "0.06em",
-                              margin: "0 0 4px 0",
+                              backgroundColor: "#FBF7EF",
+                              border: "1px solid var(--gold-light)",
+                              borderRadius: "10px",
+                              padding: "12px 14px",
+                              marginBottom: "16px",
                             }}
                           >
-                            Vai atualizar o evento de
-                          </p>
-                          <p
-                            style={{
-                              fontSize: "14px",
-                              fontWeight: "600",
-                              color: "var(--charcoal)",
-                              margin: 0,
-                            }}
-                          >
-                            {eventoContexto.titulo}
-                            {eventoContexto.tipoNome
-                              ? ` · ${eventoContexto.tipoNome}`
-                              : ""}
-                          </p>
-                          <DadosCaptacao
-                            submissao={submissions.find(
-                              (x) => x.id === newInvite.submissionAlvoId,
-                            )}
-                          />
-                        </div>
-                      )}
+                            <p
+                              style={{
+                                fontSize: "10px",
+                                color: "var(--gray-mid)",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.06em",
+                                margin: "0 0 4px 0",
+                              }}
+                            >
+                              A criar para a reserva de
+                            </p>
+                            <p
+                              style={{
+                                fontSize: "14px",
+                                fontWeight: "600",
+                                color: "var(--charcoal)",
+                                margin: 0,
+                              }}
+                            >
+                              {reservaContexto.nome_cliente}
+                              {reservaContexto.contacto
+                                ? ` · ${reservaContexto.contacto}`
+                                : ""}
+                            </p>
+                          </div>
+                        )}
 
-                      {eventTypes.length > 1 && (
-                        <div
-                          id="tour-novo-convite-tipo"
-                          style={{ marginBottom: "14px" }}
-                        >
-                          <label
+                        {eventoContexto && (
+                          <div
                             style={{
-                              fontSize: "11px",
-                              fontWeight: "600",
-                              textTransform: "uppercase",
-                              letterSpacing: "0.07em",
-                              color: "var(--charcoal)",
-                              display: "block",
-                              marginBottom: "6px",
+                              backgroundColor: "#FBF7EF",
+                              border: "1px solid var(--gold-light)",
+                              borderRadius: "10px",
+                              padding: "12px 14px",
+                              marginBottom: "16px",
                             }}
                           >
-                            Tipo de Evento
-                          </label>
-                          <select
-                            value={newInvite.eventTypeId}
-                            onChange={(e) =>
-                              handleChangeEventType(e.target.value)
-                            }
-                            style={{
-                              width: "100%",
-                              padding: "10px 14px",
-                              borderRadius: "8px",
-                              border: "1.5px solid var(--gold-light)",
-                              fontSize: "13px",
-                              outline: "none",
-                              fontFamily: "Inter, sans-serif",
-                              boxSizing: "border-box",
-                            }}
-                          >
-                            {eventTypes.map((et) => (
-                              <option key={et.id} value={et.id}>
-                                {et.nome}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
+                            <p
+                              style={{
+                                fontSize: "10px",
+                                color: "var(--gold-dark)",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.06em",
+                                margin: "0 0 4px 0",
+                              }}
+                            >
+                              Vai atualizar o evento de
+                            </p>
+                            <p
+                              style={{
+                                fontSize: "14px",
+                                fontWeight: "600",
+                                color: "var(--charcoal)",
+                                margin: 0,
+                              }}
+                            >
+                              {eventoContexto.titulo}
+                              {eventoContexto.tipoNome
+                                ? ` · ${eventoContexto.tipoNome}`
+                                : ""}
+                            </p>
+                            <DadosCaptacao
+                              submissao={submissions.find(
+                                (x) => x.id === newInvite.submissionAlvoId,
+                              )}
+                            />
+                          </div>
+                        )}
 
-                      {/* Campos escolhidos pela irmã para este convite —
+                        {eventTypes.length > 1 && (
+                          <div
+                            id="tour-novo-convite-tipo"
+                            style={{ marginBottom: "14px" }}
+                          >
+                            <label
+                              style={{
+                                fontSize: "11px",
+                                fontWeight: "600",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.07em",
+                                color: "var(--charcoal)",
+                                display: "block",
+                                marginBottom: "6px",
+                              }}
+                            >
+                              Tipo de Evento
+                            </label>
+                            <select
+                              value={newInvite.eventTypeId}
+                              onChange={(e) =>
+                                handleChangeEventType(e.target.value)
+                              }
+                              style={{
+                                width: "100%",
+                                padding: "10px 14px",
+                                borderRadius: "8px",
+                                border: "1.5px solid var(--gold-light)",
+                                fontSize: "13px",
+                                outline: "none",
+                                fontFamily: "Inter, sans-serif",
+                                boxSizing: "border-box",
+                              }}
+                            >
+                              {eventTypes.map((et) => (
+                                <option key={et.id} value={et.id}>
+                                  {et.nome}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+
+                        {/* Campos escolhidos pela irmã para este convite —
                           variam por tipo de evento, e até de convite para
                           convite. Não há nenhum campo fixo: tudo o que
                           aparece aqui (incluindo a Data do Evento, quando
                           o tipo de evento a tiver definida) pode ser
                           removido. */}
-                      {camposActivosInfo.length > 0 ? (
+                        {camposActivosInfo.length > 0 ? (
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "16px",
+                            }}
+                          >
+                            {camposActivosInfo.map((field) => (
+                              <div
+                                key={field.id}
+                                style={{ position: "relative" }}
+                              >
+                                <p
+                                  style={{
+                                    fontSize: "10px",
+                                    color: "var(--gray-mid)",
+                                    margin: "0 0 2px 0",
+                                  }}
+                                >
+                                  {field.stepTitle}
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveCampo(field.id)}
+                                  title="Remover campo"
+                                  style={{
+                                    position: "absolute",
+                                    top: 0,
+                                    right: 0,
+                                    fontSize: "11px",
+                                    background: "none",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    color: "var(--gray-mid)",
+                                    padding: "2px 4px",
+                                  }}
+                                >
+                                  ✕ remover
+                                </button>
+                                <FormField
+                                  field={{ ...field, required: false }}
+                                  value={newInvite.valores[field.id]}
+                                  onChange={(id, val) =>
+                                    handleChangeValorCampo(id, val)
+                                  }
+                                  error={newInviteErrors[field.id]}
+                                  onClearError={(id) =>
+                                    setNewInviteErrors((prev) => {
+                                      const n = { ...prev };
+                                      delete n[id];
+                                      return n;
+                                    })
+                                  }
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p
+                            style={{
+                              fontSize: "12px",
+                              color: "var(--gray-mid)",
+                              margin: 0,
+                            }}
+                          >
+                            Ainda não escolheste nenhum campo — usa a busca em
+                            baixo para adicionar o que quiseres preencher já.
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Rodapé — fica sempre visível, mesmo que o corpo
+                        acima tenha scroll */}
+                      <div
+                        style={{
+                          padding: "16px 24px",
+                          borderTop: "1px solid var(--gold-light)",
+                          backgroundColor: "#FBF7EF",
+                          borderRadius: "0 0 16px 16px",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <div
+                          id="tour-campo-seletor"
+                          style={{ marginBottom: "14px" }}
+                        >
+                          <CampoSeletor
+                            camposDisponiveis={camposDisponiveis}
+                            onAdd={handleAddCampo}
+                          />
+                        </div>
                         <div
                           style={{
                             display: "flex",
-                            flexDirection: "column",
-                            gap: "16px",
+                            gap: "10px",
+                            justifyContent: "flex-end",
                           }}
                         >
-                          {camposActivosInfo.map((field) => (
-                            <div
-                              key={field.id}
-                              style={{ position: "relative" }}
-                            >
-                              <p
-                                style={{
-                                  fontSize: "10px",
-                                  color: "var(--gray-mid)",
-                                  margin: "0 0 2px 0",
-                                }}
-                              >
-                                {field.stepTitle}
-                              </p>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveCampo(field.id)}
-                                title="Remover campo"
-                                style={{
-                                  position: "absolute",
-                                  top: 0,
-                                  right: 0,
-                                  fontSize: "11px",
-                                  background: "none",
-                                  border: "none",
-                                  cursor: "pointer",
-                                  color: "var(--gray-mid)",
-                                  padding: "2px 4px",
-                                }}
-                              >
-                                ✕ remover
-                              </button>
-                              <FormField
-                                field={{ ...field, required: false }}
-                                value={newInvite.valores[field.id]}
-                                onChange={(id, val) =>
-                                  handleChangeValorCampo(id, val)
-                                }
-                                error={newInviteErrors[field.id]}
-                                onClearError={(id) =>
-                                  setNewInviteErrors((prev) => {
-                                    const n = { ...prev };
-                                    delete n[id];
-                                    return n;
-                                  })
-                                }
-                              />
-                            </div>
-                          ))}
+                          <button
+                            onClick={() => {
+                              setShowNewInvite(false);
+                              setNewInviteErrors({});
+                              setEventoContexto(null);
+                              setNewInvite((prev) => ({
+                                ...prev,
+                                submissionAlvoId: null,
+                              }));
+                            }}
+                            style={{
+                              padding: "10px 20px",
+                              borderRadius: "8px",
+                              fontSize: "13px",
+                              border: "1.5px solid var(--gold-light)",
+                              color: "var(--gray-mid)",
+                              backgroundColor: "white",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            id="tour-criar-convite"
+                            onClick={handleCreateInvite}
+                            disabled={creatingInvite}
+                            style={{
+                              padding: "10px 24px",
+                              borderRadius: "8px",
+                              fontSize: "13px",
+                              fontWeight: "600",
+                              cursor: "pointer",
+                              backgroundColor: creatingInvite
+                                ? "var(--gold-light)"
+                                : "var(--gold)",
+                              color: "white",
+                              border: "none",
+                            }}
+                          >
+                            {creatingInvite ? "A criar..." : "Criar Formulário"}
+                          </button>
                         </div>
-                      ) : (
-                        <p
-                          style={{
-                            fontSize: "12px",
-                            color: "var(--gray-mid)",
-                            margin: 0,
-                          }}
-                        >
-                          Ainda não escolheste nenhum campo — usa a busca em
-                          baixo para adicionar o que quiseres preencher já.
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Rodapé — fica sempre visível, mesmo que o corpo
-                        acima tenha scroll */}
-                    <div
-                      style={{
-                        padding: "16px 24px",
-                        borderTop: "1px solid var(--gold-light)",
-                        backgroundColor: "#FBF7EF",
-                        borderRadius: "0 0 16px 16px",
-                        flexShrink: 0,
-                      }}
-                    >
-                      <div
-                        id="tour-campo-seletor"
-                        style={{ marginBottom: "14px" }}
-                      >
-                        <CampoSeletor
-                          camposDisponiveis={camposDisponiveis}
-                          onAdd={handleAddCampo}
-                        />
-                      </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: "10px",
-                          justifyContent: "flex-end",
-                        }}
-                      >
-                        <button
-                          onClick={() => {
-                            setShowNewInvite(false);
-                            setNewInviteErrors({});
-                            setEventoContexto(null);
-                            setNewInvite((prev) => ({
-                              ...prev,
-                              submissionAlvoId: null,
-                            }));
-                          }}
-                          style={{
-                            padding: "10px 20px",
-                            borderRadius: "8px",
-                            fontSize: "13px",
-                            border: "1.5px solid var(--gold-light)",
-                            color: "var(--gray-mid)",
-                            backgroundColor: "white",
-                            cursor: "pointer",
-                          }}
-                        >
-                          Cancelar
-                        </button>
-                        <button
-                          id="tour-criar-convite"
-                          onClick={handleCreateInvite}
-                          disabled={creatingInvite}
-                          style={{
-                            padding: "10px 24px",
-                            borderRadius: "8px",
-                            fontSize: "13px",
-                            fontWeight: "600",
-                            cursor: "pointer",
-                            backgroundColor: creatingInvite
-                              ? "var(--gold-light)"
-                              : "var(--gold)",
-                            color: "white",
-                            border: "none",
-                          }}
-                        >
-                          {creatingInvite ? "A criar..." : "Criar Formulário"}
-                        </button>
                       </div>
                     </div>
-                  </div>
-                );
-              })()}
+                  );
+                })()}
 
-            {/* Lista de convites */}
-            <InvitesList
+              {/* Lista de convites */}
+              <InvitesList
+                invites={invites}
+                loading={loadingInvites}
+                eventTypes={eventTypes}
+                onSelect={(invite) => setSelectedInvite(invite)}
+                onPreencher={handlePreencherFormulario}
+                onDelete={(invite) => setInviteToDelete(invite)}
+                getTitulo={(invite) =>
+                  getTituloConvite(invite, submissions, eventTypes)
+                }
+              />
+
+              {/* Confirmação de remoção */}
+              <DeleteInviteModal
+                invite={inviteToDelete}
+                onCancel={() => setInviteToDelete(null)}
+                onConfirm={handleDeleteInvite}
+                getTitulo={(invite) =>
+                  getTituloConvite(invite, submissions, eventTypes)
+                }
+              />
+
+              {/* Drawer do convite seleccionado */}
+              <InviteDetailModal
+                invite={selectedInvite}
+                eventTypes={eventTypes}
+                onClose={() => setSelectedInvite(null)}
+                onShare={() => setShareTarget(selectedInvite)}
+                getShareMessage={getShareMessage}
+                getTitulo={(invite) =>
+                  getTituloConvite(invite, submissions, eventTypes)
+                }
+              />
+            </motion.div>
+          )}
+
+          {/* ---- TAB DASHBOARD ---- */}
+          {activeTab === "dashboard" && (
+            <DashboardTab
+              submissions={submissions}
               invites={invites}
-              loading={loadingInvites}
               eventTypes={eventTypes}
-              onSelect={(invite) => setSelectedInvite(invite)}
-              onPreencher={handlePreencherFormulario}
-              onDelete={(invite) => setInviteToDelete(invite)}
-              getTitulo={(invite) =>
-                getTituloConvite(invite, submissions, eventTypes)
-              }
+              onSelectSubmission={(s) => setSelected(s)}
             />
+          )}
 
-            {/* Confirmação de remoção */}
-            <DeleteInviteModal
-              invite={inviteToDelete}
-              onCancel={() => setInviteToDelete(null)}
-              onConfirm={handleDeleteInvite}
-              getTitulo={(invite) =>
-                getTituloConvite(invite, submissions, eventTypes)
-              }
-            />
-
-            {/* Drawer do convite seleccionado */}
-            <InviteDetailModal
-              invite={selectedInvite}
+          {/* ---- TAB TIPOS DE EVENTO ---- */}
+          {activeTab === "calendario" && (
+            <CalendarioTab
+              submissions={submissions}
               eventTypes={eventTypes}
-              onClose={() => setSelectedInvite(null)}
-              onShare={() => setShareTarget(selectedInvite)}
-              getShareMessage={getShareMessage}
-              getTitulo={(invite) =>
-                getTituloConvite(invite, submissions, eventTypes)
-              }
+              reservas={reservas}
+              onSelectSubmission={(s) => setSelected(s)}
+              onReservasChange={fetchReservas}
+              onCriarQuestionario={handleCriarQuestionarioDeReserva}
+              onDadosMudaram={fetchSubmissions}
             />
-          </motion.div>
-        )}
+          )}
 
-        {/* ---- TAB DASHBOARD ---- */}
-        {activeTab === "dashboard" && (
-          <DashboardTab
-            submissions={submissions}
-            invites={invites}
-            eventTypes={eventTypes}
-            onSelectSubmission={(s) => setSelected(s)}
-          />
-        )}
-
-        {/* ---- TAB TIPOS DE EVENTO ---- */}
-        {activeTab === "calendario" && (
-          <CalendarioTab
-            submissions={submissions}
-            eventTypes={eventTypes}
-            reservas={reservas}
-            onSelectSubmission={(s) => setSelected(s)}
-            onReservasChange={fetchReservas}
-            onCriarQuestionario={handleCriarQuestionarioDeReserva}
-            onDadosMudaram={fetchSubmissions}
-          />
-        )}
-
-        {activeTab === "tiposEvento" && (
-          <EventTypesTab
-            eventTypes={eventTypes}
-            loading={loadingEventTypes}
-            onRefetch={fetchEventTypes}
-          />
-        )}
-        {activeTab === "operacional" && (
-          <OperacionalTab submissions={submissions} eventTypes={eventTypes} />
-        )}
-        {/* Documentos fica SEMPRE montado (escondido quando não é o
-            separador ativo): o que a Nádia escreveu num orçamento/
-            contrato/projecto sobrevive a idas e voltas pela app.
-            O prop `ativo` desliga os estilos de impressão quando
-            escondido (senão um Ctrl+P noutro ecrã sairia em branco). */}
-        <div
-          style={{
-            display: activeTab === "orcamentos" ? "block" : "none",
-          }}
-        >
-          <DocumentosTab
-            key={
-              documentoContexto
-                ? `doc-${documentoContexto.submissionId}-${documentoContexto.tipoDoc}`
-                : "manual"
-            }
-            contexto={documentoContexto}
-            onLimpar={() => setDocumentoContexto(null)}
-            ativo={activeTab === "orcamentos"}
-            onDadosMudaram={fetchSubmissions}
-            onVoltarAoEvento={
-              documentoContexto?.submissionId
-                ? () => {
-                    const ev = submissions.find(
-                      (x) => x.id === documentoContexto.submissionId,
-                    );
-                    setActiveTab("clientes");
-                    if (ev) setSelected(ev);
-                  }
-                : null
-            }
-          />
+          {activeTab === "tiposEvento" && (
+            <EventTypesTab
+              eventTypes={eventTypes}
+              loading={loadingEventTypes}
+              onRefetch={fetchEventTypes}
+            />
+          )}
+          {activeTab === "operacional" && (
+            <OperacionalTab submissions={submissions} eventTypes={eventTypes} />
+          )}
+          {/* ---- PÁGINA DE DOCUMENTO DE EVENTO (drawer 💰/📃/🎨) ----
+            Pseudo-separador: não vive na navegação; nasce do drawer e
+            morre no "← Voltar ao evento". O separador Documentos fica
+            livre para ser sempre a biblioteca. */}
+          {activeTab === "documentoEvento" && documentoContexto && (
+            <DocumentoEventoPage
+              contexto={documentoContexto}
+              onDadosMudaram={fetchSubmissions}
+              onVoltar={() => {
+                const ev = submissions.find(
+                  (x) => x.id === documentoContexto.submissionId,
+                );
+                setDocumentoContexto(null);
+                setActiveTab("clientes");
+                if (ev) setSelected(ev);
+              }}
+            />
+          )}
+          {/* Documentos fica sempre montado (escondido): a biblioteca
+            carrega uma vez e refresca quando o separador fica ativo. */}
+          <div
+            style={{
+              display: activeTab === "orcamentos" ? "block" : "none",
+            }}
+          >
+            <DocumentosTab
+              ativo={activeTab === "orcamentos"}
+              onDadosMudaram={fetchSubmissions}
+              eventTypes={eventTypes}
+            />
+          </div>
         </div>
-      </div>
-
       </div>
 
       {/* Barra inferior + folha Mais (só telemóvel) */}

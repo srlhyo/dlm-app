@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { useRascunho } from "../../../lib/rascunho";
+import { useDocumento, rotuloEstadoGravacao } from "../../../lib/documentos";
 import logoUrl from "../../../assets/logo.png";
 import { uploadImagemReferencia } from "../../../lib/captacao";
 import { guardarValorAcordado } from "../../../lib/clientes";
@@ -21,14 +21,26 @@ const resolverDescricao = (template, lugares) => {
 };
 
 // ============================================================
-// GerarOrcamento — formulário de dados do evento + linhas de serviço,
-// e pré-visualização imprimível que replica o template da Nádia.
-// A geração de PDF é via window.print() (só a área do documento imprime).
+// GerarOrcamento v2 — persistência no Supabase (Biblioteca de
+// Documentos, migração 021).
 //
-// prefill (opcional) — dados do evento vindos do getDadosParaDocumento
-// (botão 💰 no drawer do evento). Alimenta só os useState iniciais:
-// o componente é remontado pelo AdminPage (via key) quando o contexto
-// muda, por isso não precisa de useEffect. Tudo continua editável.
+// Duas camadas:
+//   • GerarOrcamento (shell) — resolve ONDE o documento vive:
+//       - com prefill.submissionId → tabela `documentos` via
+//         useDocumento (hidrata de row.dados; grava debounced ~800ms
+//         com indicador "A guardar… ✓ Guardado"; a linha nasce na
+//         primeira edição — lazy-create)
+//       - manual (sem evento) → localStorage TRANSITÓRIO, num objeto
+//         único com a MESMA forma dos `dados` (migra direitinho para
+//         a BD quando a vista biblioteca chegar)
+//   • OrcamentoEditor — o formulário + pré-visualização de sempre;
+//     só conhece `dadosIniciais` e avisa `onMudou(dados)` a cada
+//     alteração. Hidratação por useState inicial (o AdminPage remonta
+//     por `key` quando o contexto muda — o padrão da casa).
+//
+// Precedência de hidratação: documento.dados > prefill > defaults.
+// O prefill só alimenta o documento na PRIMEIRA vez; depois manda o
+// que a Nádia gravou.
 // ============================================================
 
 let seqLinha = 0;
@@ -43,35 +55,139 @@ const novaLinha = (base = {}) => ({
   ...base,
 });
 
+// ---- rascunho manual (transitório, até à vista biblioteca) ----
+const CHAVE_RASCUNHO_MANUAL = "dlm_rascunho_orcamento:manual:dados";
+
+const lerRascunhoManual = () => {
+  try {
+    const bruto = localStorage.getItem(CHAVE_RASCUNHO_MANUAL);
+    if (bruto !== null) return JSON.parse(bruto);
+  } catch {
+    /* storage indisponível ou JSON corrompido — segue vazio */
+  }
+  return null;
+};
+
+const gravarRascunhoManual = (dados) => {
+  try {
+    localStorage.setItem(CHAVE_RASCUNHO_MANUAL, JSON.stringify(dados));
+  } catch {
+    /* quota cheia ou privado — o pior caso é perder o rascunho manual */
+  }
+};
+
 export default function GerarOrcamento({
   prefill = null,
   ativo = true,
   onDadosMudaram,
+  documentoId = null,
 }) {
-  // Rascunho persistente: cada documento (evento ou manual) tem o seu
-  const rid = `orcamento:${prefill?.submissionId || "manual"}`;
-  // Dados do cliente/evento — pré-preenchidos quando se chega de um
-  // evento; senão, os defaults manuais de sempre.
-  const [cliente, setCliente] = useRascunho(`${rid}:cliente`, prefill?.nomeCliente || "");
-  const [tipoEvento, setTipoEvento] = useRascunho(`${rid}:tipoEvento`, 
-    prefill ? prefill.tipoEvento || "" : "Casamento",
+  const submissionId = prefill?.submissionId || null;
+  const modoPersistente = !!(submissionId || documentoId);
+
+  // O hook chama-se SEMPRE (regras dos hooks); sem ids não carrega nada
+  // e nós nunca chamamos `gravar` no modo manual — zero linhas fantasma.
+  const { carregado, documento, gravar, estado } = useDocumento({
+    tipo: "orcamento",
+    submissionId,
+    documentoId,
+  });
+
+  if (modoPersistente && !carregado) {
+    return (
+      <p
+        style={{
+          fontSize: "13px",
+          color: "var(--gray-mid)",
+          padding: "24px 0",
+        }}
+      >
+        A carregar o documento…
+      </p>
+    );
+  }
+
+  // Fonte da hidratação: BD > localStorage manual > prefill > defaults
+  const d = modoPersistente ? documento?.dados || null : lerRascunhoManual();
+
+  const dadosIniciais = {
+    cliente: d?.cliente ?? prefill?.nomeCliente ?? "",
+    tipoEvento:
+      d?.tipoEvento ?? (prefill ? prefill.tipoEvento || "" : "Casamento"),
+    dataEvento: d?.dataEvento ?? prefill?.dataEvento ?? "",
+    local: d?.local ?? prefill?.local ?? "",
+    subtitulo: d?.subtitulo ?? "",
+    linhas:
+      Array.isArray(d?.linhas) && d.linhas.length > 0
+        ? d.linhas
+        : [novaLinha()],
+    imagens: Array.isArray(d?.imagens)
+      ? d.imagens
+      : prefill?.imagensReferencia || [],
+  };
+
+  // Aberto pela biblioteca (documentoId), um doc de evento continua a
+  // saber a que evento pertence — o botão 💾 do valor acordado funciona.
+  const subIdEfetivo = submissionId || documento?.submission_id || null;
+
+  return (
+    <OrcamentoEditor
+      dadosIniciais={dadosIniciais}
+      submissionId={subIdEfetivo}
+      ativo={ativo}
+      onDadosMudaram={onDadosMudaram}
+      estadoGravacao={modoPersistente ? estado : null}
+      onMudou={modoPersistente ? gravar : gravarRascunhoManual}
+    />
   );
-  const [dataEvento, setDataEvento] = useRascunho(`${rid}:dataEvento`, prefill?.dataEvento || "");
-  const [local, setLocal] = useRascunho(`${rid}:local`, prefill?.local || "");
-  const [subtitulo, setSubtitulo] = useRascunho(`${rid}:subtitulo`, ""); // linha opcional (ex: "Decoração desenvolvida...")
+}
+
+// ------------------------------------------------------------
+// OrcamentoEditor — o formulário + pré-visualização imprimível que
+// replica o template da Nádia. A geração de PDF é via window.print()
+// (só a área do documento imprime). Não sabe onde os dados vivem:
+// hidrata de `dadosIniciais` e avisa `onMudou(dados)` a cada mudança.
+// ------------------------------------------------------------
+function OrcamentoEditor({
+  dadosIniciais,
+  submissionId,
+  ativo,
+  onDadosMudaram,
+  estadoGravacao,
+  onMudou,
+}) {
+  const [cliente, setCliente] = useState(dadosIniciais.cliente);
+  const [tipoEvento, setTipoEvento] = useState(dadosIniciais.tipoEvento);
+  const [dataEvento, setDataEvento] = useState(dadosIniciais.dataEvento);
+  const [local, setLocal] = useState(dadosIniciais.local);
+  const [subtitulo, setSubtitulo] = useState(dadosIniciais.subtitulo);
 
   // Linhas de serviço
-  const [linhas, setLinhas] = useRascunho(`${rid}:linhas`, [novaLinha()]);
+  const [linhas, setLinhas] = useState(dadosIniciais.linhas);
 
   // Imagens de referência DO CLIENTE — pré-preenchidas da captação;
   // a Nádia pode remover ou juntar as que chegaram por Instagram.
   // Entram no PDF como páginas de referências, a seguir ao orçamento.
-  const [imagens, setImagens] = useRascunho(`${rid}:imagens`, prefill?.imagensReferencia || []);
+  const [imagens, setImagens] = useState(dadosIniciais.imagens);
   const [carregandoImg, setCarregandoImg] = useState(false);
   // Guardar o total como valor acordado do evento (alimenta o funil)
   const [aGuardarValor, setAGuardarValor] = useState(false);
   const [valorGuardado, setValorGuardado] = useState(false);
   const inputImagens = useRef(null);
+
+  // Uma gravação por documento (não por campo): sempre que QUALQUER
+  // campo muda, o estado completo segue para onMudou (Supabase
+  // debounced ou localStorage manual). A guarda salta o 1.º render —
+  // hidratar não é editar (senão criava linhas na BD só de abrir).
+  const primeiraRenderRef = useRef(true);
+  useEffect(() => {
+    if (primeiraRenderRef.current) {
+      primeiraRenderRef.current = false;
+      return;
+    }
+    onMudou({ cliente, tipoEvento, dataEvento, local, subtitulo, linhas, imagens });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cliente, tipoEvento, dataEvento, local, subtitulo, linhas, imagens]);
 
   const adicionarImagens = async (e) => {
     const ficheiros = Array.from(e.target.files || []).filter((f) =>
@@ -112,7 +228,6 @@ export default function GerarOrcamento({
   useEffect(() => {
     setValorGuardado(false);
   }, [total]);
-
 
   const atualizarLinha = (uid, campos) =>
     setLinhas((prev) =>
@@ -427,12 +542,12 @@ export default function GerarOrcamento({
             >
               🖨 Imprimir / Guardar PDF
             </button>
-            {prefill?.submissionId && (
+            {submissionId && (
               <button
                 onClick={async () => {
                   setAGuardarValor(true);
                   try {
-                    await guardarValorAcordado(prefill.submissionId, total);
+                    await guardarValorAcordado(submissionId, total);
                     setValorGuardado(true);
                     if (onDadosMudaram) onDadosMudaram();
                   } catch (e) {
@@ -463,6 +578,25 @@ export default function GerarOrcamento({
                     ? "✓ Valor guardado no evento"
                     : `💾 Guardar ${total}€ como valor acordado`}
               </button>
+            )}
+            {/* Indicador de gravação — só nos documentos persistidos
+                na BD (o manual continua no localStorage, silencioso) */}
+            {estadoGravacao && rotuloEstadoGravacao(estadoGravacao) && (
+              <p
+                style={{
+                  fontSize: "11px",
+                  textAlign: "center",
+                  margin: "10px 0 0 0",
+                  color:
+                    estadoGravacao === "erro"
+                      ? "#DC2626"
+                      : estadoGravacao === "guardado"
+                        ? "#166534"
+                        : "var(--gray-mid)",
+                }}
+              >
+                {rotuloEstadoGravacao(estadoGravacao)}
+              </p>
             )}
           </div>
         </div>
