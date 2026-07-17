@@ -108,6 +108,7 @@ export default function ClientesLista({
   eventTypes = [],
   onAbrirEvento,
   onDadosMudaram,
+  refrescarEm = 0,
 }) {
   const [vista, setVista] = useState(ultimaVista); // "lista" | "funil"
   const [clientes, setClientes] = useState([]);
@@ -213,6 +214,7 @@ export default function ClientesLista({
         <FunilBoard
           eventTypes={eventTypes}
           onAbrirEvento={onAbrirEvento}
+          refrescarEm={refrescarEm}
           onDadosMudaram={() => {
             carregar(); // a lista de pessoas
             if (onDadosMudaram) onDadosMudaram(); // Agenda/Início (AdminPage)

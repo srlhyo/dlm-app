@@ -246,6 +246,10 @@ export default function AdminPage() {
   // de um evento). Quando existe, o separador Documentos abre com os
   // formulários já preenchidos com os dados desse evento.
   const [documentoContexto, setDocumentoContexto] = useState(null);
+  // Bump para o FunilBoard recarregar quando o drawer altera um evento
+  // (estado, valor, dados) — o funil tem fetch próprio e o drawer abre
+  // POR CIMA dele; sem isto, o cartão só mudava de coluna após reload.
+  const [funilVersao, setFunilVersao] = useState(0);
   // Casca de navegação: desktop = sidebar; telemóvel = barra inferior.
   const [larguraJanela, setLarguraJanela] = useState(window.innerWidth);
   const [maisAberto, setMaisAberto] = useState(false);
@@ -647,6 +651,7 @@ export default function AdminPage() {
     );
     if (selected?.id === id)
       setSelected((prev) => ({ ...prev, status: newStatus }));
+    setFunilVersao((v) => v + 1);
   };
 
   const handleLogout = async () => {
@@ -750,6 +755,7 @@ export default function AdminPage() {
             eventTypes={eventTypes}
             onAbrirEvento={(ev) => setSelected(ev)}
             onDadosMudaram={fetchSubmissions}
+            refrescarEm={funilVersao}
           />
         )}
 
@@ -1299,6 +1305,7 @@ export default function AdminPage() {
             prev.map((s) => (s.id === atualizada.id ? atualizada : s)),
           );
           setSelected(atualizada);
+          setFunilVersao((v) => v + 1);
         }}
         onGerarDocumento={handleGerarDocumento}
         onFormulario={handleFormularioDoEvento}

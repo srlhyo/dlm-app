@@ -14,10 +14,22 @@ import CaptacaoForm from "../captacao/CaptacaoForm";
 
 // ============================================================
 // FunilBoard — a esteira visual do funil comercial, dentro de Clientes.
-// Colunas Interessado → Orçamento → Cliente → Projecto → Contrato,
-// com scroll
-// horizontal no telemóvel. Perdido NÃO é coluna (é saída): só aparece
-// quando a Nádia liga "Ver perdidos".
+// TRÊS colunas: Interessados (pré-sinal) | Clientes (pós-sinal, ainda
+// por preparar) | Em Preparação (pós-sinal, já em mãos), empilhadas
+// no telemóvel. Perdido NÃO é coluna (é saída): só aparece quando a
+// Nádia liga "Ver perdidos".
+//
+// A coluna é decidida por DOIS eixos ortogonais:
+//   • fase (funil comercial)  → Interessados vs pós-sinal
+//   • status (operacional)    → Clientes ("Recebido") vs Em Preparação
+//     ("Em Preparação" OU "Confirmado" — confirmar nunca faz recuar).
+// O evento atravessa para a Em Preparação quando a Nádia clica
+// "Em Preparação" na ficha do evento (drawer) — é só o status a mudar.
+// "Concluído" sai do board, como sempre.
+//
+// refrescarEm — bump vindo do AdminPage: quando o drawer altera um
+// evento (estado, valor, dados), o board recarrega (tem fetch próprio
+// e o drawer abre por cima dele).
 //
 // Interação por TOQUE, não drag-and-drop (decisão validada: DnD entre
 // colunas com scroll horizontal é péssimo no telemóvel):
@@ -53,10 +65,15 @@ const formatarData = (iso) => {
 const somaValores = (lista) =>
   lista.reduce((acc, e) => acc + (Number(e.valor_acordado) || 0), 0);
 
+// Os estados operacionais que movem um evento pós-sinal para a coluna
+// Em Preparação ("a partir do preencher formulário em diante").
+const STATUS_EM_PREPARACAO = ["Em Preparação", "Confirmado"];
+
 export default function FunilBoard({
   eventTypes = [],
   onAbrirEvento,
   onDadosMudaram,
+  refrescarEm = 0,
 }) {
   const [eventos, setEventos] = useState([]);
   const [carregando, setCarregando] = useState(true);
@@ -80,9 +97,12 @@ export default function FunilBoard({
     setCarregando(false);
   };
 
+  // Corre ao montar E sempre que o drawer altera um evento (bump do
+  // refrescarEm no AdminPage) — o cartão muda de coluna sem reload.
   useEffect(() => {
     carregar();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refrescarEm]);
 
   // Fase segura: eventos antigos sem fase (não devia haver, mas há BD
   // de teste) caem em "interessado" para nunca desaparecerem do funil.
@@ -141,7 +161,6 @@ export default function FunilBoard({
   }
 
   const perdidos = eventos.filter((e) => faseDe(e) === "perdido");
-  const colunas = mostrarPerdidos ? [...FASES_BOARD, "perdido"] : FASES_BOARD;
 
   return (
     <div>
@@ -192,11 +211,30 @@ export default function FunilBoard({
         </button>
       </div>
 
-      {/* ===== AS DUAS COLUNAS DA NÁDIA =====
-          Interessados (pré-sinal) | Clientes (pós-sinal). As ETAPAS
-          viram pastilhas nos cartões; "Sinal recebido →" atravessa o
-          cartão para a direita sozinho (é só a fase a mudar). O € vive
-          nos cabeçalhos — a antiga barra-resumo era isto. */}
+      {avisoErro && (
+        <p
+          style={{
+            fontSize: "12px",
+            color: "#DC2626",
+            backgroundColor: "#FEF2F2",
+            border: "1px solid #FECACA",
+            borderRadius: "10px",
+            padding: "8px 14px",
+            margin: "0 0 12px 0",
+          }}
+        >
+          {avisoErro}
+        </p>
+      )}
+
+      {/* ===== AS TRÊS COLUNAS DA NÁDIA =====
+          Interessados (pré-sinal) | Clientes (pós-sinal, status
+          "Recebido") | Em Preparação (pós-sinal, status "Em Preparação"
+          ou "Confirmado"). As ETAPAS viram pastilhas nos cartões;
+          "Sinal recebido →" atravessa o cartão para a direita sozinho
+          (é só a fase a mudar), e o clique em "Em Preparação" no drawer
+          atravessa-o para a terceira (é só o status a mudar). O € vive
+          nos cabeçalhos — garantido total = Clientes + Em Preparação. */}
       {(() => {
         const FASES_ESQ = ["interessado", "orcamento", "sinal"];
         const FASES_DIR = ["cliente", "projecto", "contrato"];
@@ -212,9 +250,20 @@ export default function FunilBoard({
         const interessados = ordenar(
           eventos.filter((e) => FASES_ESQ.includes(faseDe(e))),
         );
+        // Pós-sinal ativos, repartidos pelo STATUS operacional. A
+        // coluna Clientes é o apanha-tudo (status "Recebido", nulo ou
+        // desconhecido) — nenhum evento desaparece do board.
+        const posSinalAtivos = eventos.filter(
+          (e) => FASES_DIR.includes(faseDe(e)) && e.status !== "Concluído",
+        );
+        const emPreparacao = ordenar(
+          posSinalAtivos.filter((e) =>
+            STATUS_EM_PREPARACAO.includes(e.status),
+          ),
+        );
         const clientes = ordenar(
-          eventos.filter(
-            (e) => FASES_DIR.includes(faseDe(e)) && e.status !== "Concluído",
+          posSinalAtivos.filter(
+            (e) => !STATUS_EM_PREPARACAO.includes(e.status),
           ),
         );
 
@@ -309,7 +358,7 @@ export default function FunilBoard({
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
               gap: "14px",
               alignItems: "start",
             }}
@@ -329,6 +378,14 @@ export default function FunilBoard({
               borda="#CDEBD3"
               lista={clientes}
               legendaEuros="garantidos (sinal pago)"
+            />
+            <Coluna
+              titulo="Em Preparação"
+              cor="#3B82F6"
+              fundo="#F5F9FF"
+              borda="#BFDBFE"
+              lista={emPreparacao}
+              legendaEuros="em preparação"
             />
             {mostrarPerdidos && (
               <Coluna
