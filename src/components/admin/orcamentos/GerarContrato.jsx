@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useRascunho } from "../../../lib/rascunho";
+import { useCampoDocumento as useRascunho } from "./DocumentoProvider";
 import logoUrl from "../../../assets/logo.png";
 import {
   EMPRESA,

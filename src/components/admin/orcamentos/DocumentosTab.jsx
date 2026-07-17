@@ -2,6 +2,7 @@ import { useState } from "react";
 import GerarOrcamento from "./GerarOrcamento";
 import GerarContrato from "./GerarContrato";
 import GerarProposta from "./GerarProposta";
+import { DocumentoProvider } from "./DocumentoProvider";
 import { formatarDataPT } from "./orcamentoConfig";
 
 // ============================================================
@@ -15,17 +16,24 @@ import { formatarDataPT } from "./orcamentoConfig";
 //   banner "Pré-preenchido do evento" e passa o prefill aos geradores.
 //   NOTA: o AdminPage monta este componente com uma `key` derivada do
 //   contexto — mudar de contexto remonta tudo, por isso os useState
-//   iniciais chegam.
-// onLimpar() — descarta o contexto e volta ao modo manual (vazio).
+//   iniciais chegam. Só é montado com um documento aberto (a entrada
+//   da secção é a DocumentosLista); a criação de documentos acontece
+//   exclusivamente via Evento → Drawer → botões de documento.
+//
+// Persistência: cada gerador vive dentro de um DocumentoProvider
+// (tipo + evento), que carrega o documento da BD (migrando o rascunho
+// local na primeira vez) ANTES de montar o gerador, e grava as
+// alterações na BD com debounce. O localStorage continua a ser escrito
+// como rede de segurança, mas a BD é a única fonte de verdade.
 // ============================================================
 export default function DocumentosTab({
   contexto = null,
-  onLimpar,
   ativo = true,
   onDadosMudaram,
   onVoltarAoEvento,
 }) {
   const [sub, setSub] = useState(contexto?.tipoDoc || "orcamento");
+  const submissionId = contexto?.submissionId || null;
 
   return (
     <div>
@@ -111,23 +119,6 @@ export default function DocumentosTab({
                 : ""}
             </p>
           </div>
-          <button
-            onClick={onLimpar}
-            title="Descartar o pré-preenchimento e começar do zero"
-            style={{
-              flexShrink: 0,
-              padding: "6px 14px",
-              borderRadius: "999px",
-              fontSize: "12px",
-              border: "1px solid var(--gold)",
-              color: "var(--gold-dark)",
-              backgroundColor: "white",
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-            }}
-          >
-            ✕ Limpar
-          </button>
             {onVoltarAoEvento && (
               <button
                 onClick={onVoltarAoEvento}
@@ -152,19 +143,33 @@ export default function DocumentosTab({
 
       {/* Os TRÊS geradores ficam sempre montados (escondidos): o que
           se escreveu sobrevive a trocas de sub-aba E de separador.
-          O `ativo` liga os estilos de impressão só ao visível. */}
+          O `ativo` liga os estilos de impressão só ao visível.
+          Cada um vive no seu DocumentoProvider (tipo + evento), que
+          carrega/migra o documento antes de o montar. */}
       <div style={{ display: sub === "orcamento" ? "block" : "none" }}>
-        <GerarOrcamento
-          prefill={contexto}
-          ativo={ativo && sub === "orcamento"}
-          onDadosMudaram={onDadosMudaram}
-        />
+        <DocumentoProvider tipo="orcamento" submissionId={submissionId}>
+          <GerarOrcamento
+            prefill={contexto}
+            ativo={ativo && sub === "orcamento"}
+            onDadosMudaram={onDadosMudaram}
+          />
+        </DocumentoProvider>
       </div>
       <div style={{ display: sub === "contrato" ? "block" : "none" }}>
-        <GerarContrato prefill={contexto} ativo={ativo && sub === "contrato"} />
+        <DocumentoProvider tipo="contrato" submissionId={submissionId}>
+          <GerarContrato
+            prefill={contexto}
+            ativo={ativo && sub === "contrato"}
+          />
+        </DocumentoProvider>
       </div>
       <div style={{ display: sub === "proposta" ? "block" : "none" }}>
-        <GerarProposta prefill={contexto} ativo={ativo && sub === "proposta"} />
+        <DocumentoProvider tipo="proposta" submissionId={submissionId}>
+          <GerarProposta
+            prefill={contexto}
+            ativo={ativo && sub === "proposta"}
+          />
+        </DocumentoProvider>
       </div>
     </div>
   );

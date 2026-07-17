@@ -19,6 +19,7 @@ import ShareSheet from "../components/admin/ShareSheet";
 import CalendarioTab from "../components/admin/CalendarioTab";
 import OperacionalTab from "../components/admin/OperacionalTab";
 import DocumentosTab from "../components/admin/orcamentos/DocumentosTab";
+import DocumentosLista from "../components/admin/DocumentosLista";
 import InviteDetailModal from "../components/admin/InviteDetailModal";
 import InviteCreatedModal from "../components/admin/InviteCreatedModal";
 import InvitesList from "../components/admin/InvitesList";
@@ -257,6 +258,16 @@ export default function AdminPage() {
     return () => window.removeEventListener("resize", aoRedimensionar);
   }, []);
 
+  // Navegação GLOBAL (menu lateral / barra inferior / atalhos): chegar
+  // a Documentos pelo menu abre SEMPRE a Lista de Documentos — nunca o
+  // último documento visitado nem o último cliente aberto.
+  const handleNavegar = (tab) => {
+    if (tab === "orcamentos") {
+      setDocumentoContexto(null);
+    }
+    setActiveTab(tab);
+  };
+
   // Abre o formulário para a irmã preencher ela própria —
   // compõe o objecto de formulário completo (com event_types) a partir
   // do que já está em memória, e navega para o formulário como
@@ -278,6 +289,8 @@ export default function AdminPage() {
   // Chamado pelos botões 💰 Orçamento / 📃 Contrato do drawer do evento:
   // junta os dados do cliente + evento (dupla fonte: colunas + respostas),
   // fecha o drawer e abre o separador Documentos já pré-preenchido.
+  // Este é o fluxo CONTEXTUAL: abre o documento DIRECTAMENTE, sem
+  // passar pela Lista de Documentos.
   const handleGerarDocumento = async (submissao, tipoDoc) => {
     try {
       const dados = await getDadosParaDocumento(submissao, eventTypes);
@@ -288,6 +301,21 @@ export default function AdminPage() {
       console.error("Erro ao preparar o documento:", e);
       alert("Não foi possível preparar o documento. Tenta novamente.");
     }
+  };
+
+  // Chamado pela Lista de Documentos ao clicar num documento: o mesmo
+  // caminho do drawer (contexto pré-preenchido do evento). A lista só
+  // mostra documentos de eventos — no domínio, um documento nunca
+  // existe isolado.
+  const handleAbrirDocumentoDaLista = (doc) => {
+    const ev = submissions.find((s) => s.id === doc.submission_id);
+    if (ev) {
+      handleGerarDocumento(ev, doc.tipo);
+      return;
+    }
+    alert(
+      "Não foi possível encontrar o evento deste documento. Tenta recarregar a página.",
+    );
   };
 
   // Chamado pelo botão 📋 Formulário do drawer: abre o painel Novo
@@ -626,6 +654,11 @@ export default function AdminPage() {
     navigate("/admin/login");
   };
 
+  // A secção Documentos tem DOIS modos: documento aberto (chega-se cá
+  // pelo drawer do evento ou pela Lista) ou a Lista de Documentos —
+  // o modo por omissão e a entrada principal da secção.
+  const documentoAberto = !!documentoContexto;
+
   return (
     <div
       style={{
@@ -641,7 +674,7 @@ export default function AdminPage() {
       {ehDesktop ? (
         <SidebarNav
           activeTab={activeTab}
-          onNavegar={setActiveTab}
+          onNavegar={handleNavegar}
           onSair={handleLogout}
         />
       ) : (
@@ -703,7 +736,7 @@ export default function AdminPage() {
             invites={invites}
             eventTypes={eventTypes}
             onAbrirEvento={(ev) => setSelected(ev)}
-            onNavegar={setActiveTab}
+            onNavegar={handleNavegar}
             onDadosMudaram={fetchSubmissions}
           />
         )}
@@ -1176,39 +1209,65 @@ export default function AdminPage() {
         {activeTab === "operacional" && (
           <OperacionalTab submissions={submissions} eventTypes={eventTypes} />
         )}
-        {/* Documentos fica SEMPRE montado (escondido quando não é o
-            separador ativo): o que a Nádia escreveu num orçamento/
-            contrato/projecto sobrevive a idas e voltas pela app.
-            O prop `ativo` desliga os estilos de impressão quando
-            escondido (senão um Ctrl+P noutro ecrã sairia em branco). */}
-        <div
-          style={{
-            display: activeTab === "orcamentos" ? "block" : "none",
-          }}
-        >
-          <DocumentosTab
-            key={
-              documentoContexto
-                ? `doc-${documentoContexto.submissionId}-${documentoContexto.tipoDoc}`
-                : "manual"
-            }
-            contexto={documentoContexto}
-            onLimpar={() => setDocumentoContexto(null)}
-            ativo={activeTab === "orcamentos"}
-            onDadosMudaram={fetchSubmissions}
-            onVoltarAoEvento={
-              documentoContexto?.submissionId
-                ? () => {
-                    const ev = submissions.find(
-                      (x) => x.id === documentoContexto.submissionId,
-                    );
-                    setActiveTab("clientes");
-                    if (ev) setSelected(ev);
-                  }
-                : null
-            }
+
+        {/* ---- SECÇÃO DOCUMENTOS ----
+            Dois modos, dois conceitos separados:
+            · LISTA (navegação global) — a entrada principal: índice,
+              pesquisa e consulta de TODOS os documentos existentes.
+              Aqui não se criam documentos: no domínio, todo o documento
+              pertence a um evento de um cliente.
+            · DOCUMENTO ABERTO (navegação contextual) — os editores.
+              Chega-se cá pelos botões do drawer do evento ou pela Lista.
+            O DocumentosTab só é montado quando há um documento aberto:
+            a persistência na BD (Fase 1) garante que nada se perde ao
+            navegar — o "sempre montado" deixou de ser necessário. */}
+        {activeTab === "orcamentos" && !documentoAberto && (
+          <DocumentosLista
+            submissions={submissions}
+            eventTypes={eventTypes}
+            onAbrirDocumento={handleAbrirDocumentoDaLista}
           />
-        </div>
+        )}
+
+        {activeTab === "orcamentos" && documentoAberto && (
+          <div>
+            {/* Voltar à Lista de Documentos */}
+            <button
+              className="no-print"
+              onClick={() => setDocumentoContexto(null)}
+              style={{
+                marginBottom: "16px",
+                padding: "7px 14px",
+                borderRadius: "999px",
+                fontSize: "12px",
+                fontWeight: "600",
+                border: "1px solid var(--gold-light)",
+                color: "var(--gold-dark)",
+                backgroundColor: "white",
+                cursor: "pointer",
+                transition: "all 0.15s",
+              }}
+            >
+              ← Todos os documentos
+            </button>
+            <DocumentosTab
+              key={`doc-${documentoContexto.submissionId}-${documentoContexto.tipoDoc}`}
+              contexto={documentoContexto}
+              onDadosMudaram={fetchSubmissions}
+              onVoltarAoEvento={
+                documentoContexto?.submissionId
+                  ? () => {
+                      const ev = submissions.find(
+                        (x) => x.id === documentoContexto.submissionId,
+                      );
+                      setActiveTab("clientes");
+                      if (ev) setSelected(ev);
+                    }
+                  : null
+              }
+            />
+          </div>
+        )}
       </div>
 
       </div>
@@ -1217,14 +1276,14 @@ export default function AdminPage() {
       {!ehDesktop && (
         <BottomNavMovel
           activeTab={activeTab}
-          onNavegar={setActiveTab}
+          onNavegar={handleNavegar}
           onAbrirMais={() => setMaisAberto(true)}
         />
       )}
       {!ehDesktop && maisAberto && (
         <SheetMais
           activeTab={activeTab}
-          onNavegar={setActiveTab}
+          onNavegar={handleNavegar}
           onSair={handleLogout}
           onFechar={() => setMaisAberto(false)}
         />
@@ -1245,7 +1304,7 @@ export default function AdminPage() {
         onFormulario={handleFormularioDoEvento}
         onVerFormulario={handleVerFormularioDoEvento}
         invites={invites}
-        onNavegar={setActiveTab}
+        onNavegar={handleNavegar}
       />
 
       {/* Modal de partilha */}

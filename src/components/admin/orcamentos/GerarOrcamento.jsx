@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { useRascunho } from "../../../lib/rascunho";
+import { useCampoDocumento as useRascunho } from "./DocumentoProvider";
 import logoUrl from "../../../assets/logo.png";
 import { uploadImagemReferencia } from "../../../lib/captacao";
 import { guardarValorAcordado } from "../../../lib/clientes";

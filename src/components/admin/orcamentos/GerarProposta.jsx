@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { useRascunho } from "../../../lib/rascunho";
+import { useCampoDocumento as useRascunho } from "./DocumentoProvider";
 import logoUrl from "../../../assets/logo.png";
 import { formatarDataPT } from "./orcamentoConfig";
 import { uploadImagemProposta } from "../../../lib/propostas";

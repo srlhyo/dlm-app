@@ -69,6 +69,29 @@ export function Icone({ nome, tamanho = 18 }) {
         <path {...t} d="M14 3.5V8h4M9.5 12.5h5M9.5 16h5" />
       </>
     ),
+    orcamento: (
+      <>
+        <path {...t} d="M7 3.5h7l4 4V20.5H7z" />
+        <path {...t} d="M14 3.5V8h4" />
+        <path {...t} d="M14.8 11.7a3 3 0 100 4.6" />
+        <path {...t} d="M9.6 13h3.6M9.6 15h3.6" />
+      </>
+    ),
+    contrato: (
+      <>
+        <path {...t} d="M7 3.5h7l4 4V20.5H7z" />
+        <path {...t} d="M14 3.5V8h4M9.5 12h5" />
+        <path {...t} d="M9.5 16.5c.9-1 1.6.7 2.5 0s1.6.7 2.5 0" />
+      </>
+    ),
+    proposta: (
+      <>
+        <path {...t} d="M7 3.5h7l4 4V20.5H7z" />
+        <path {...t} d="M14 3.5V8h4" />
+        <circle {...t} cx="10.4" cy="12" r="1.1" />
+        <path {...t} d="M9.5 17l2.3-2.3 1.5 1.5 1.2-1.2 1 1" />
+      </>
+    ),
     logistica: (
       <>
         <path {...t} d="M12 3l8 4v10l-8 4-8-4V7z" />
@@ -286,8 +309,7 @@ export function BottomNavMovel({ activeTab, onNavegar, onAbrirMais }) {
       }}
     >
       {itens.map((item) => {
-        const ativo =
-          item.id === "__mais" ? maisAtivo : activeTab === item.id;
+        const ativo = item.id === "__mais" ? maisAtivo : activeTab === item.id;
         return (
           <button
             key={item.id}
