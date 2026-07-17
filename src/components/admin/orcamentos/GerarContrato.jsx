@@ -1,5 +1,5 @@
-import { useState, useMemo, useRef, useEffect } from "react";
-import { useDocumento, rotuloEstadoGravacao } from "../../../lib/documentos";
+import { useState, useMemo } from "react";
+import { useRascunho } from "../../../lib/rascunho";
 import logoUrl from "../../../assets/logo.png";
 import {
   EMPRESA,
@@ -12,25 +12,20 @@ import {
 import { formatarEuros, formatarDataPT } from "./orcamentoConfig";
 
 // ============================================================
-// GerarContrato v2 — persistência no Supabase (Biblioteca de
-// Documentos, migração 021). Mesmo padrão do GerarOrcamento:
+// GerarContrato — formulário dos dados variáveis + pré-visualização
+// fiel ao contrato da Do Luxo à Mesa, imprimível (window.print()).
+// Suporta 1 ou 2 contraentes (cliente único ou casal).
 //
-//   • GerarContrato (shell) — resolve ONDE o documento vive:
-//       - prefill.submissionId (drawer 📃) OU documentoId (biblioteca)
-//         → tabela `documentos` via useDocumento (lazy-create na
-//         primeira edição; gravação debounced ~800ms com indicador)
-//       - manual (sem evento nem id) → localStorage TRANSITÓRIO num
-//         objeto único com a MESMA forma dos `dados`
-//   • ContratoEditor — o formulário + documento de sempre; hidrata de
-//     `dadosIniciais` (useState inicial — o AdminPage remonta por
-//     `key` quando o contexto muda) e avisa onMudou(dados) a cada
-//     alteração.
+// prefill (opcional) — dados do evento vindos do getDadosParaDocumento
+// (botão 📃 no drawer do evento). Alimenta só os useState iniciais:
+// o componente é remontado pelo AdminPage (via key) quando o contexto
+// muda, por isso não precisa de useEffect. Tudo continua editável.
+// Nos casais, o NIF do cliente pré-preenche o 1.º contraente; o 2.º
+// fica para a Nádia completar.
 //
-// Precedência de hidratação: documento.dados > prefill > defaults.
-// Suporta 1 ou 2 contraentes (cliente único ou casal); nos casais, o
-// NIF do cliente pré-preenche o 1.º contraente (via prefill).
 // O valor por extenso é gerado automaticamente (valorPorExtensoPT)
-// sempre que o valor muda — mas o campo continua editável.
+// sempre que o valor muda — mas o campo continua editável, para a
+// Nádia poder afinar a redação se quiser.
 // ============================================================
 
 let seq = 0;
@@ -41,184 +36,50 @@ const novoContraente = (base = {}) => ({
   ...base,
 });
 
-// ---- rascunho manual (transitório, até à vista biblioteca) ----
-const CHAVE_RASCUNHO_MANUAL = "dlm_rascunho_contrato:manual:dados";
-
-const lerRascunhoManual = () => {
-  try {
-    const bruto = localStorage.getItem(CHAVE_RASCUNHO_MANUAL);
-    if (bruto !== null) return JSON.parse(bruto);
-  } catch {
-    /* storage indisponível ou JSON corrompido — segue vazio */
-  }
-  return null;
-};
-
-const gravarRascunhoManual = (dados) => {
-  try {
-    localStorage.setItem(CHAVE_RASCUNHO_MANUAL, JSON.stringify(dados));
-  } catch {
-    /* quota cheia ou privado — o pior caso é perder o rascunho manual */
-  }
-};
-
-export default function GerarContrato({
-  prefill = null,
-  ativo = true,
-  documentoId = null,
-}) {
-  const submissionId = prefill?.submissionId || null;
-  const modoPersistente = !!(submissionId || documentoId);
-
-  // O hook chama-se SEMPRE (regras dos hooks); sem ids não carrega nada
-  // e nós nunca chamamos `gravar` no modo manual — zero linhas fantasma.
-  const { carregado, documento, gravar, estado } = useDocumento({
-    tipo: "contrato",
-    submissionId,
-    documentoId,
-  });
-
-  if (modoPersistente && !carregado) {
-    return (
-      <p
-        style={{
-          fontSize: "13px",
-          color: "var(--gray-mid)",
-          padding: "24px 0",
-        }}
-      >
-        A carregar o documento…
-      </p>
-    );
-  }
-
-  // Fonte da hidratação: BD > localStorage manual > prefill > defaults
-  const d = modoPersistente ? documento?.dados || null : lerRascunhoManual();
-
-  const dadosIniciais = {
-    contraentes:
-      Array.isArray(d?.contraentes) && d.contraentes.length > 0
-        ? d.contraentes
-        : prefill?.contraentes?.length
-          ? prefill.contraentes.map((c) => novoContraente(c))
-          : [novoContraente()],
-    morada: d?.morada ?? prefill?.morada ?? "",
-    contacto: d?.contacto ?? prefill?.contacto ?? "",
-    tipoEvento:
-      d?.tipoEvento ?? (prefill ? prefill.tipoEvento || "" : "Casamento"),
-    dataEvento: d?.dataEvento ?? prefill?.dataEvento ?? "",
-    horaInicio: d?.horaInicio ?? prefill?.horaInicio ?? "",
-    horaFim: d?.horaFim ?? prefill?.horaFim ?? "",
-    local: d?.local ?? prefill?.localCompleto ?? "",
-    lugares: d?.lugares ?? prefill?.lugares ?? "",
-    composicao: d?.composicao ?? COMPOSICAO_LUGAR_SUGERIDA.join("\n"),
-    servicosExtra: d?.servicosExtra ?? "",
-    valor:
-      d?.valor ??
-      (prefill?.valor !== undefined && prefill?.valor !== null
-        ? String(prefill.valor)
-        : ""),
-    valorExtenso:
-      d?.valorExtenso ??
-      (prefill?.valor ? valorPorExtensoPT(prefill.valor) : ""),
-    localAssinatura: d?.localAssinatura ?? "Ericeira",
-    dataAssinatura:
-      d?.dataAssinatura ?? new Date().toISOString().slice(0, 10),
-  };
-
-  return (
-    <ContratoEditor
-      dadosIniciais={dadosIniciais}
-      ativo={ativo}
-      estadoGravacao={modoPersistente ? estado : null}
-      onMudou={modoPersistente ? gravar : gravarRascunhoManual}
-    />
+export default function GerarContrato({ prefill = null, ativo = true }) {
+  // Rascunho persistente: cada documento (evento ou manual) tem o seu
+  const rid = `contrato:${prefill?.submissionId || "manual"}`;
+  // 1.ª Contraente — cliente(s). Com prefill, os contraentes vêm já
+  // resolvidos (casal = 2, restantes eventos = 1).
+  const [contraentes, setContraentes] = useRascunho(`${rid}:contraentes`, () =>
+    prefill?.contraentes?.length
+      ? prefill.contraentes.map((c) => novoContraente(c))
+      : [novoContraente()],
   );
-}
-
-// ------------------------------------------------------------
-// ContratoEditor — formulário dos dados variáveis + pré-visualização
-// fiel ao contrato da Do Luxo à Mesa, imprimível (window.print()).
-// Não sabe onde os dados vivem: hidrata de `dadosIniciais` e avisa
-// `onMudou(dados)` a cada mudança.
-// ------------------------------------------------------------
-function ContratoEditor({ dadosIniciais, ativo, estadoGravacao, onMudou }) {
-  // 1.ª Contraente — cliente(s)
-  const [contraentes, setContraentes] = useState(dadosIniciais.contraentes);
-  const [morada, setMorada] = useState(dadosIniciais.morada);
-  const [contacto, setContacto] = useState(dadosIniciais.contacto);
+  const [morada, setMorada] = useRascunho(`${rid}:morada`, prefill?.morada || "");
+  const [contacto, setContacto] = useRascunho(`${rid}:contacto`, prefill?.contacto || "");
 
   // Objeto
-  const [tipoEvento, setTipoEvento] = useState(dadosIniciais.tipoEvento);
-  const [dataEvento, setDataEvento] = useState(dadosIniciais.dataEvento);
-  const [horaInicio, setHoraInicio] = useState(dadosIniciais.horaInicio);
-  const [horaFim, setHoraFim] = useState(dadosIniciais.horaFim);
-  const [local, setLocal] = useState(dadosIniciais.local);
+  const [tipoEvento, setTipoEvento] = useRascunho(`${rid}:tipoEvento`, 
+    prefill ? prefill.tipoEvento || "" : "Casamento",
+  );
+  const [dataEvento, setDataEvento] = useRascunho(`${rid}:dataEvento`, prefill?.dataEvento || "");
+  const [horaInicio, setHoraInicio] = useRascunho(`${rid}:horaInicio`, prefill?.horaInicio || "");
+  const [horaFim, setHoraFim] = useRascunho(`${rid}:horaFim`, prefill?.horaFim || "");
+  const [local, setLocal] = useRascunho(`${rid}:local`, prefill?.localCompleto || "");
 
   // Serviços (texto livre multilinha, pré-preenchido com a composição habitual)
-  const [lugares, setLugares] = useState(dadosIniciais.lugares);
-  const [composicao, setComposicao] = useState(dadosIniciais.composicao);
-  const [servicosExtra, setServicosExtra] = useState(
-    dadosIniciais.servicosExtra,
+  const [lugares, setLugares] = useRascunho(`${rid}:lugares`, prefill?.lugares || "");
+  const [composicao, setComposicao] = useRascunho(`${rid}:composicao`, 
+    COMPOSICAO_LUGAR_SUGERIDA.join("\n"),
   );
+  const [servicosExtra, setServicosExtra] = useRascunho(`${rid}:servicosExtra`, "");
 
   // Valor — o extenso deriva automaticamente do valor, mas fica editável
-  const [valor, setValor] = useState(dadosIniciais.valor);
-  const [valorExtenso, setValorExtenso] = useState(dadosIniciais.valorExtenso);
+  const [valor, setValor] = useRascunho(`${rid}:valor`, 
+    prefill?.valor !== undefined && prefill?.valor !== null
+      ? String(prefill.valor)
+      : "",
+  );
+  const [valorExtenso, setValorExtenso] = useRascunho(`${rid}:valorExtenso`, 
+    prefill?.valor ? valorPorExtensoPT(prefill.valor) : "",
+  );
 
   // Assinatura (local + data)
-  const [localAssinatura, setLocalAssinatura] = useState(
-    dadosIniciais.localAssinatura,
+  const [localAssinatura, setLocalAssinatura] = useRascunho(`${rid}:localAssinatura`, "Ericeira");
+  const [dataAssinatura, setDataAssinatura] = useRascunho(`${rid}:dataAssinatura`, 
+    new Date().toISOString().slice(0, 10),
   );
-  const [dataAssinatura, setDataAssinatura] = useState(
-    dadosIniciais.dataAssinatura,
-  );
-
-  // Uma gravação por documento (não por campo): sempre que QUALQUER
-  // campo muda, o estado completo segue para onMudou (Supabase
-  // debounced ou localStorage manual). A guarda salta o 1.º render —
-  // hidratar não é editar (senão criava linhas na BD só de abrir).
-  const primeiraRenderRef = useRef(true);
-  useEffect(() => {
-    if (primeiraRenderRef.current) {
-      primeiraRenderRef.current = false;
-      return;
-    }
-    onMudou({
-      contraentes,
-      morada,
-      contacto,
-      tipoEvento,
-      dataEvento,
-      horaInicio,
-      horaFim,
-      local,
-      lugares,
-      composicao,
-      servicosExtra,
-      valor,
-      valorExtenso,
-      localAssinatura,
-      dataAssinatura,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    contraentes,
-    morada,
-    contacto,
-    tipoEvento,
-    dataEvento,
-    horaInicio,
-    horaFim,
-    local,
-    lugares,
-    composicao,
-    servicosExtra,
-    valor,
-    valorExtenso,
-    localAssinatura,
-    dataAssinatura,
-  ]);
 
   const atualizarContraente = (uid, campos) =>
     setContraentes((prev) =>
@@ -496,25 +357,6 @@ function ContratoEditor({ dadosIniciais, ativo, estadoGravacao, onMudou }) {
             <button onClick={imprimir} style={btnImprimir}>
               🖨 Imprimir / Guardar PDF
             </button>
-            {/* Indicador de gravação — só nos documentos persistidos
-                na BD (o manual continua no localStorage, silencioso) */}
-            {estadoGravacao && rotuloEstadoGravacao(estadoGravacao) && (
-              <p
-                style={{
-                  fontSize: "11px",
-                  textAlign: "center",
-                  margin: "10px 0 0 0",
-                  color:
-                    estadoGravacao === "erro"
-                      ? "#DC2626"
-                      : estadoGravacao === "guardado"
-                        ? "#166534"
-                        : "var(--gray-mid)",
-                }}
-              >
-                {rotuloEstadoGravacao(estadoGravacao)}
-              </p>
-            )}
           </div>
         </div>
       </div>
