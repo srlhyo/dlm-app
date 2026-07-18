@@ -9,7 +9,11 @@ import {
   dataPorExtenso,
   valorPorExtensoPT,
 } from "./contratoConfig";
-import { formatarEuros, formatarDataPT } from "./orcamentoConfig";
+import {
+  formatarEuros,
+  formatarDataPT,
+  parsearValor,
+} from "./orcamentoConfig";
 
 // ============================================================
 // GerarContrato — formulário dos dados variáveis + pré-visualização
@@ -114,10 +118,12 @@ export default function GerarContrato({ prefill = null, ativo = true }) {
   );
 
   // Valor — o extenso deriva automaticamente do valor, mas fica editável
+  // O arredondamento a cêntimos limpa valores acordados antigos gravados
+  // com ruído de vírgula flutuante (ex: 649.99999999999994 → "650").
   const [valor, setValor] = useRascunho(
     `${rid}:valor`,
     prefill?.valor !== undefined && prefill?.valor !== null
-      ? String(prefill.valor)
+      ? String(Math.round(parsearValor(prefill.valor) * 100) / 100)
       : "",
   );
   const [valorExtenso, setValorExtenso] = useRascunho(
@@ -140,10 +146,11 @@ export default function GerarContrato({ prefill = null, ativo = true }) {
       prev.map((c) => (c.uid === uid ? { ...c, ...campos } : c)),
     );
 
-  // Mudar o valor regenera o extenso (a Nádia pode depois afiná-lo à mão)
+  // Mudar o valor regenera o extenso (a Nádia pode depois afiná-lo à mão).
+  // parsearValor aceita vírgula decimal ("1250,50"), que o Number não lê.
   const atualizarValor = (v) => {
     setValor(v);
-    setValorExtenso(valorPorExtensoPT(v));
+    setValorExtenso(valorPorExtensoPT(parsearValor(v)));
   };
 
   // Troca temporária do <title> durante a impressão (o browser usa-o
@@ -322,7 +329,8 @@ export default function GerarContrato({ prefill = null, ativo = true }) {
           <h3 style={h3Style}>Serviços</h3>
           <Campo label="Nº de lugares">
             <input
-              type="number"
+              type="text"
+              inputMode="numeric"
               style={inputStyle}
               value={lugares}
               onChange={(e) => setLugares(e.target.value)}
@@ -420,8 +428,8 @@ export default function GerarContrato({ prefill = null, ativo = true }) {
           <div style={{ display: "flex", gap: "12px" }}>
             <Campo label="Valor (€)" flex={1}>
               <input
-                type="number"
-                step="0.01"
+                type="text"
+                inputMode="decimal"
                 style={inputStyle}
                 value={valor}
                 onChange={(e) => atualizarValor(e.target.value)}

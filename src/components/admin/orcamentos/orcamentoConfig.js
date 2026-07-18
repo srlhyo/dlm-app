@@ -74,9 +74,29 @@ export const CATALOGO_SERVICOS = [
   },
 ];
 
-// Formata um valor numérico como euros (ex: 650 → "650€", 36.8 → "36,80€")
+// Converte texto de valor em número, aceitando vírgula OU ponto como
+// separador decimal (ex: "36,5" → 36.5, "1.250,50" → 1250.5). Quando há
+// vários separadores, o último é o decimal e os restantes são de milhares.
+export const parsearValor = (v) => {
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+  const s = String(v ?? "")
+    .trim()
+    .replace(/[\s€]/g, "");
+  if (!s) return 0;
+  const ultimo = Math.max(s.lastIndexOf(","), s.lastIndexOf("."));
+  const limpo =
+    ultimo === -1
+      ? s
+      : s.slice(0, ultimo).replace(/[.,]/g, "") + "." + s.slice(ultimo + 1);
+  const n = Number(limpo);
+  return Number.isFinite(n) ? n : 0;
+};
+
+// Formata um valor como euros (ex: 650 → "650€", 36.8 → "36,80€").
+// Arredonda a cêntimos, para absorver ruído de vírgula flutuante
+// (649.9999… → "650€") e aceita vírgula decimal no texto de entrada.
 export const formatarEuros = (v) => {
-  const n = Number(v) || 0;
+  const n = Math.round(parsearValor(v) * 100) / 100;
   if (Number.isInteger(n)) return `${n}€`;
   return `${n.toFixed(2).replace(".", ",")}€`;
 };

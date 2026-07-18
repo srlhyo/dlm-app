@@ -10,6 +10,7 @@ import {
   VALIDADE_ORCAMENTO_DIAS,
   formatarEuros,
   formatarDataPT,
+  parsearValor,
 } from "./orcamentoConfig";
 
 // Substitui {N} pelo nº de lugares (ou remove o marcador se vazio)
@@ -108,15 +109,16 @@ export default function GerarOrcamento({
 
   const hoje = new Date().toISOString().slice(0, 10);
 
-  const total = useMemo(
-    () =>
-      linhas.reduce((soma, l) => {
-        const v = Number(l.valor) || 0;
-        const q = Number(l.qtd) || 0;
-        return soma + v * q;
-      }, 0),
-    [linhas],
-  );
+  // Arredondado a cêntimos: evita totais tipo 649.99999999999994 (que
+  // apareceriam no botão de guardar e ficariam gravados na BD).
+  const total = useMemo(() => {
+    const soma = linhas.reduce((acc, l) => {
+      const v = parsearValor(l.valor);
+      const q = parsearValor(l.qtd);
+      return acc + v * q;
+    }, 0);
+    return Math.round(soma * 100) / 100;
+  }, [linhas]);
 
   // Se o total mudar depois de guardado, volta a pedir para guardar
   useEffect(() => {
@@ -470,7 +472,7 @@ export default function GerarOrcamento({
                   ? "A guardar..."
                   : valorGuardado
                     ? "✓ Valor guardado no evento"
-                    : `💾 Guardar ${total}€ como valor acordado`}
+                    : `💾 Guardar ${formatarEuros(total)} como valor acordado`}
               </button>
             )}
           </div>
@@ -600,8 +602,8 @@ function LinhaServicoEditor({
         <div style={{ marginBottom: "8px" }}>
           <label style={miniLabel}>Nº de lugares</label>
           <input
-            type="number"
-            min="1"
+            type="text"
+            inputMode="numeric"
             style={inputStyle}
             value={linha.lugares}
             onChange={(e) => onAtualizarLugares(e.target.value)}
@@ -638,8 +640,8 @@ function LinhaServicoEditor({
         <div style={{ flex: "0 0 70px" }}>
           <label style={miniLabel}>Qtd</label>
           <input
-            type="number"
-            min="1"
+            type="text"
+            inputMode="numeric"
             style={inputStyle}
             value={linha.qtd}
             onChange={(e) => onAtualizar({ qtd: e.target.value })}
@@ -648,9 +650,8 @@ function LinhaServicoEditor({
         <div style={{ flex: 1 }}>
           <label style={miniLabel}>Valor (€)</label>
           <input
-            type="number"
-            min="0"
-            step="0.01"
+            type="text"
+            inputMode="decimal"
             style={inputStyle}
             value={linha.valor}
             onChange={(e) => onAtualizar({ valor: e.target.value })}
