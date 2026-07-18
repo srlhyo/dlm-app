@@ -52,11 +52,18 @@ export default function GerarOrcamento({
   const rid = `orcamento:${prefill?.submissionId || "manual"}`;
   // Dados do cliente/evento — pré-preenchidos quando se chega de um
   // evento; senão, os defaults manuais de sempre.
-  const [cliente, setCliente] = useRascunho(`${rid}:cliente`, prefill?.nomeCliente || "");
-  const [tipoEvento, setTipoEvento] = useRascunho(`${rid}:tipoEvento`, 
+  const [cliente, setCliente] = useRascunho(
+    `${rid}:cliente`,
+    prefill?.nomeCliente || "",
+  );
+  const [tipoEvento, setTipoEvento] = useRascunho(
+    `${rid}:tipoEvento`,
     prefill ? prefill.tipoEvento || "" : "Casamento",
   );
-  const [dataEvento, setDataEvento] = useRascunho(`${rid}:dataEvento`, prefill?.dataEvento || "");
+  const [dataEvento, setDataEvento] = useRascunho(
+    `${rid}:dataEvento`,
+    prefill?.dataEvento || "",
+  );
   const [local, setLocal] = useRascunho(`${rid}:local`, prefill?.local || "");
   const [subtitulo, setSubtitulo] = useRascunho(`${rid}:subtitulo`, ""); // linha opcional (ex: "Decoração desenvolvida...")
 
@@ -66,7 +73,10 @@ export default function GerarOrcamento({
   // Imagens de referência DO CLIENTE — pré-preenchidas da captação;
   // a Nádia pode remover ou juntar as que chegaram por Instagram.
   // Entram no PDF como páginas de referências, a seguir ao orçamento.
-  const [imagens, setImagens] = useRascunho(`${rid}:imagens`, prefill?.imagensReferencia || []);
+  const [imagens, setImagens] = useRascunho(
+    `${rid}:imagens`,
+    prefill?.imagensReferencia || [],
+  );
   const [carregandoImg, setCarregandoImg] = useState(false);
   // Guardar o total como valor acordado do evento (alimenta o funil)
   const [aGuardarValor, setAGuardarValor] = useState(false);
@@ -112,7 +122,6 @@ export default function GerarOrcamento({
   useEffect(() => {
     setValorGuardado(false);
   }, [total]);
-
 
   const atualizarLinha = (uid, campos) =>
     setLinhas((prev) =>
@@ -175,7 +184,7 @@ export default function GerarOrcamento({
           próprios "cartões-página". Cada imagem de referência é uma
           página inteira (.pagina-ref). */}
       {ativo && (
-      <style>{`
+        <style>{`
         @media print {
           body * { visibility: hidden; }
           .area-impressao, .area-impressao * { visibility: visible; }
@@ -608,7 +617,10 @@ function LinhaServicoEditor({
         placeholder="Descrição da linha"
       />
 
-      {linha.inclui.length > 0 && (
+      {/* O "Inclui:" aparece para QUALQUER serviço escolhido — incluindo
+          a Linha livre (que nasce com inclui vazio e sem isto nunca
+          ganhava o campo). Linha ainda sem serviço continua sem ele. */}
+      {(linha.servicoId || linha.inclui.length > 0) && (
         <textarea
           style={{
             ...inputStyle,

@@ -36,6 +36,14 @@ const novoContraente = (base = {}) => ({
   ...base,
 });
 
+// Secção de serviços adicionais: descrição + itens (repetível)
+const novaSeccaoExtra = (base = {}) => ({
+  uid: `se_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+  titulo: "",
+  itens: "",
+  ...base,
+});
+
 export default function GerarContrato({ prefill = null, ativo = true }) {
   // Rascunho persistente: cada documento (evento ou manual) tem o seu
   const rid = `contrato:${prefill?.submissionId || "manual"}`;
@@ -46,38 +54,84 @@ export default function GerarContrato({ prefill = null, ativo = true }) {
       ? prefill.contraentes.map((c) => novoContraente(c))
       : [novoContraente()],
   );
-  const [morada, setMorada] = useRascunho(`${rid}:morada`, prefill?.morada || "");
-  const [contacto, setContacto] = useRascunho(`${rid}:contacto`, prefill?.contacto || "");
+  const [morada, setMorada] = useRascunho(
+    `${rid}:morada`,
+    prefill?.morada || "",
+  );
+  const [contacto, setContacto] = useRascunho(
+    `${rid}:contacto`,
+    prefill?.contacto || "",
+  );
 
   // Objeto
-  const [tipoEvento, setTipoEvento] = useRascunho(`${rid}:tipoEvento`, 
+  const [tipoEvento, setTipoEvento] = useRascunho(
+    `${rid}:tipoEvento`,
     prefill ? prefill.tipoEvento || "" : "Casamento",
   );
-  const [dataEvento, setDataEvento] = useRascunho(`${rid}:dataEvento`, prefill?.dataEvento || "");
-  const [horaInicio, setHoraInicio] = useRascunho(`${rid}:horaInicio`, prefill?.horaInicio || "");
-  const [horaFim, setHoraFim] = useRascunho(`${rid}:horaFim`, prefill?.horaFim || "");
-  const [local, setLocal] = useRascunho(`${rid}:local`, prefill?.localCompleto || "");
+  const [dataEvento, setDataEvento] = useRascunho(
+    `${rid}:dataEvento`,
+    prefill?.dataEvento || "",
+  );
+  const [horaInicio, setHoraInicio] = useRascunho(
+    `${rid}:horaInicio`,
+    prefill?.horaInicio || "",
+  );
+  const [horaFim, setHoraFim] = useRascunho(
+    `${rid}:horaFim`,
+    prefill?.horaFim || "",
+  );
+  const [local, setLocal] = useRascunho(
+    `${rid}:local`,
+    prefill?.localCompleto || "",
+  );
 
   // Serviços (texto livre multilinha, pré-preenchido com a composição habitual)
-  const [lugares, setLugares] = useRascunho(`${rid}:lugares`, prefill?.lugares || "");
-  const [composicao, setComposicao] = useRascunho(`${rid}:composicao`, 
+  const [lugares, setLugares] = useRascunho(
+    `${rid}:lugares`,
+    prefill?.lugares || "",
+  );
+  const [composicao, setComposicao] = useRascunho(
+    `${rid}:composicao`,
     COMPOSICAO_LUGAR_SUGERIDA.join("\n"),
   );
-  const [servicosExtra, setServicosExtra] = useRascunho(`${rid}:servicosExtra`, "");
+  // Secções de serviços adicionais (descrição + itens, repetíveis).
+  // As chaves antigas continuam a ser LIDAS para migrar contratos já
+  // gravados no formato de campo único — nada se perde.
+  const [servicosExtraLegado] = useRascunho(`${rid}:servicosExtra`, "");
+  const [servicosExtraTituloLegado] = useRascunho(
+    `${rid}:servicosExtraTitulo`,
+    "",
+  );
+  const [seccoesExtra, setSeccoesExtra] = useRascunho(
+    `${rid}:seccoesExtra`,
+    () => {
+      const titulo = (servicosExtraTituloLegado || "").trim();
+      const itens = (servicosExtraLegado || "").trim();
+      if (titulo || itens)
+        return [novaSeccaoExtra({ titulo, itens: servicosExtraLegado })];
+      return [novaSeccaoExtra()];
+    },
+  );
 
   // Valor — o extenso deriva automaticamente do valor, mas fica editável
-  const [valor, setValor] = useRascunho(`${rid}:valor`, 
+  const [valor, setValor] = useRascunho(
+    `${rid}:valor`,
     prefill?.valor !== undefined && prefill?.valor !== null
       ? String(prefill.valor)
       : "",
   );
-  const [valorExtenso, setValorExtenso] = useRascunho(`${rid}:valorExtenso`, 
+  const [valorExtenso, setValorExtenso] = useRascunho(
+    `${rid}:valorExtenso`,
     prefill?.valor ? valorPorExtensoPT(prefill.valor) : "",
   );
 
   // Assinatura (local + data)
-  const [localAssinatura, setLocalAssinatura] = useRascunho(`${rid}:localAssinatura`, "Ericeira");
-  const [dataAssinatura, setDataAssinatura] = useRascunho(`${rid}:dataAssinatura`, 
+  const [localAssinatura, setLocalAssinatura] = useRascunho(
+    `${rid}:localAssinatura`,
+    "Ericeira",
+  );
+  const [dataAssinatura, setDataAssinatura] = useRascunho(
+    `${rid}:dataAssinatura`,
     new Date().toISOString().slice(0, 10),
   );
 
@@ -110,7 +164,7 @@ export default function GerarContrato({ prefill = null, ativo = true }) {
           resolvem-se com o swap do título + desligar "Headers and
           footers" uma vez no diálogo de impressão (fica memorizado). */}
       {ativo && (
-      <style>{`
+        <style>{`
         @media print {
           body * { visibility: hidden; }
           .contrato-doc, .contrato-doc * { visibility: visible; }
@@ -282,14 +336,85 @@ export default function GerarContrato({ prefill = null, ativo = true }) {
               onChange={(e) => setComposicao(e.target.value)}
             />
           </Campo>
-          <Campo label="Serviços adicionais (um por linha, opcional)">
-            <textarea
-              style={{ ...inputStyle, minHeight: "70px", resize: "vertical" }}
-              value={servicosExtra}
-              onChange={(e) => setServicosExtra(e.target.value)}
-              placeholder="ex: Espaço Fotografável dos Noivos&#10;Painéis decorativos"
-            />
-          </Campo>
+          {seccoesExtra.map((sec, i) => (
+            <div
+              key={sec.uid}
+              style={{
+                backgroundColor: "#FBF7EF",
+                borderRadius: "12px",
+                padding: "14px",
+                marginBottom: "10px",
+                border: "1px solid #F0E6D0",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginBottom: "8px",
+                }}
+              >
+                <span style={miniLabelGold}>
+                  Serviços adicionais
+                  {seccoesExtra.length > 1 ? ` ${i + 1}` : ""}
+                </span>
+                {seccoesExtra.length > 1 && (
+                  <button
+                    onClick={() =>
+                      setSeccoesExtra((prev) =>
+                        prev.filter((x) => x.uid !== sec.uid),
+                      )
+                    }
+                    style={linkRemover}
+                  >
+                    remover
+                  </button>
+                )}
+              </div>
+              <Campo label="Descrição da linha (opcional)">
+                <input
+                  style={inputStyle}
+                  value={sec.titulo}
+                  onChange={(e) =>
+                    setSeccoesExtra((prev) =>
+                      prev.map((x) =>
+                        x.uid === sec.uid
+                          ? { ...x, titulo: e.target.value }
+                          : x,
+                      ),
+                    )
+                  }
+                  placeholder="ex: Serviços Adicionais"
+                />
+              </Campo>
+              <Campo label="Um item por linha (opcional)">
+                <textarea
+                  style={{
+                    ...inputStyle,
+                    minHeight: "70px",
+                    resize: "vertical",
+                  }}
+                  value={sec.itens}
+                  onChange={(e) =>
+                    setSeccoesExtra((prev) =>
+                      prev.map((x) =>
+                        x.uid === sec.uid ? { ...x, itens: e.target.value } : x,
+                      ),
+                    )
+                  }
+                  placeholder="ex: Espaço Fotografável dos Noivos&#10;Painéis decorativos"
+                />
+              </Campo>
+            </div>
+          ))}
+          <button
+            onClick={() =>
+              setSeccoesExtra((prev) => [...prev, novaSeccaoExtra()])
+            }
+            style={btnAdd}
+          >
+            + Adicionar serviços adicionais
+          </button>
 
           <h3 style={h3Style}>Valor e assinatura</h3>
           <div style={{ display: "flex", gap: "12px" }}>
@@ -373,7 +498,7 @@ export default function GerarContrato({ prefill = null, ativo = true }) {
         local={local}
         lugares={lugares}
         composicao={composicao}
-        servicosExtra={servicosExtra}
+        seccoesExtra={seccoesExtra}
         valor={valor}
         valorExtenso={valorExtenso}
         localAssinatura={localAssinatura}
@@ -397,7 +522,7 @@ function ContratoDocumento({
   local,
   lugares,
   composicao,
-  servicosExtra,
+  seccoesExtra,
   valor,
   valorExtenso,
   localAssinatura,
@@ -415,16 +540,19 @@ function ContratoDocumento({
       .map((l) => l.trim())
       .filter(Boolean)
       .forEach((l) => linhas.push(`• ${l}`));
-    const extra = servicosExtra
-      .split("\n")
-      .map((l) => l.trim())
-      .filter(Boolean);
-    if (extra.length) {
+    (seccoesExtra || []).forEach((sec) => {
+      const titulo = (sec.titulo || "").trim();
+      const itens = (sec.itens || "")
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean);
+      if (!titulo && itens.length === 0) return;
       linhas.push("");
-      extra.forEach((l) => linhas.push(`• ${l}`));
-    }
+      if (titulo) linhas.push(titulo);
+      itens.forEach((l) => linhas.push(`• ${l}`));
+    });
     return linhas.join("\n");
-  }, [lugares, composicao, servicosExtra]);
+  }, [lugares, composicao, seccoesExtra]);
 
   const substituir = (texto) =>
     texto
@@ -445,7 +573,7 @@ function ContratoDocumento({
         margin: "0 auto",
         padding: "56px 64px",
         boxShadow: "0 2px 24px rgba(0,0,0,0.08)",
-        fontFamily: "Georgia, 'Times New Roman', serif",
+        fontFamily: "'Times New Roman', Times, serif",
         color: "#1A1A1A",
         fontSize: "13px",
         lineHeight: 1.7,
@@ -534,9 +662,8 @@ function ContratoDocumento({
                   key={i}
                   style={{
                     margin: linha === "" ? "8px 0" : "0 0 2px 0",
-                    fontWeight: /^(Composição|Decoração)/.test(linha)
-                      ? "600"
-                      : "400",
+                    fontWeight:
+                      linha !== "" && !linha.startsWith("•") ? "600" : "400",
                   }}
                 >
                   {linha}

@@ -163,6 +163,7 @@ export default function ClientesLista({
   };
 
   const nomeTipo = (ev) => {
+    if (!ev) return "Evento";
     const t = eventTypes.find((x) => x.id === ev.event_type_id);
     return t?.nome || (ev.respostas?.tipoEventoOutro || "").trim() || "Evento";
   };
@@ -511,7 +512,7 @@ export default function ClientesLista({
                           margin: 0,
                         }}
                       >
-                        {nomeTipo(ev.event_type_id)}
+                        {nomeTipo(ev)}
                       </p>
                       <p
                         style={{
