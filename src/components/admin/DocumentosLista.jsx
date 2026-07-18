@@ -167,7 +167,10 @@ export default function DocumentosLista({
           ...d,
           titulo: ev ? getResumoSubmissao(ev, eventTypes).titulo : "Evento",
           tipoEventoId: tipoEv?.id || "",
-          tipoEventoNome: tipoEv?.nome || "",
+          tipoEventoNome:
+            tipoEv?.nome ||
+            (ev?.respostas?.tipoEventoOutro || "").trim() ||
+            "",
           estado: ev?.status || "",
           dataEvento: ev?.data_evento || null,
         };

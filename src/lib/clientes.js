@@ -16,7 +16,7 @@ export const getClientes = async () => {
   const { data, error } = await supabase
     .from("clientes")
     .select(
-      "id, nome, contacto, email, nif, morada, notas, created_at, submissions(id, data_evento, fase, event_type_id)",
+      "id, nome, contacto, email, nif, morada, notas, created_at, submissions(id, data_evento, fase, event_type_id, tipoEventoOutro:respostas->>tipoEventoOutro)",
     )
     .order("created_at", { ascending: false });
   if (error) throw error;

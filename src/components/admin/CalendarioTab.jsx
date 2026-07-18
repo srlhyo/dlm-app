@@ -65,7 +65,11 @@ function getTituloSubmissao(s, eventTypes) {
 
 function getTipoNome(s, eventTypes) {
   const tipo = eventTypes?.find((et) => et.id === s.event_type_id);
-  return tipo?.nome || null;
+  if (tipo?.nome) return tipo.nome;
+  // Tipo "Outro" da captação — o texto do cliente com a marca ✳
+  // (por classificar) até ser associado a um modelo na ficha.
+  const livre = (s.respostas?.tipoEventoOutro || "").trim();
+  return livre ? `${livre} ✳` : null;
 }
 
 // Devolve os dias do mês numa grelha começando à Segunda
@@ -305,24 +309,24 @@ export default function CalendarioTab({
         {Object.entries(STATUS_CORES)
           .filter(([status]) => status !== "Recebido")
           .map(([status, cor]) => (
-          <div
-            key={status}
-            style={{ display: "flex", alignItems: "center", gap: "5px" }}
-          >
             <div
-              style={{
-                width: "10px",
-                height: "10px",
-                borderRadius: "50%",
-                backgroundColor: cor.bg,
-                border: `1.5px solid ${cor.border}`,
-              }}
-            />
-            <span style={{ fontSize: "10px", color: "var(--gray-mid)" }}>
-              {status}
-            </span>
-          </div>
-        ))}
+              key={status}
+              style={{ display: "flex", alignItems: "center", gap: "5px" }}
+            >
+              <div
+                style={{
+                  width: "10px",
+                  height: "10px",
+                  borderRadius: "50%",
+                  backgroundColor: cor.bg,
+                  border: `1.5px solid ${cor.border}`,
+                }}
+              />
+              <span style={{ fontSize: "10px", color: "var(--gray-mid)" }}>
+                {status}
+              </span>
+            </div>
+          ))}
         {/* Legenda das reservas */}
         <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
           <div
@@ -951,9 +955,8 @@ export default function CalendarioTab({
                 margin: "0 0 16px 0",
               }}
             >
-              A data fica segura no funil como interessado (a vermelho na
-              Agenda até o sinal entrar). Nome e tipo chegam — o resto é
-              opcional.
+              A data fica segura no funil como interessado (a vermelho na Agenda
+              até o sinal entrar). Nome e tipo chegam — o resto é opcional.
             </p>
             <CaptacaoForm
               modoInterno

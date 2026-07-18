@@ -127,9 +127,13 @@ export default function FunilBoard({
     setConfirmandoPerda(null);
   };
 
-  const nomeTipo = (eventTypeId) => {
-    const t = eventTypes.find((x) => x.id === eventTypeId);
-    return t?.nome || "Evento";
+  const nomeTipo = (ev) => {
+    const t = eventTypes.find((x) => x.id === ev.event_type_id);
+    if (t?.nome) return t.nome;
+    // Tipo "Outro" da captação — o texto do cliente com a marca ✳
+    // (por classificar) até ser associado a um modelo na ficha.
+    const livre = (ev.respostas?.tipoEventoOutro || "").trim();
+    return livre ? `${livre} ✳` : "Evento";
   };
 
   // O nome no card: o cliente (a pessoa que contrata); se o evento não
@@ -339,7 +343,7 @@ export default function FunilBoard({
                   evento={ev}
                   fase={faseDe(ev)}
                   nome={nomeCard(ev)}
-                  tipo={nomeTipo(ev.event_type_id)}
+                  tipo={nomeTipo(ev)}
                   aAtualizar={atualizando === ev.id}
                   aConfirmarPerda={confirmandoPerda === ev.id}
                   onAbrir={() => onAbrirEvento && onAbrirEvento(ev)}
@@ -358,6 +362,9 @@ export default function FunilBoard({
           <div
             style={{
               display: "grid",
+              // 280px: 3 colunas cabem lado a lado no contentor de
+              // 960px do Admin (com 300px a terceira embrulhava para
+              // baixo por 16px). No telemóvel continuam empilhadas.
               gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
               gap: "14px",
               alignItems: "start",

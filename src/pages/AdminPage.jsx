@@ -49,6 +49,7 @@ function DadosCaptacao({ submissao }) {
   const r = submissao.respostas || {};
   const linhas = [
     ["Nome", r.nomeDoCliente || r.nomeResponsavel],
+    ["Tipo de evento (outro)", r.tipoEventoOutro],
     ["WhatsApp", r.numeroWhatsapp],
     ["Contacto", r.contactoPrincipal],
     ["Data do evento", submissao.data_evento || r.dataEvento],
@@ -1310,6 +1311,7 @@ export default function AdminPage() {
         onGerarDocumento={handleGerarDocumento}
         onFormulario={handleFormularioDoEvento}
         onVerFormulario={handleVerFormularioDoEvento}
+        onModeloCriado={fetchEventTypes}
         invites={invites}
         onNavegar={handleNavegar}
       />

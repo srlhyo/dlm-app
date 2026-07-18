@@ -332,8 +332,7 @@ export default function DashboardTab({
             {formatarEuros(somaValores(garantidosPorRealizar))}
           </p>
           <p style={{ ...kpiLabelStyle, color: "#166534" }}>
-            Garantido (por realizar) ·{" "}
-            {garantidosPorRealizar.length}{" "}
+            Garantido (por realizar) · {garantidosPorRealizar.length}{" "}
             {garantidosPorRealizar.length === 1 ? "evento" : "eventos"}
           </p>
         </div>
@@ -428,16 +427,29 @@ export default function DashboardTab({
       {/* ===== ZONA 2.5 — Por tipo de evento ===== */}
       {(() => {
         // Cruza submissions com eventTypes para contar quantos eventos
-        // existem por tipo — só mostra tipos com pelo menos 1 evento.
-        // Tipos sem nenhum evento não aparecem (não polui o dashboard).
-        const contagemPorTipo = eventTypes
-          .map((et) => ({
-            id: et.id,
-            nome: et.nome,
-            total: ativos.filter((s) => s.event_type_id === et.id).length,
-          }))
-          .filter((et) => et.total > 0)
-          .sort((a, b) => b.total - a.total);
+        // existem por tipo — só mostra tipos com pelo menos 1 evento
+        // (tipos sem eventos não aparecem, não polui o dashboard).
+        // Eventos SEM modelo (tipo "Outro" da captação, por associar
+        // na ficha) entram no bucket "Por classificar".
+        const porClassificar = ativos.filter((s) => !s.event_type_id).length;
+        const contagemPorTipo = [
+          ...eventTypes
+            .map((et) => ({
+              id: et.id,
+              nome: et.nome,
+              total: ativos.filter((s) => s.event_type_id === et.id).length,
+            }))
+            .filter((et) => et.total > 0),
+          ...(porClassificar > 0
+            ? [
+                {
+                  id: "__por_classificar",
+                  nome: "Por classificar",
+                  total: porClassificar,
+                },
+              ]
+            : []),
+        ].sort((a, b) => b.total - a.total);
 
         if (contagemPorTipo.length === 0) return null;
 
@@ -723,9 +735,7 @@ export default function DashboardTab({
             }}
           >
             {STATUS_OPTIONS.map((status) => {
-              const total = ativos.filter(
-                (s) => s.status === status,
-              ).length;
+              const total = ativos.filter((s) => s.status === status).length;
               const max = ativos.length || 1;
               const pct = Math.round((total / max) * 100);
               const colors = STATUS_COLORS[status];

@@ -58,7 +58,10 @@ const tiposDoCliente = (c, eventTypes) => {
     ...new Set(
       (c.submissions || [])
         .map(
-          (e) => (eventTypes || []).find((t) => t.id === e.event_type_id)?.nome,
+          (e) =>
+            (eventTypes || []).find((t) => t.id === e.event_type_id)?.nome ||
+            (e.tipoEventoOutro || e.respostas?.tipoEventoOutro || "").trim() ||
+            null,
         )
         .filter(Boolean),
     ),
@@ -77,7 +80,20 @@ const tiposDoCliente = (c, eventTypes) => {
 const formatarCriado = (ts) => {
   if (!ts) return "";
   const d = new Date(ts);
-  const meses = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+  const meses = [
+    "jan",
+    "fev",
+    "mar",
+    "abr",
+    "mai",
+    "jun",
+    "jul",
+    "ago",
+    "set",
+    "out",
+    "nov",
+    "dez",
+  ];
   const hh = String(d.getHours()).padStart(2, "0");
   const mm = String(d.getMinutes()).padStart(2, "0");
   return `${d.getDate()} ${meses[d.getMonth()]} · ${hh}:${mm}`;
@@ -146,9 +162,9 @@ export default function ClientesLista({
     }
   };
 
-  const nomeTipo = (eventTypeId) => {
-    const t = eventTypes.find((x) => x.id === eventTypeId);
-    return t?.nome || "Evento";
+  const nomeTipo = (ev) => {
+    const t = eventTypes.find((x) => x.id === ev.event_type_id);
+    return t?.nome || (ev.respostas?.tipoEventoOutro || "").trim() || "Evento";
   };
 
   const novoEvento = async (fase) => {
@@ -186,7 +202,10 @@ export default function ClientesLista({
         return (
           <button
             key={v.id}
-            onClick={() => { ultimaVista = v.id; setVista(v.id); }}
+            onClick={() => {
+              ultimaVista = v.id;
+              setVista(v.id);
+            }}
             style={{
               padding: "8px 20px",
               borderRadius: "999px",
@@ -199,7 +218,16 @@ export default function ClientesLista({
               transition: "all 0.2s",
             }}
           >
-            <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}><Icone nome={v.icone} tamanho={15} />{v.label}</span>
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <Icone nome={v.icone} tamanho={15} />
+              {v.label}
+            </span>
           </button>
         );
       })}
@@ -294,9 +322,7 @@ export default function ClientesLista({
                   borderRadius: "14px",
                   padding: "14px 16px",
                   marginBottom: "10px",
-                  border: ativo
-                    ? "2px solid var(--gold)"
-                    : "1px solid #F0EBE0",
+                  border: ativo ? "2px solid var(--gold)" : "1px solid #F0EBE0",
                   boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
                   cursor: "pointer",
                   display: "flex",

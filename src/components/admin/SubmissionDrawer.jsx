@@ -3,6 +3,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../lib/supabase";
 import { getValorAtual, getResumoSubmissao } from "../../lib/submissionFields";
 import { marcarPagamentoFinal } from "../../lib/clientes";
+import {
+  getTipoEventoLivre,
+  precisaClassificacao,
+  encontrarModeloPorNome,
+  associarModeloAoEvento,
+  criarModeloEAssociar,
+} from "../../lib/tipoEvento";
 import { FASES_POS_SINAL } from "./faseConfig";
 import { formatarEuros } from "./orcamentos/orcamentoConfig";
 import SeletorPaleta, { AmostraPaleta } from "./SeletorPaleta";
@@ -21,6 +28,11 @@ import { linkWhatsApp } from "../../lib/mensagens";
 //   respostas (JSONB) E, quando o campo tem coluna antiga equivalente,
 //   também na coluna — para não partir o Casamento nem os briefings.
 //
+// Classificação do tipo "Outro": quando o evento não tem modelo mas o
+//   cliente escreveu um tipo na captação (respostas.tipoEventoOutro),
+//   aparece um banner para associar a um modelo existente ou criar um
+//   novo com um clique (ver lib/tipoEvento.js).
+//
 // Props:
 //   selected       — a submissão selecionada (ou null)
 //   eventTypes     — lista de modelos de evento
@@ -31,6 +43,8 @@ import { linkWhatsApp } from "../../lib/mensagens";
 //     separador Documentos com o documento pré-preenchido deste evento
 //   onFormulario(submissao) — abre o painel Novo Formulário apontado
 //     a este evento (as respostas atualizam-no, não criam duplicados)
+//   onModeloCriado() — após criar um modelo novo via classificação
+//     (o AdminPage recarrega os eventTypes)
 // ============================================================
 
 const STATUS_OPTIONS = ["Recebido", "Em Preparação", "Confirmado", "Concluído"];
@@ -118,6 +132,7 @@ export default function SubmissionDrawer({
   onVerFormulario,
   invites = [],
   onNavegar,
+  onModeloCriado,
 }) {
   const [aMarcarPagamento, setAMarcarPagamento] = useState(false);
   const [folhaMensagens, setFolhaMensagens] = useState(false);
@@ -130,6 +145,9 @@ export default function SubmissionDrawer({
   const tipo = eventTypes?.find((et) => et.id === selected.event_type_id);
   const seccoes = seccoesDoModelo(tipo);
   const resumo = getResumoSubmissao(selected, eventTypes);
+  // O tipo "Outro" que o cliente escreveu na captação (fallback de
+  // exibição enquanto não é associado a um modelo).
+  const tipoLivre = getTipoEventoLivre(selected);
 
   // O WhatsApp do evento (captação) — a última milha das mensagens:
   // escolher a mensagem-tipo → abre a conversa certa com o texto pronto.
@@ -165,7 +183,9 @@ export default function SubmissionDrawer({
     nomeCliente: resumo.titulo,
     tipoEvento:
       (eventTypes?.find((et) => et.id === selected.event_type_id) || {})
-        .nome || "",
+        .nome ||
+      tipoLivre ||
+      "",
     dataEvento: selected.data_evento || resumo.data || "",
     valor: selected.valor_acordado,
   };
@@ -311,7 +331,11 @@ export default function SubmissionDrawer({
                   }}
                 >
                   {formatData(resumo.data)}
-                  {tipo ? ` · ${tipo.nome}` : ""}
+                  {tipo
+                    ? ` · ${tipo.nome}`
+                    : tipoLivre
+                      ? ` · ${tipoLivre} ✳`
+                      : ""}
                 </p>
               </div>
               <div
@@ -368,6 +392,18 @@ export default function SubmissionDrawer({
                 }
               }}
             />
+
+            {/* ===== Classificação do tipo "Outro" (quando aplicável) =====
+                key = id do evento: mudar de evento reinicia o estado */}
+            {!editMode && precisaClassificacao(selected) && (
+              <ClassificacaoTipo
+                key={selected.id}
+                submissao={selected}
+                eventTypes={eventTypes}
+                onSaved={onSaved}
+                onModeloCriado={onModeloCriado}
+              />
+            )}
 
             {/* Ações do evento: briefing em largura total (destaque) +
                 grelha 2×2 de formulário e documentos (outline) */}
@@ -775,6 +811,164 @@ export default function SubmissionDrawer({
         </motion.div>
       </motion.div>
     </AnimatePresence>
+  );
+}
+
+// ============================================================
+// ClassificacaoTipo — o banner "Tipo indicado pelo cliente".
+// Aparece quando o evento não tem modelo mas o cliente escreveu um
+// tipo no "Outro" da captação. Duas saídas:
+//   • associar a um modelo existente (dropdown)
+//   • criar um modelo novo com esse nome (0 passos) e associar
+// Dedup: se já existir um modelo com o mesmo nome (normalizado), o
+// dropdown vem pré-seleccionado com ele — nunca se criam duplicados.
+// O texto do cliente fica nas respostas como histórico.
+// ============================================================
+function ClassificacaoTipo({ submissao, eventTypes, onSaved, onModeloCriado }) {
+  const texto = getTipoEventoLivre(submissao);
+  const match = encontrarModeloPorNome(texto, eventTypes);
+  const [modeloId, setModeloId] = useState(match?.id || "");
+  const [aGuardar, setAGuardar] = useState(false);
+  const [erro, setErro] = useState(null);
+
+  if (!texto) return null;
+
+  const guardar = async () => {
+    setAGuardar(true);
+    setErro(null);
+    try {
+      let idFinal;
+      if (modeloId) {
+        await associarModeloAoEvento(submissao.id, modeloId);
+        idFinal = modeloId;
+      } else {
+        const { modelo, jaExistia } = await criarModeloEAssociar(
+          texto,
+          submissao.id,
+          eventTypes,
+        );
+        idFinal = modelo.id;
+        if (!jaExistia && onModeloCriado) onModeloCriado();
+      }
+      // Merge mínimo no objeto normalizado que o AdminPage já tem
+      if (onSaved) onSaved({ ...submissao, event_type_id: idFinal });
+    } catch (e) {
+      console.error(e);
+      setErro("Não foi possível associar. Verifica a ligação e tenta novamente.");
+    }
+    setAGuardar(false);
+  };
+
+  const textoCurto = texto.length > 26 ? `${texto.slice(0, 26)}…` : texto;
+
+  return (
+    <div
+      style={{
+        backgroundColor: "#FBF7EF",
+        border: "1px solid var(--gold-light)",
+        borderRadius: "12px",
+        padding: "12px 14px",
+        marginBottom: "14px",
+      }}
+    >
+      <p
+        style={{
+          fontSize: "10px",
+          fontWeight: "600",
+          color: "var(--gold-dark)",
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+          margin: "0 0 2px 0",
+        }}
+      >
+        Tipo indicado pelo cliente
+      </p>
+      <p
+        style={{
+          fontSize: "14px",
+          fontWeight: "600",
+          color: "var(--charcoal)",
+          margin: "0 0 10px 0",
+        }}
+      >
+        "{texto}"
+      </p>
+      <div
+        style={{
+          display: "flex",
+          gap: "8px",
+          flexWrap: "wrap",
+          alignItems: "center",
+        }}
+      >
+        <select
+          value={modeloId}
+          onChange={(e) => setModeloId(e.target.value)}
+          style={{
+            flex: "1 1 180px",
+            minWidth: 0,
+            padding: "8px 12px",
+            borderRadius: "8px",
+            border: "1.5px solid var(--gold-light)",
+            fontSize: "12px",
+            outline: "none",
+            fontFamily: "Inter, sans-serif",
+            backgroundColor: "white",
+          }}
+        >
+          <option value="">Associar a um modelo…</option>
+          {(eventTypes || []).map((et) => (
+            <option key={et.id} value={et.id}>
+              {et.nome}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={guardar}
+          disabled={aGuardar}
+          style={{
+            flexShrink: 0,
+            padding: "8px 14px",
+            borderRadius: "8px",
+            fontSize: "12px",
+            fontWeight: "600",
+            border: "1.5px solid var(--gold)",
+            backgroundColor: modeloId ? "var(--gold)" : "white",
+            color: modeloId ? "white" : "var(--gold-dark)",
+            cursor: aGuardar ? "wait" : "pointer",
+            whiteSpace: "nowrap",
+            transition: "all 0.15s",
+          }}
+        >
+          {aGuardar
+            ? "A associar..."
+            : modeloId
+              ? "✓ Associar"
+              : `＋ Criar modelo "${textoCurto}"`}
+        </button>
+      </div>
+      <p
+        style={{
+          fontSize: "10px",
+          color: "var(--gray-mid)",
+          margin: "8px 0 0 0",
+        }}
+      >
+        O modelo novo nasce com 0 passos — completa-o em Modelos de Evento
+        quando quiseres.
+      </p>
+      {erro && (
+        <p
+          style={{
+            fontSize: "11px",
+            color: "#DC2626",
+            margin: "8px 0 0 0",
+          }}
+        >
+          {erro}
+        </p>
+      )}
+    </div>
   );
 }
 
