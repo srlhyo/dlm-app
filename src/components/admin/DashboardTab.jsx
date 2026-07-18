@@ -217,7 +217,7 @@ export default function DashboardTab({
       .filter((s) => s.status !== "Concluído")
       .reduce((sum, s) => sum + (s.numero_convidados || 0), 0);
 
-  // Taxa de resposta dos convites (preenchidos / total enviados)
+  // Taxa de resposta dos formulários (preenchidos / total enviados)
   const taxaResposta = () => {
     if (!invites.length) return null;
     const preenchidos = invites.filter((i) => i.status === "Preenchido").length;
@@ -270,10 +270,10 @@ export default function DashboardTab({
           <p style={{ ...kpiValueStyle, color: "#22C55E" }}>
             {ativos.filter((s) => s.status === "Confirmado").length}
           </p>
-          <p style={kpiLabelStyle}>Confirmados</p>
+          <p style={kpiLabelStyle}>Eventos Confirmados</p>
         </div>
 
-        {/* Taxa de resposta dos convites */}
+        {/* Taxa de resposta dos formulários */}
         <div style={kpiCardStyle}>
           {taxaResposta() ? (
             <>
@@ -281,7 +281,7 @@ export default function DashboardTab({
                 {taxaResposta().pct}%
               </p>
               <p style={kpiLabelStyle}>
-                Convites Preenchidos
+                Formulários Preenchidos
                 <br />
                 <span style={{ fontSize: "10px", opacity: 0.7 }}>
                   {taxaResposta().preenchidos} de {taxaResposta().total}
@@ -291,7 +291,7 @@ export default function DashboardTab({
           ) : (
             <>
               <p style={{ ...kpiValueStyle, color: "var(--gold-light)" }}>—</p>
-              <p style={kpiLabelStyle}>Sem convites ainda</p>
+              <p style={kpiLabelStyle}>Sem formulários ainda</p>
             </>
           )}
         </div>

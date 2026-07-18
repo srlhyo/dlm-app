@@ -27,11 +27,11 @@ export default function EventTypesTab({ eventTypes, loading, onRefetch }) {
       setTimeout(() => setSuccessMsg(null), 4000);
     } catch (e) {
       console.error(e);
-      // Código 23503 = violação de chave estrangeira — já há convites
+      // Código 23503 = violação de chave estrangeira — já há formulários
       // ou submissões a usar este tipo de evento
       if (e.code === "23503") {
         setErroRemover(
-          "Não é possível remover: já existem convites ou submissões associadas a este tipo de evento.",
+          "Não é possível remover: já existem formulários ou submissões associadas a este tipo de evento.",
         );
       } else {
         setErroRemover("Ocorreu um erro ao remover. Tenta novamente.");

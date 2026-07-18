@@ -567,7 +567,7 @@ export default function AdminPage() {
         "Nenhum tipo de evento disponível para associar ao convite.",
       );
       setNewInviteErrors({
-        geral: "Não foi possível criar o convite. Tenta novamente.",
+        geral: "Não foi possível criar o formulário. Tenta novamente.",
       });
       return;
     }
@@ -606,8 +606,8 @@ export default function AdminPage() {
       .delete()
       .eq("id", inviteToDelete.id);
     if (error) {
-      console.error("Erro ao remover convite:", error);
-      alert("Não foi possível remover o convite. Tenta novamente.");
+      console.error("Erro ao remover formulário:", error);
+      alert("Não foi possível remover o formulário. Tenta novamente.");
       return;
     }
     setInvites((prev) => prev.filter((i) => i.id !== inviteToDelete.id));
