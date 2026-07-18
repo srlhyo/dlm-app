@@ -27,6 +27,7 @@ export const NAV_GESTAO = [
 
 export const NAV_CONFIG = [
   { id: "tiposEvento", label: "Modelos de Evento", icone: "modelos" },
+  { id: "importar", label: "Importar clientes", icone: "importar" },
 ];
 
 export const IDS_NO_MAIS = [...NAV_GESTAO, ...NAV_CONFIG].map((n) => n.id);
@@ -142,6 +143,12 @@ export function Icone({ nome, tamanho = 18 }) {
         <circle cx="5" cy="12" r="1.6" fill="currentColor" />
         <circle cx="12" cy="12" r="1.6" fill="currentColor" />
         <circle cx="19" cy="12" r="1.6" fill="currentColor" />
+      </>
+    ),
+    importar: (
+      <>
+        <path {...t} d="M12 3.5v9M8.5 9l3.5 3.5L15.5 9" />
+        <path {...t} d="M4.5 14.5v4a2 2 0 002 2h11a2 2 0 002-2v-4" />
       </>
     ),
   };

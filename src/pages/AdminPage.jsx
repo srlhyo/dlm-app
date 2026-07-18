@@ -25,6 +25,7 @@ import InviteCreatedModal from "../components/admin/InviteCreatedModal";
 import InvitesList from "../components/admin/InvitesList";
 import InicioTab from "../components/admin/InicioTab";
 import MensagensTab from "../components/admin/MensagensTab";
+import ImportarTab from "../components/admin/ImportarTab";
 import {
   SidebarNav,
   BottomNavMovel,
@@ -606,7 +607,7 @@ export default function AdminPage() {
       .delete()
       .eq("id", inviteToDelete.id);
     if (error) {
-      console.error("Erro ao remover formulário:", error);
+      console.error("Erro ao remover convite:", error);
       alert("Não foi possível remover o formulário. Tenta novamente.");
       return;
     }
@@ -1215,6 +1216,12 @@ export default function AdminPage() {
         )}
         {activeTab === "operacional" && (
           <OperacionalTab submissions={submissions} eventTypes={eventTypes} />
+        )}
+        {activeTab === "importar" && (
+          <ImportarTab
+            eventTypes={eventTypes}
+            onModelosCriados={fetchEventTypes}
+          />
         )}
 
         {/* ---- SECÇÃO DOCUMENTOS ----
