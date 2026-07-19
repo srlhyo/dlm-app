@@ -4,6 +4,7 @@ import { getResumoSubmissao } from "../../lib/submissionFields";
 import { FASES_POS_SINAL } from "./faseConfig";
 import { formatarEuros } from "./orcamentos/orcamentoConfig";
 import CaptacaoForm from "../captacao/CaptacaoForm";
+import ErrosFormulario from "./ErrosFormulario";
 
 // ============================================================
 // InicioTab — a porta de entrada da app (bloco 12b).
@@ -461,6 +462,9 @@ export default function InicioTab({
           </span>
         </div>
       )}
+
+      {/* Erros técnicos dos formulários públicos — só aparece se os houver */}
+      <ErrosFormulario />
 
       {/* Duas colunas: A precisar de ti + O momento */}
       <div

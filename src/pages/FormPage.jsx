@@ -8,10 +8,9 @@ import { markInviteUsed } from "../lib/invites";
 import { motion, AnimatePresence } from "framer-motion";
 import flores from "../assets/flores.png";
 import { iniciarTour, tourJaVista } from "../lib/tour";
-import {
-  submeterQuestionario,
-  atualizarEventoComQuestionario,
-} from "../lib/clientes";
+import { submeterFormulario } from "../lib/clientes";
+import { registarErroFormulario } from "../lib/errosForm";
+import { codigoErroRpc } from "../lib/rpc";
 
 // Tour curta, só com o essencial — é um questionário único, não queremos
 // ser intrusivos
@@ -416,30 +415,39 @@ export default function FormPage() {
     // Onboarding: o convite aponta a um evento — busca o que a
     // captação já sabe e PRÉ-PREENCHE os campos do modelo que
     // coincidam com chaves canónicas (editáveis pelo cliente).
-    // Uma verdade só: o EVENTO, lido no momento da abertura.
+    // Uma verdade só: o EVENTO, lido no momento da validação do código.
+    // O caminho novo (RPC da migração 020) já traz os dados do alvo
+    // dentro do convite (alvo_dados); o caminho antigo lê a tabela
+    // directamente, como sempre.
+    const aplicarAlvo = (alvo) => {
+      if (!alvo) return;
+      const r = alvo.respostas || {};
+      setFormData((prev) => ({
+        ...prev,
+        ...r,
+        dataEvento: alvo.data_evento || r.dataEvento || prev.dataEvento,
+        numeroConvidados:
+          alvo.numero_convidados ?? r.numeroConvidados ?? prev.numeroConvidados,
+      }));
+    };
     if (inv.submission_alvo_id) {
-      (async () => {
-        try {
-          const { data: alvo, error } = await supabase
-            .from("submissions")
-            .select("respostas, data_evento, numero_convidados")
-            .eq("id", inv.submission_alvo_id)
-            .single();
-          if (error || !alvo) return; // sem alvo legível, o form segue normal
-          const r = alvo.respostas || {};
-          setFormData((prev) => ({
-            ...prev,
-            ...r,
-            dataEvento: alvo.data_evento || r.dataEvento || prev.dataEvento,
-            numeroConvidados:
-              alvo.numero_convidados ??
-              r.numeroConvidados ??
-              prev.numeroConvidados,
-          }));
-        } catch (e) {
-          console.warn("Sem dados do evento-alvo:", e?.message || e);
-        }
-      })();
+      if (inv.alvo_dados) {
+        aplicarAlvo(inv.alvo_dados);
+      } else {
+        (async () => {
+          try {
+            const { data: alvo, error } = await supabase
+              .from("submissions")
+              .select("respostas, data_evento, numero_convidados")
+              .eq("id", inv.submission_alvo_id)
+              .single();
+            if (error || !alvo) return; // sem alvo legível, o form segue normal
+            aplicarAlvo(alvo);
+          } catch (e) {
+            console.warn("Sem dados do evento-alvo:", e?.message || e);
+          }
+        })();
+      }
     }
   }, []);
 
@@ -573,29 +581,69 @@ export default function FormPage() {
       respostas: formData,
     };
     try {
-      // Dois caminhos (migração 013):
+      // Dois caminhos (migração 013), agora atrás de submeterFormulario:
       //   • Convite com EVENTO-ALVO (onboarding pós-sinal): as respostas
       //     ATUALIZAM o evento existente — nada de clientes duplicados.
       //   • Convite sem alvo (caminho antigo): cria CLIENTE + SUBMISSÃO
       //     ligados, como sempre.
-      let newSubmission;
-      if (invite.submission_alvo_id) {
-        newSubmission = await atualizarEventoComQuestionario(
-          invite.submission_alvo_id,
-          payload,
-        );
-      } else {
-        newSubmission = await submeterQuestionario(payload);
-      }
+      // No caminho novo (RPC) tudo acontece numa transação, incluindo
+      // marcar o convite; no antigo o markInviteUsed é um passo à parte.
+      const { submission, conviteMarcado } = await submeterFormulario(
+        invite,
+        payload,
+      );
 
-      if (invite) {
-        await markInviteUsed(invite.id, newSubmission.id);
-        sessionStorage.removeItem("dlm_invite");
+      // As respostas JÁ ESTÃO gravadas: uma falha a marcar o convite
+      // não pode mostrar erro ao cliente (levaria a resubmeter e, no
+      // caminho sem alvo, a duplicar cliente + evento). Regista-se
+      // para a equipa e o cliente vê o sucesso que de facto teve.
+      if (!conviteMarcado) {
+        try {
+          await markInviteUsed(invite.id, submission.id);
+        } catch (e) {
+          registarErroFormulario({
+            origem: "onboarding:markInviteUsed",
+            erro: e,
+            contexto: {
+              inviteId: invite.id,
+              inviteCode: invite.code,
+              submissionId: submission.id,
+            },
+          });
+        }
       }
+      sessionStorage.removeItem("dlm_invite");
       setSubmitted(true);
     } catch (e) {
       console.error(e);
-      setSubmitError("Ocorreu um erro ao submeter. Por favor tenta novamente.");
+      // Convite já submetido noutra aba/dispositivo: mensagem própria,
+      // sem alarme — as respostas desse convite já estão connosco.
+      if (codigoErroRpc(e) === "CONVITE_JA_USADO") {
+        setSubmitError(
+          "Este questionário já foi submetido. Se precisares de alterar alguma resposta, contacta Do Luxo à Mesa.",
+        );
+        setSubmitting(false);
+        return;
+      }
+      // Grava o erro real + as respostas na BD: permite investigar a
+      // causa e recuperar o que o cliente preencheu, sem depender de
+      // prints ou da consola do browser dele.
+      registarErroFormulario({
+        origem: "onboarding",
+        erro: e,
+        contexto: {
+          inviteId: invite?.id,
+          inviteCode: invite?.code,
+          submissionAlvoId: invite?.submission_alvo_id || null,
+          eventTypeId: invite?.event_type_id,
+          passo: `${currentStep}/${totalSteps}`,
+        },
+        respostas: formData,
+      });
+      const detalhe = e?.message ? ` (${e.message})` : "";
+      setSubmitError(
+        `Ocorreu um erro ao submeter. Por favor tenta novamente. Se o erro continuar, envia-nos um print deste ecrã.${detalhe}`,
+      );
     } finally {
       setSubmitting(false);
     }

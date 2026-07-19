@@ -4,6 +4,7 @@ import {
   getTiposParaCaptacao,
   MAX_IMAGENS_REFERENCIA,
 } from "../../lib/captacao";
+import { registarErroFormulario } from "../../lib/errosForm";
 
 // ============================================================
 // CaptacaoForm — os campos da captação, PARTILHADOS entre:
@@ -162,8 +163,25 @@ export default function CaptacaoForm({
       if (onSubmetido) onSubmetido(submission);
     } catch (err) {
       console.error(err);
+      registarErroFormulario({
+        origem: "captacao",
+        erro: err,
+        contexto: { modoInterno: !!modoInterno, eventTypeId },
+        respostas: {
+          nome,
+          contacto,
+          whatsapp,
+          dataEvento,
+          numeroConvidados,
+          local,
+          tipoLocal: localTipo,
+          servicos,
+          mensagem,
+        },
+      });
+      const detalhe = err?.message ? ` (${err.message})` : "";
       setErroGeral(
-        "Não foi possível enviar o pedido. Verifica a ligação e tenta novamente.",
+        `Não foi possível enviar o pedido. Verifica a ligação e tenta novamente.${detalhe}`,
       );
     }
     setEnviando(false);

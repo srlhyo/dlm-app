@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import { ehFuncaoRpcEmFalta } from "../lib/rpc";
 import {
   normalizeSubmission,
   getValorAtual,
@@ -264,22 +265,36 @@ export default function BriefingPage() {
 
   useEffect(() => {
     const fetch = async () => {
-      const { data } = await supabase
-        .from("submissions")
-        .select("*")
-        .eq("id", id)
-        .single();
+      // Caminho novo: RPC formulario_briefing (migração 020) — o id
+      // (uuid não adivinhável) continua a ser a chave de acesso, mas
+      // sem SELECT anónimo à tabela inteira. Enquanto a função não
+      // existir na BD, usa as queries antigas.
+      let data = null;
+      let tipo = null;
+      const rpc = await supabase.rpc("formulario_briefing", { p_id: id });
+      if (!rpc.error && rpc.data) {
+        data = rpc.data.submission;
+        tipo = rpc.data.event_type;
+      } else if (rpc.error && ehFuncaoRpcEmFalta(rpc.error)) {
+        const antigo = await supabase
+          .from("submissions")
+          .select("*")
+          .eq("id", id)
+          .single();
+        data = antigo.data;
+        if (data?.event_type_id) {
+          const { data: t } = await supabase
+            .from("event_types")
+            .select("*")
+            .eq("id", data.event_type_id)
+            .single();
+          tipo = t;
+        }
+      }
       const sub = normalizeSubmission(data);
       setSubmission(sub);
       // O modelo do evento — é dele que nascem as secções
-      if (sub?.event_type_id) {
-        const { data: tipo } = await supabase
-          .from("event_types")
-          .select("*")
-          .eq("id", sub.event_type_id)
-          .single();
-        setTipoEvento(tipo || null);
-      }
+      setTipoEvento(tipo || null);
       setLoading(false);
     };
     fetch();

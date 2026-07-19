@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { ehFuncaoRpcEmFalta } from "./rpc";
 import {
   getValorAtual,
   getResumoSubmissao,
@@ -193,7 +194,14 @@ export const atualizarEventoComQuestionario = async (
   }
   for (const [campoId, valor] of Object.entries(payload.respostas || {})) {
     const coluna = FIELD_MAP_INVERSO[campoId];
-    if (coluna) update[coluna] = valor;
+    if (!coluna) continue;
+    // numero_convidados é integer e já foi definido acima com o valor
+    // parseado — não o sobrepor com a string crua das respostas.
+    if (coluna === "numero_convidados") continue;
+    // "" rebenta nas colunas tipadas (time, integer): um campo opcional
+    // deixado vazio pelo cliente falhava a submissão inteira com um
+    // erro genérico. Vazio grava null.
+    update[coluna] = valor === "" ? null : valor;
   }
 
   const { data, error } = await supabase
@@ -204,6 +212,40 @@ export const atualizarEventoComQuestionario = async (
     .single();
   if (error) throw error;
   return data;
+};
+
+// ============================================================
+// submeterFormulario — o ponto ÚNICO de submissão do questionário
+// público. Caminho novo: RPC formulario_submeter (migração 020), que
+// faz TUDO numa transação no Postgres (validar o convite, gravar as
+// respostas, marcar o convite, converter a reserva) — sem estados
+// intermédios possíveis. Enquanto a função não existir na BD, usa o
+// caminho antigo em passos separados.
+//
+// Devolve { submission, conviteMarcado }: no caminho novo o convite
+// já fica marcado; no antigo, quem chama trata do markInviteUsed.
+// ============================================================
+export const submeterFormulario = async (invite, payload) => {
+  const { data, error } = await supabase.rpc("formulario_submeter", {
+    p_codigo: invite.code,
+    p_payload: payload,
+  });
+  if (!error) {
+    return { submission: data, conviteMarcado: true };
+  }
+  if (!ehFuncaoRpcEmFalta(error)) throw error;
+
+  // Caminho antigo (BD ainda sem a migração 020)
+  let submission;
+  if (invite.submission_alvo_id) {
+    submission = await atualizarEventoComQuestionario(
+      invite.submission_alvo_id,
+      payload,
+    );
+  } else {
+    submission = await submeterQuestionario(payload);
+  }
+  return { submission, conviteMarcado: false };
 };
 
 // Guarda o TOTAL do orçamento como valor acordado do evento — é

@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { ehFuncaoRpcEmFalta } from "./rpc";
 
 // Gera um código legível e único — ex: DLM-X7K9-2025
 export const generateCode = () => {
@@ -72,13 +73,34 @@ export const getEventTypes = async () => {
 
 // Valida um código e devolve o convite se válido
 // Inclui também o tipo de evento associado (nome + steps), para o
-// formulário saber que perguntas mostrar
+// formulário saber que perguntas mostrar.
+// Caminho novo: RPC formulario_validar_convite (migração 020), que
+// traz também os dados do evento-alvo (alvo_dados) para o
+// pré-preenchimento do onboarding — o formulário deixa de precisar de
+// ler a tabela submissions directamente. Enquanto a função não existir
+// na BD, usa o caminho antigo.
 export const validateCode = async (code) => {
-  const { data, error } = await supabase
-    .from("invites")
-    .select("*, event_types(nome, steps, icone)")
-    .eq("code", code.toUpperCase().trim())
-    .single();
+  let data = null;
+  let error = null;
+
+  const rpc = await supabase.rpc("formulario_validar_convite", {
+    p_codigo: code,
+  });
+  if (!rpc.error) {
+    data = rpc.data; // null quando o código não existe
+  } else if (ehFuncaoRpcEmFalta(rpc.error)) {
+    // Caminho antigo (BD ainda sem a migração 020)
+    const antigo = await supabase
+      .from("invites")
+      .select("*, event_types(nome, steps, icone)")
+      .eq("code", code.toUpperCase().trim())
+      .single();
+    data = antigo.data;
+    error = antigo.error;
+  } else {
+    error = rpc.error;
+  }
+
   if (error || !data) {
     return {
       valid: false,
@@ -116,16 +138,22 @@ export const markInviteUsed = async (inviteId, submissionId) => {
     .eq("id", inviteId)
     .single();
 
-  await supabase
+  // Estes updates falhavam em silêncio (sem verificação do erro): o
+  // convite ficava "Pendente" apesar da submissão gravada, e a reserva
+  // nunca convertia. Agora propagam — quem chama decide o que fazer
+  // (o FormPage regista e não incomoda o cliente).
+  const { error: erroInvite } = await supabase
     .from("invites")
     .update({ status: "Preenchido", submission_id: submissionId })
     .eq("id", inviteId);
+  if (erroInvite) throw erroInvite;
 
   // converter a reserva de origem, se existir
   if (invite?.reserva_id) {
-    await supabase
+    const { error: erroReserva } = await supabase
       .from("reservas")
       .update({ estado: "Convertida", submission_id: submissionId })
       .eq("id", invite.reserva_id);
+    if (erroReserva) throw erroReserva;
   }
 };

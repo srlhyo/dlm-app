@@ -233,7 +233,10 @@ export default function FormField({
 
   // textarea
   if (field.type === "textarea") {
-    const [charCount, setCharCount] = useState(0);
+    // Derivado do valor (não de um useState): um campo pré-preenchido
+    // pelo convite mostrava "0 caracteres" apesar de ter texto, e um
+    // hook dentro deste if violava as regras do React.
+    const charCount = String(value || "").length;
     return (
       <div>
         <Label />
@@ -252,10 +255,7 @@ export default function FormField({
             rows={3}
             value={value || ""}
             placeholder={field.placeholder || ""}
-            onChange={(e) => {
-              handleChange(field.id, e.target.value);
-              setCharCount(e.target.value.length);
-            }}
+            onChange={(e) => handleChange(field.id, e.target.value)}
             onFocus={(e) => {
               if (!hasError) {
                 e.target.closest("div").style.borderColor = "var(--gold)";
