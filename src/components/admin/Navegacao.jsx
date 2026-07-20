@@ -151,6 +151,15 @@ export function Icone({ nome, tamanho = 18 }) {
         <path {...t} d="M4.5 14.5v4a2 2 0 002 2h11a2 2 0 002-2v-4" />
       </>
     ),
+    sino: (
+      <>
+        <path
+          {...t}
+          d="M12 4a5.5 5.5 0 00-5.5 5.5c0 4-1.5 5.5-2.5 6.5h16c-1-1-2.5-2.5-2.5-6.5A5.5 5.5 0 0012 4z"
+        />
+        <path {...t} d="M10 19.5a2 2 0 004 0" />
+      </>
+    ),
   };
   return (
     <svg
@@ -201,6 +210,83 @@ function ItemNav({ item, ativo, onClick }) {
   );
 }
 
+// ------------------------------------------------------------
+// Badge dourado com o nº de notificações por ler. Pulsa uma vez
+// discretamente quando há novidades — chama a atenção sem gritar.
+// ------------------------------------------------------------
+export function BadgeNaoLidas({ quantos, tamanho = 18 }) {
+  if (!quantos) return null;
+  return (
+    <>
+      <style>{`
+        @keyframes dlm-badge-pulso {
+          0% { box-shadow: 0 0 0 0 rgba(201,168,76,0.5); }
+          100% { box-shadow: 0 0 0 8px rgba(201,168,76,0); }
+        }
+      `}</style>
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minWidth: `${tamanho}px`,
+          height: `${tamanho}px`,
+          padding: "0 5px",
+          borderRadius: "999px",
+          backgroundColor: "var(--gold)",
+          color: "white",
+          fontSize: `${tamanho <= 16 ? 9 : 10.5}px`,
+          fontWeight: "700",
+          fontFamily: "Inter, sans-serif",
+          lineHeight: 1,
+          boxSizing: "border-box",
+          animation: "dlm-badge-pulso 1.8s ease-out 2",
+        }}
+      >
+        {quantos > 99 ? "99+" : quantos}
+      </span>
+    </>
+  );
+}
+
+// Item especial da Caixa de Entrada — como um ItemNav, mas com o
+// badge das não lidas encostado à direita.
+function ItemCaixaEntrada({ naoLidas, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "12px",
+        width: "100%",
+        padding: "10px 14px",
+        borderRadius: "10px",
+        cursor: "pointer",
+        textAlign: "left",
+        backgroundColor: naoLidas > 0 ? "#FFFDF6" : "transparent",
+        border: "none",
+        color: naoLidas > 0 ? "var(--gold-dark)" : "var(--gray-mid)",
+        transition: "all 0.15s",
+      }}
+    >
+      <Icone nome="sino" tamanho={18} />
+      <span
+        style={{
+          fontSize: "14px",
+          fontWeight: naoLidas > 0 ? "600" : "400",
+          letterSpacing: "0.02em",
+          whiteSpace: "nowrap",
+          flex: 1,
+        }}
+      >
+        Caixa de Entrada
+      </span>
+      <BadgeNaoLidas quantos={naoLidas} />
+    </button>
+  );
+}
+
 function TituloSeccao({ children }) {
   return (
     <p
@@ -221,7 +307,13 @@ function TituloSeccao({ children }) {
 // ------------------------------------------------------------
 // SIDEBAR — desktop
 // ------------------------------------------------------------
-export function SidebarNav({ activeTab, onNavegar, onSair }) {
+export function SidebarNav({
+  activeTab,
+  onNavegar,
+  onSair,
+  naoLidas = 0,
+  onAbrirNotificacoes,
+}) {
   return (
     <div
       style={{
@@ -247,6 +339,11 @@ export function SidebarNav({ activeTab, onNavegar, onSair }) {
           style={{ width: "132px", height: "auto", margin: "0 auto" }}
         />
       </div>
+
+      {/* A Caixa de Entrada coroa o menu: é o correio da casa */}
+      {onAbrirNotificacoes && (
+        <ItemCaixaEntrada naoLidas={naoLidas} onClick={onAbrirNotificacoes} />
+      )}
 
       {NAV_PRINCIPAL.map((item) => (
         <ItemNav

@@ -30,7 +30,13 @@ import {
   SidebarNav,
   BottomNavMovel,
   SheetMais,
+  Icone,
+  BadgeNaoLidas,
 } from "../components/admin/Navegacao";
+import PainelNotificacoes, {
+  ToastNotificacao,
+} from "../components/admin/CentroNotificacoes";
+import { useNotificacoes } from "../lib/notificacoes";
 import { getReservas } from "../lib/reservas";
 import FormField from "../components/form/FormField";
 import { motion, AnimatePresence } from "framer-motion";
@@ -257,6 +263,36 @@ export default function AdminPage() {
   const [maisAberto, setMaisAberto] = useState(false);
   const ehDesktop = larguraJanela >= 900;
   const navigate = useNavigate();
+
+  // Caixa de Entrada — as notificações da captação (migração 022):
+  // lista viva via realtime, badge de não lidas, toast + sino quando
+  // um pedido chega com a app aberta.
+  const notificacoes = useNotificacoes();
+  const [notifAberto, setNotifAberto] = useState(false);
+  // Notificação a abrir já expandida (quando se vem do toast)
+  const [notifDestaque, setNotifDestaque] = useState(null);
+
+  // "Abrir ficha completa" de uma notificação → o drawer do evento.
+  // O evento pode ainda não estar em memória (acabou de chegar):
+  // procura primeiro no estado, senão vai buscá-lo à BD.
+  const handleAbrirEventoDeNotificacao = async (submissionId) => {
+    if (!submissionId) return;
+    let ev = submissions.find((s) => s.id === submissionId);
+    if (!ev) {
+      const { data } = await supabase
+        .from("submissions")
+        .select("*")
+        .eq("id", submissionId)
+        .maybeSingle();
+      if (data) ev = normalizeSubmission(data);
+    }
+    if (ev) {
+      setNotifAberto(false);
+      setSelected(ev);
+    } else {
+      alert("Não foi possível abrir este evento. Tenta recarregar a página.");
+    }
+  };
 
   useEffect(() => {
     const aoRedimensionar = () => setLarguraJanela(window.innerWidth);
@@ -683,6 +719,11 @@ export default function AdminPage() {
           activeTab={activeTab}
           onNavegar={handleNavegar}
           onSair={handleLogout}
+          naoLidas={notificacoes.naoLidas}
+          onAbrirNotificacoes={() => {
+            setNotifDestaque(null);
+            setNotifAberto(true);
+          }}
         />
       ) : (
         <div
@@ -691,8 +732,37 @@ export default function AdminPage() {
             borderBottom: "1px solid var(--gold-light)",
             padding: "12px 16px",
             textAlign: "center",
+            position: "relative",
           }}
         >
+          {/* Sino da Caixa de Entrada (telemóvel) */}
+          <button
+            onClick={() => {
+              setNotifDestaque(null);
+              setNotifAberto(true);
+            }}
+            aria-label="Caixa de Entrada"
+            style={{
+              position: "absolute",
+              right: "12px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+              padding: "8px",
+              border: "none",
+              background: "none",
+              cursor: "pointer",
+              color:
+                notificacoes.naoLidas > 0
+                  ? "var(--gold-dark)"
+                  : "var(--gray-mid)",
+            }}
+          >
+            <Icone nome="sino" tamanho={20} />
+            <BadgeNaoLidas quantos={notificacoes.naoLidas} tamanho={16} />
+          </button>
           <h1
             style={{
               fontSize: "15px",
@@ -1331,6 +1401,31 @@ export default function AdminPage() {
         getTitulo={(invite) =>
           getTituloConvite(invite, submissions, eventTypes)
         }
+      />
+
+      {/* Caixa de Entrada — o painel das notificações */}
+      <PainelNotificacoes
+        aberto={notifAberto}
+        destaqueId={notifDestaque}
+        lista={notificacoes.lista}
+        naoLidas={notificacoes.naoLidas}
+        eventTypes={eventTypes}
+        onFechar={() => setNotifAberto(false)}
+        onMarcarLida={notificacoes.marcarLida}
+        onMarcarTodas={notificacoes.marcarTodas}
+        onAbrirEvento={handleAbrirEventoDeNotificacao}
+      />
+
+      {/* O momento WOW: pedido novo chega → cartão dourado + sino */}
+      <ToastNotificacao
+        nova={notificacoes.nova}
+        eventTypes={eventTypes}
+        onAbrir={(n) => {
+          notificacoes.limparNova();
+          setNotifDestaque(n.id);
+          setNotifAberto(true);
+        }}
+        onFechar={notificacoes.limparNova}
       />
     </div>
   );

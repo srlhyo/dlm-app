@@ -117,7 +117,7 @@ const tabelaFechada = async (tabela) => {
   return Array.isArray(corpo) && corpo.length === 0;
 };
 
-for (const t of ["clientes", "submissions", "invites", "reservas", "documentos"]) {
+for (const t of ["clientes", "submissions", "invites", "reservas", "documentos", "notificacoes"]) {
   const fechada = await tabelaFechada(t);
   resultado(
     fechada,

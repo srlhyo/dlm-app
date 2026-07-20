@@ -386,6 +386,106 @@ await db.exec(`set role authenticated`);
 }
 await db.exec(`reset role`);
 
+// ---------- 10. Migração 022 (notificações da captação) ----------
+await db.exec(readFileSync(base + "022_notificacoes.sql", "utf8"));
+ok(true, "022 (notificações) executou");
+
+{
+  // Pedido PÚBLICO (papel anon no JWT, como chega do PostgREST)
+  await db.query(
+    `select set_config('request.jwt.claims', '{"role":"anon"}', false)`,
+  );
+  await db.exec(`set role anon`);
+  const cap = await db.query(`select captacao_submeter($1::jsonb) as v`, [
+    JSON.stringify({
+      nome: "Vanessa Interessada",
+      contacto: "916666777",
+      dataEvento: "2027-05-05",
+      numeroConvidados: "40",
+      eventTypeId: ids.et,
+      respostas: {
+        nomeDoCliente: "Vanessa Interessada",
+        servicos: ["Mesa posta", "Balcão"],
+        servicosBalcao: ["Cocktail & bar"],
+        mensagemInicial: "Adoro o vosso trabalho!",
+      },
+    }),
+  ]);
+  const eventoId = cap.rows[0].v?.id;
+  ok(!!eventoId, "captação pública continua a funcionar com o trigger");
+
+  // anon NÃO lê as notificações (correio privado da casa)
+  let anonBloqueado = false;
+  try {
+    const r = await db.query(`select id from notificacoes limit 1`);
+    anonBloqueado = r.rows.length === 0;
+  } catch {
+    anonBloqueado = true;
+  }
+  ok(anonBloqueado, "anon NÃO lê notificações");
+  await db.exec(`reset role`);
+
+  const notifs = (
+    await db.query(
+      `select * from notificacoes where submission_id = $1`,
+      [eventoId],
+    )
+  ).rows;
+  ok(notifs.length === 1, "captação pública criou UMA notificação");
+  const n = notifs[0];
+  ok(n?.titulo === "Vanessa Interessada", "…com o nome no título");
+  ok(
+    n?.dados?.respostas?.servicos?.length === 2 &&
+      n?.dados?.respostas?.mensagemInicial === "Adoro o vosso trabalho!",
+    "…com o snapshot completo do pedido",
+  );
+  ok(n?.lida_em === null, "…por ler (badge conta-a)");
+
+  // A própria Nádia a transcrever (papel authenticated) → sem notificação
+  await db.query(
+    `select set_config('request.jwt.claims', '{"role":"authenticated"}', false)`,
+  );
+  await db.exec(`set role authenticated`);
+  const capInterna = await db.query(
+    `select captacao_submeter($1::jsonb) as v`,
+    [
+      JSON.stringify({
+        nome: "Transcrita Pela Nadia",
+        respostas: { nomeDoCliente: "Transcrita Pela Nadia" },
+      }),
+    ],
+  );
+  ok(!!capInterna.rows[0].v?.id, "captação interna continua a funcionar");
+
+  // authenticated lê e marca como lida
+  const lida = await db.query(
+    `update notificacoes set lida_em = now() where id = $1 returning lida_em`,
+    [n.id],
+  );
+  ok(!!lida.rows[0]?.lida_em, "authenticated marca notificações como lidas");
+  await db.exec(`reset role`);
+  await db.query(`select set_config('request.jwt.claims', '', false)`);
+
+  const total = (
+    await db.query(
+      `select count(*)::int as n from notificacoes
+        where titulo = 'Transcrita Pela Nadia'`,
+    )
+  ).rows[0].n;
+  ok(total === 0, "transcrição interna NÃO se auto-notifica");
+
+  // A rede de segurança: sem a tabela, a captação NÃO pode falhar
+  await db.exec(`drop table notificacoes cascade`);
+  const capSemTabela = await db.query(
+    `select captacao_submeter($1::jsonb) as v`,
+    [JSON.stringify({ nome: "Sem Tabela", respostas: {} })],
+  );
+  ok(
+    !!capSemTabela.rows[0].v?.id,
+    "trigger engole erros — captação sobrevive sem a tabela",
+  );
+}
+
 console.log(
   falhas === 0
     ? "\nTUDO VERDE — migrações validadas de ponta a ponta."
