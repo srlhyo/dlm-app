@@ -62,6 +62,18 @@ export const marcarTodasNotificacoesLidas = async () => {
   }
 };
 
+// Remove um lote de notificações (a seleção da Nádia). Definitivo,
+// mas sem drama: os dados do pedido vivem na ficha do evento — a
+// notificação é só o aviso.
+export const apagarNotificacoes = async (ids) => {
+  if (!Array.isArray(ids) || ids.length === 0) return;
+  try {
+    await supabase.from("notificacoes").delete().in("id", ids);
+  } catch (e) {
+    console.error("Erro ao remover notificações:", e);
+  }
+};
+
 // Subscreve INSERTs em tempo real. Devolve a função de limpeza.
 export const subscreverNotificacoes = (onNova) => {
   const canal = supabase
@@ -123,7 +135,21 @@ export function useNotificacoes() {
     marcarTodasNotificacoesLidas();
   }, []);
 
+  const apagarVarias = useCallback((ids) => {
+    const conjunto = new Set(ids);
+    setLista((prev) => prev.filter((n) => !conjunto.has(n.id)));
+    apagarNotificacoes(ids);
+  }, []);
+
   const limparNova = useCallback(() => setNova(null), []);
 
-  return { lista, naoLidas, nova, marcarLida, marcarTodas, limparNova };
+  return {
+    lista,
+    naoLidas,
+    nova,
+    marcarLida,
+    marcarTodas,
+    apagarVarias,
+    limparNova,
+  };
 }

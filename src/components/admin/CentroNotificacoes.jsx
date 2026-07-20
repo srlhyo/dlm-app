@@ -339,14 +339,103 @@ function DetalhePedido({ n }) {
 }
 
 // ------------------------------------------------------------
+// MedalhaoSelecao — as iniciais douradas que são também o interruptor
+// de escolha (o gesto do correio moderno): um toque VIRA o medalhão
+// num círculo com ✓. Em modo de seleção, o medalhão "esvazia"
+// (contorno dourado) para mostrar que está à espera de ser escolhido.
+// ------------------------------------------------------------
+function MedalhaoSelecao({ titulo, emSelecao, selecionada, onToggle }) {
+  const face = {
+    position: "absolute",
+    inset: 0,
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    backfaceVisibility: "hidden",
+    WebkitBackfaceVisibility: "hidden",
+    boxSizing: "border-box",
+  };
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggle();
+      }}
+      title={selecionada ? "Desmarcar" : "Selecionar"}
+      aria-pressed={selecionada}
+      style={{
+        flexShrink: 0,
+        width: "42px",
+        height: "42px",
+        padding: 0,
+        border: "none",
+        background: "transparent",
+        cursor: "pointer",
+        perspective: "300px",
+        position: "relative",
+      }}
+    >
+      <motion.span
+        animate={{ rotateY: selecionada ? 180 : 0 }}
+        transition={{ duration: 0.4, ease: [0.2, 0.8, 0.3, 1] }}
+        style={{
+          position: "absolute",
+          inset: 0,
+          transformStyle: "preserve-3d",
+          display: "block",
+        }}
+      >
+        {/* frente: as iniciais */}
+        <span
+          style={{
+            ...face,
+            background: emSelecao
+              ? "white"
+              : "linear-gradient(135deg, #E8D5A3 0%, #C9A84C 60%, #A07830 100%)",
+            border: emSelecao ? "1.5px solid var(--gold)" : "none",
+            color: emSelecao ? "var(--gold-dark)" : "white",
+            fontSize: "15px",
+            fontFamily: "Playfair Display, serif",
+            letterSpacing: "0.03em",
+            transition: "background 0.25s, color 0.25s, border 0.25s",
+          }}
+        >
+          {iniciais(titulo)}
+        </span>
+        {/* verso: a escolha feita */}
+        <span
+          style={{
+            ...face,
+            transform: "rotateY(180deg)",
+            background: "linear-gradient(135deg, #C9A84C 0%, #A07830 100%)",
+            color: "white",
+            fontSize: "18px",
+            fontWeight: "700",
+            boxShadow: "0 3px 10px rgba(201,168,76,0.45)",
+          }}
+        >
+          ✓
+        </span>
+      </motion.span>
+    </button>
+  );
+}
+
+// ------------------------------------------------------------
 // Um cartão da Caixa de Entrada — fechado é um relance (quem, o quê,
 // quando); aberto é o pedido inteiro. Abrir marca como lida.
+// Em modo de seleção, o cartão inteiro alterna a escolha.
 // ------------------------------------------------------------
 function CartaoNotificacao({
   n,
   eventTypes,
   expandida,
+  modoSelecao,
+  selecionada,
   onToggle,
+  onToggleSelecao,
   onAbrirEvento,
 }) {
   const naoLida = !n.lida_em;
@@ -361,22 +450,35 @@ function CartaoNotificacao({
       layout="position"
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, x: 80, transition: { duration: 0.22 } }}
       transition={{ duration: 0.25, ease: "easeOut" }}
-      onClick={onToggle}
+      onClick={modoSelecao ? onToggleSelecao : onToggle}
       style={{
         position: "relative",
-        backgroundColor: naoLida ? "#FFFDF6" : "white",
-        border: naoLida ? "1px solid var(--gold-light)" : "1px solid #F0E6D0",
+        backgroundColor: selecionada
+          ? "#FBF7EF"
+          : naoLida
+            ? "#FFFDF6"
+            : "white",
+        border: selecionada
+          ? "1.5px solid var(--gold)"
+          : naoLida
+            ? "1px solid var(--gold-light)"
+            : "1px solid #F0E6D0",
         borderRadius: "14px",
         padding: "14px 16px",
         marginBottom: "10px",
         cursor: "pointer",
         overflow: "hidden",
-        boxShadow: naoLida ? "0 2px 12px rgba(201,168,76,0.12)" : "none",
+        boxShadow: selecionada
+          ? "0 4px 16px rgba(201,168,76,0.22)"
+          : naoLida
+            ? "0 2px 12px rgba(201,168,76,0.12)"
+            : "none",
       }}
     >
       {/* fio dourado à esquerda enquanto não for lida */}
-      {naoLida && (
+      {naoLida && !selecionada && (
         <span
           style={{
             position: "absolute",
@@ -391,26 +493,13 @@ function CartaoNotificacao({
       )}
 
       <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-        {/* Iniciais em medalhão dourado */}
-        <span
-          style={{
-            flexShrink: 0,
-            width: "42px",
-            height: "42px",
-            borderRadius: "50%",
-            background:
-              "linear-gradient(135deg, #E8D5A3 0%, #C9A84C 60%, #A07830 100%)",
-            color: "white",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "15px",
-            fontFamily: "Playfair Display, serif",
-            letterSpacing: "0.03em",
-          }}
-        >
-          {iniciais(n.titulo)}
-        </span>
+        {/* Iniciais em medalhão dourado — tocar = escolher */}
+        <MedalhaoSelecao
+          titulo={n.titulo}
+          emSelecao={modoSelecao}
+          selecionada={!!selecionada}
+          onToggle={onToggleSelecao}
+        />
 
         <div style={{ minWidth: 0, flex: 1 }}>
           <div
@@ -471,23 +560,25 @@ function CartaoNotificacao({
           </p>
         </div>
 
-        {/* seta que roda ao expandir */}
-        <motion.span
-          animate={{ rotate: expandida ? 90 : 0 }}
-          transition={{ duration: 0.2 }}
-          style={{
-            flexShrink: 0,
-            color: "var(--gold)",
-            fontSize: "13px",
-            lineHeight: 1,
-          }}
-        >
-          ›
-        </motion.span>
+        {/* seta que roda ao expandir (esconde-se em modo de seleção) */}
+        {!modoSelecao && (
+          <motion.span
+            animate={{ rotate: expandida ? 90 : 0 }}
+            transition={{ duration: 0.2 }}
+            style={{
+              flexShrink: 0,
+              color: "var(--gold)",
+              fontSize: "13px",
+              lineHeight: 1,
+            }}
+          >
+            ›
+          </motion.span>
+        )}
       </div>
 
       <AnimatePresence initial={false}>
-        {expandida && (
+        {expandida && !modoSelecao && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
@@ -513,79 +604,464 @@ function CartaoNotificacao({
 // ------------------------------------------------------------
 // PainelNotificacoes — a Caixa de Entrada em painel lateral.
 // ------------------------------------------------------------
-// O corpo só vive enquanto o painel está aberto — por isso o estado
-// de expansão nasce aqui (com o destaque do toast já aberto) e morre
-// ao fechar, sem sincronizações via effect.
-function CorpoCaixa({
+// Botão discreto do cabeçalho (Marcar todas / Selecionar / Limpar lidas)
+function BotaoCabecalho({ cor = "var(--gold-dark)", onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: 0,
+        border: "none",
+        background: "none",
+        cursor: "pointer",
+        fontSize: "11px",
+        fontWeight: "600",
+        letterSpacing: "0.06em",
+        textTransform: "uppercase",
+        color: cor,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+// Tudo o que vive DENTRO do painel: cabeçalho, lista e a barra de
+// seleção. Só é montado com o painel aberto — o estado (expansão,
+// seleção) nasce e morre com ele, sem sincronizações via effect.
+//
+// A seleção segue o gesto do correio moderno: tocar no MEDALHÃO das
+// iniciais vira-o num círculo ✓ e faz subir a barra de ações; em modo
+// de seleção, tocar em qualquer cartão alterna a escolha. "Limpar
+// lidas" usa o MESMO mecanismo — pré-seleciona as já lidas, para a
+// Nádia VER exatamente o que vai sair antes de confirmar.
+function ConteudoCaixa({
   destaqueId,
   lista,
+  naoLidas,
   eventTypes,
+  onFechar,
   onMarcarLida,
+  onMarcarTodas,
+  onApagarVarias,
   onAbrirEvento,
 }) {
   const [expandidaId, setExpandidaId] = useState(destaqueId || null);
+  // null = fora do modo de seleção; Set (mesmo vazio) = a escolher
+  const [selecao, setSelecao] = useState(null);
+  const [confirmando, setConfirmando] = useState(false);
+
+  const lidas = lista.filter((n) => n.lida_em);
+  const emSelecao = selecao !== null;
+  const nSel = selecao ? selecao.size : 0;
+  const todasSelecionadas = nSel > 0 && nSel === lista.length;
 
   // O destaque (vindo do toast) conta logo como lido.
   useEffect(() => {
     if (destaqueId) onMarcarLida(destaqueId);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const alternar = (id) => {
-    setExpandidaId((atual) => {
-      const proxima = atual === id ? null : id;
-      return proxima;
-    });
+  const alternarExpansao = (id) => {
+    setExpandidaId((atual) => (atual === id ? null : id));
     const n = lista.find((x) => x.id === id);
     if (n && !n.lida_em && expandidaId !== id) onMarcarLida(id);
   };
 
-  if (lista.length === 0) {
-    return (
-      <div style={{ textAlign: "center", padding: "72px 24px" }}>
-        <p
-          style={{
-            fontSize: "26px",
-            color: "var(--gold-light)",
-            margin: "0 0 10px 0",
-          }}
-        >
-          ✦
-        </p>
-        <p
-          style={{
-            fontSize: "16px",
-            fontFamily: "Playfair Display, serif",
-            color: "var(--charcoal)",
-            margin: "0 0 6px 0",
-          }}
-        >
-          Sem novidades por agora
-        </p>
-        <p
-          style={{
-            fontSize: "12.5px",
-            color: "var(--gray-mid)",
-            margin: 0,
-            lineHeight: 1.6,
-          }}
-        >
-          Quando alguém preencher o formulário de interesse,
-          <br />o pedido aparece aqui ao segundo.
-        </p>
-      </div>
-    );
-  }
+  const entrarEmSelecao = (idsIniciais = []) => {
+    setExpandidaId(null); // agora escolhe-se, não se lê
+    setConfirmando(false);
+    setSelecao(new Set(idsIniciais));
+  };
 
-  return lista.map((n) => (
-    <CartaoNotificacao
-      key={n.id}
-      n={n}
-      eventTypes={eventTypes}
-      expandida={expandidaId === n.id}
-      onToggle={() => alternar(n.id)}
-      onAbrirEvento={onAbrirEvento}
-    />
-  ));
+  const sairDaSelecao = () => {
+    setSelecao(null);
+    setConfirmando(false);
+  };
+
+  const alternarSelecao = (id) => {
+    setConfirmando(false);
+    setExpandidaId(null);
+    setSelecao((atual) => {
+      const novo = new Set(atual || []);
+      if (novo.has(id)) novo.delete(id);
+      else novo.add(id);
+      return novo;
+    });
+  };
+
+  const removerSelecionadas = () => {
+    const ids = [...selecao];
+    sairDaSelecao();
+    onApagarVarias(ids);
+  };
+
+  return (
+    <>
+      {/* Cabeçalho */}
+      <div
+        style={{
+          padding: "22px 22px 16px",
+          backgroundColor: "white",
+          borderBottom: "1px solid var(--gold-light)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "10px",
+          }}
+        >
+          <div>
+            <p
+              style={{
+                fontSize: "9px",
+                fontWeight: "600",
+                color: "var(--gold)",
+                textTransform: "uppercase",
+                letterSpacing: "0.22em",
+                margin: "0 0 3px 0",
+              }}
+            >
+              Do Luxo à Mesa
+            </p>
+            <h2
+              style={{
+                fontSize: "21px",
+                fontFamily: "Playfair Display, serif",
+                fontWeight: "500",
+                color: "var(--charcoal)",
+                margin: 0,
+              }}
+            >
+              Caixa de Entrada
+              {naoLidas > 0 && (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minWidth: "22px",
+                    height: "22px",
+                    padding: "0 6px",
+                    marginLeft: "10px",
+                    borderRadius: "999px",
+                    backgroundColor: "var(--gold)",
+                    color: "white",
+                    fontSize: "11px",
+                    fontWeight: "700",
+                    fontFamily: "Inter, sans-serif",
+                    verticalAlign: "3px",
+                  }}
+                >
+                  {naoLidas}
+                </span>
+              )}
+            </h2>
+          </div>
+          <button
+            onClick={onFechar}
+            aria-label="Fechar"
+            style={{
+              fontSize: "18px",
+              color: "var(--gray-mid)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              lineHeight: 1,
+              padding: "6px",
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Ações do cabeçalho — fora do modo de seleção */}
+        {lista.length > 0 && !emSelecao && (
+          <div
+            style={{
+              display: "flex",
+              gap: "16px",
+              marginTop: "10px",
+              flexWrap: "wrap",
+            }}
+          >
+            {naoLidas > 0 && (
+              <BotaoCabecalho onClick={onMarcarTodas}>
+                ✓ Marcar todas como lidas
+              </BotaoCabecalho>
+            )}
+            <BotaoCabecalho onClick={() => entrarEmSelecao()}>
+              Selecionar
+            </BotaoCabecalho>
+            {lidas.length > 0 && (
+              <BotaoCabecalho
+                cor="var(--gray-mid)"
+                onClick={() => entrarEmSelecao(lidas.map((n) => n.id))}
+              >
+                ✕ Limpar lidas ({lidas.length})
+              </BotaoCabecalho>
+            )}
+          </div>
+        )}
+        {emSelecao && (
+          <p
+            style={{
+              fontSize: "11.5px",
+              color: "var(--gray-mid)",
+              margin: "10px 0 0 0",
+            }}
+          >
+            Toca nos pedidos que queres remover — os medalhões viram ✓.
+          </p>
+        )}
+      </div>
+
+      {/* Lista */}
+      <div
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          padding: "16px 16px 24px",
+          scrollbarWidth: "thin",
+          scrollbarColor: "var(--gold-light) transparent",
+        }}
+      >
+        {lista.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "72px 24px" }}>
+            <p
+              style={{
+                fontSize: "26px",
+                color: "var(--gold-light)",
+                margin: "0 0 10px 0",
+              }}
+            >
+              ✦
+            </p>
+            <p
+              style={{
+                fontSize: "16px",
+                fontFamily: "Playfair Display, serif",
+                color: "var(--charcoal)",
+                margin: "0 0 6px 0",
+              }}
+            >
+              Sem novidades por agora
+            </p>
+            <p
+              style={{
+                fontSize: "12.5px",
+                color: "var(--gray-mid)",
+                margin: 0,
+                lineHeight: 1.6,
+              }}
+            >
+              Quando alguém preencher o formulário de interesse,
+              <br />o pedido aparece aqui ao segundo.
+            </p>
+          </div>
+        ) : (
+          <AnimatePresence initial={false}>
+            {lista.map((n) => (
+              <CartaoNotificacao
+                key={n.id}
+                n={n}
+                eventTypes={eventTypes}
+                expandida={expandidaId === n.id}
+                modoSelecao={emSelecao}
+                selecionada={emSelecao && selecao.has(n.id)}
+                onToggle={() => alternarExpansao(n.id)}
+                onToggleSelecao={() => alternarSelecao(n.id)}
+                onAbrirEvento={onAbrirEvento}
+              />
+            ))}
+          </AnimatePresence>
+        )}
+      </div>
+
+      {/* Barra de seleção — sobe do fundo quando há escolha em curso */}
+      <AnimatePresence>
+        {emSelecao && (
+          <motion.div
+            initial={{ y: 90, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 90, opacity: 0 }}
+            transition={{ type: "spring", damping: 28, stiffness: 340 }}
+            style={{
+              flexShrink: 0,
+              backgroundColor: "white",
+              borderTop: "1px solid var(--gold-light)",
+              boxShadow: "0 -8px 24px rgba(0,0,0,0.08)",
+              padding: "14px 18px calc(14px + env(safe-area-inset-bottom))",
+            }}
+          >
+            {confirmando ? (
+              <motion.div
+                key="confirmar"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.18 }}
+              >
+                <p
+                  style={{
+                    fontSize: "13.5px",
+                    fontWeight: "600",
+                    color: "var(--charcoal)",
+                    margin: "0 0 2px 0",
+                  }}
+                >
+                  Remover{" "}
+                  {nSel === 1 ? "este pedido" : `estes ${nSel} pedidos`} da
+                  caixa?
+                </p>
+                <p
+                  style={{
+                    fontSize: "11.5px",
+                    color: "var(--gray-mid)",
+                    margin: 0,
+                  }}
+                >
+                  Os dados continuam guardados na ficha de cada cliente.
+                </p>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "8px",
+                    justifyContent: "flex-end",
+                    marginTop: "12px",
+                  }}
+                >
+                  <button
+                    onClick={() => setConfirmando(false)}
+                    style={{
+                      padding: "9px 18px",
+                      borderRadius: "999px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      border: "1px solid var(--gold-light)",
+                      color: "var(--gray-mid)",
+                      backgroundColor: "white",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Voltar
+                  </button>
+                  <button
+                    onClick={removerSelecionadas}
+                    style={{
+                      padding: "9px 20px",
+                      borderRadius: "999px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      letterSpacing: "0.04em",
+                      border: "none",
+                      backgroundColor: "#A63D2F",
+                      color: "white",
+                      cursor: "pointer",
+                      boxShadow: "0 3px 10px rgba(166,61,47,0.3)",
+                    }}
+                  >
+                    Sim, remover
+                  </button>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="escolher"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.18 }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p
+                    style={{
+                      fontSize: "13px",
+                      fontWeight: "600",
+                      color: "var(--charcoal)",
+                      margin: 0,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {nSel === 0
+                      ? "Nenhum escolhido"
+                      : nSel === 1
+                        ? "1 pedido escolhido"
+                        : `${nSel} pedidos escolhidos`}
+                  </p>
+                  <button
+                    onClick={() =>
+                      setSelecao(
+                        new Set(
+                          todasSelecionadas ? [] : lista.map((n) => n.id),
+                        ),
+                      )
+                    }
+                    style={{
+                      padding: 0,
+                      border: "none",
+                      background: "none",
+                      cursor: "pointer",
+                      fontSize: "11px",
+                      fontWeight: "600",
+                      color: "var(--gold-dark)",
+                      letterSpacing: "0.04em",
+                    }}
+                  >
+                    {todasSelecionadas
+                      ? "Desmarcar todas"
+                      : "Selecionar todas"}
+                  </button>
+                </div>
+                <button
+                  onClick={sairDaSelecao}
+                  style={{
+                    flexShrink: 0,
+                    padding: "9px 16px",
+                    borderRadius: "999px",
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    border: "1px solid var(--gold-light)",
+                    color: "var(--gray-mid)",
+                    backgroundColor: "white",
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => nSel > 0 && setConfirmando(true)}
+                  disabled={nSel === 0}
+                  style={{
+                    flexShrink: 0,
+                    padding: "9px 20px",
+                    borderRadius: "999px",
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    letterSpacing: "0.04em",
+                    border: "none",
+                    backgroundColor: nSel === 0 ? "#E5E0D5" : "#A63D2F",
+                    color: "white",
+                    cursor: nSel === 0 ? "default" : "pointer",
+                    boxShadow:
+                      nSel === 0 ? "none" : "0 3px 10px rgba(166,61,47,0.3)",
+                    transition: "background-color 0.2s",
+                  }}
+                >
+                  Remover{nSel > 0 ? ` (${nSel})` : ""}
+                </button>
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
 }
 
 export default function PainelNotificacoes({
@@ -597,6 +1073,7 @@ export default function PainelNotificacoes({
   onFechar,
   onMarcarLida,
   onMarcarTodas,
+  onApagarVarias,
   onAbrirEvento,
 }) {
   return (
@@ -633,124 +1110,17 @@ export default function PainelNotificacoes({
               flexDirection: "column",
             }}
           >
-            {/* Cabeçalho */}
-            <div
-              style={{
-                padding: "22px 22px 16px",
-                backgroundColor: "white",
-                borderBottom: "1px solid var(--gold-light)",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: "10px",
-                }}
-              >
-                <div>
-                  <p
-                    style={{
-                      fontSize: "9px",
-                      fontWeight: "600",
-                      color: "var(--gold)",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.22em",
-                      margin: "0 0 3px 0",
-                    }}
-                  >
-                    Do Luxo à Mesa
-                  </p>
-                  <h2
-                    style={{
-                      fontSize: "21px",
-                      fontFamily: "Playfair Display, serif",
-                      fontWeight: "500",
-                      color: "var(--charcoal)",
-                      margin: 0,
-                    }}
-                  >
-                    Caixa de Entrada
-                    {naoLidas > 0 && (
-                      <span
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          minWidth: "22px",
-                          height: "22px",
-                          padding: "0 6px",
-                          marginLeft: "10px",
-                          borderRadius: "999px",
-                          backgroundColor: "var(--gold)",
-                          color: "white",
-                          fontSize: "11px",
-                          fontWeight: "700",
-                          fontFamily: "Inter, sans-serif",
-                          verticalAlign: "3px",
-                        }}
-                      >
-                        {naoLidas}
-                      </span>
-                    )}
-                  </h2>
-                </div>
-                <button
-                  onClick={onFechar}
-                  aria-label="Fechar"
-                  style={{
-                    fontSize: "18px",
-                    color: "var(--gray-mid)",
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    lineHeight: 1,
-                    padding: "6px",
-                  }}
-                >
-                  ✕
-                </button>
-              </div>
-              {naoLidas > 0 && (
-                <button
-                  onClick={onMarcarTodas}
-                  style={{
-                    marginTop: "10px",
-                    padding: 0,
-                    border: "none",
-                    background: "none",
-                    cursor: "pointer",
-                    fontSize: "11px",
-                    fontWeight: "600",
-                    letterSpacing: "0.06em",
-                    textTransform: "uppercase",
-                    color: "var(--gold-dark)",
-                  }}
-                >
-                  ✓ Marcar todas como lidas
-                </button>
-              )}
-            </div>
-
-            {/* Lista */}
-            <div
-              style={{
-                flex: 1,
-                overflowY: "auto",
-                padding: "16px 16px 24px",
-                scrollbarWidth: "thin",
-                scrollbarColor: "var(--gold-light) transparent",
-              }}
-            >
-              <CorpoCaixa
-                destaqueId={destaqueId}
-                lista={lista}
-                eventTypes={eventTypes}
-                onMarcarLida={onMarcarLida}
-                onAbrirEvento={onAbrirEvento}
-              />
-            </div>
+            <ConteudoCaixa
+              destaqueId={destaqueId}
+              lista={lista}
+              naoLidas={naoLidas}
+              eventTypes={eventTypes}
+              onFechar={onFechar}
+              onMarcarLida={onMarcarLida}
+              onMarcarTodas={onMarcarTodas}
+              onApagarVarias={onApagarVarias}
+              onAbrirEvento={onAbrirEvento}
+            />
           </motion.div>
         </motion.div>
       )}

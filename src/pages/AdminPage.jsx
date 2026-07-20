@@ -1413,6 +1413,7 @@ export default function AdminPage() {
         onFechar={() => setNotifAberto(false)}
         onMarcarLida={notificacoes.marcarLida}
         onMarcarTodas={notificacoes.marcarTodas}
+        onApagarVarias={notificacoes.apagarVarias}
         onAbrirEvento={handleAbrirEventoDeNotificacao}
       />
 
