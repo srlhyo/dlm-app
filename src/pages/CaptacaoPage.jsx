@@ -10,11 +10,11 @@ import CaptacaoForm from "../components/captacao/CaptacaoForm";
 // Ao submeter, nasce a pessoa (clientes) + o evento (fase interessado)
 // e o interessado aparece no funil do admin.
 //
-// Redesign "hero + barra dourada" (v6):
+// Redesign "hero + barra dourada" (v8):
 //   • Halo de champanhe: só a área atrás do logo ganha um tom mais
 //     profundo da paleta (#E8D5A3 translúcido, ancorado ao logo) que
 //     se dissolve no cream sem borda — luz de vela sobre linho, não
-//     é uma forma. Um raio cónico gira sobre o halo como ponteiro\n//     de relógio (16s/volta). O logo ganha um drop-shadow suave que
+//     é uma forma. Um raio cónico gira sobre o halo como ponteiro\n//     de relógio (24s/volta, luz difusa). O logo ganha um drop-shadow suave que
 //     levanta as letras do fundo.
 //   • Tagline emoldurada entre duas hairlines douradas.
 //   • Fio de progresso dourado no topo acompanha o scroll.
@@ -120,8 +120,9 @@ export default function CaptacaoPage() {
               do "by luxury events", e centra-se via x/y do framer —
               nunca por transform manual, que o motion sobrescreve */}
           <div style={{ position: "relative", display: "inline-block" }}>
-            {/* Halo base: centro descido (56%) — a zona mais profunda
-                apanha as pérolas e o "by luxury events" */}
+            {/* Halo base: centro a 46% — o pico atrás do título/pérolas, — a zona mais profunda
+                e a cauda inferior mais clara dá contraste ao texto escuro
+                "by luxury events" (texto escuro pede fundo claro) */}
             <motion.span
               aria-hidden="true"
               initial={{ opacity: 0, scale: 0.85 }}
@@ -133,16 +134,16 @@ export default function CaptacaoPage() {
                 left: "50%",
                 x: "-50%",
                 y: "-50%",
-                width: "340px",
-                height: "290px",
-                maxWidth: "92vw",
+                width: "400px",
+                height: "340px",
+                maxWidth: "94vw",
                 background:
-                  "radial-gradient(closest-side at 50% 56%, rgba(232,213,163,0.65) 0%, rgba(236,222,184,0.42) 40%, rgba(244,236,218,0.2) 62%, rgba(250,247,240,0) 80%)",
+                  "radial-gradient(closest-side at 50% 46%, rgba(232,213,163,0.62) 0%, rgba(236,222,184,0.40) 38%, rgba(246,240,226,0.18) 60%, rgba(250,247,240,0) 78%)",
                 pointerEvents: "none",
               }}
             />
             {/* Raio de relógio: um setor de luz cónico que dá uma
-                volta a cada 16s. Quadrado perfeito (rotação sem
+                volta a cada 24s. Quadrado perfeito (rotação sem
                 oscilação), centrado via x/y do framer e mascarado
                 radialmente para se dissolver como o halo. */}
             <motion.span
@@ -151,7 +152,7 @@ export default function CaptacaoPage() {
               animate={{ opacity: 1, rotate: 360 }}
               transition={{
                 opacity: { delay: 0.5, duration: 1.4, ease: "easeOut" },
-                rotate: { duration: 16, repeat: Infinity, ease: "linear" },
+                rotate: { duration: 24, repeat: Infinity, ease: "linear" },
               }}
               style={{
                 position: "absolute",
@@ -159,11 +160,11 @@ export default function CaptacaoPage() {
                 left: "50%",
                 x: "-50%",
                 y: "-50%",
-                width: "300px",
-                height: "300px",
-                maxWidth: "92vw",
+                width: "350px",
+                height: "350px",
+                maxWidth: "94vw",
                 background:
-                  "conic-gradient(from 0deg, rgba(255,252,242,0) 0deg, rgba(255,250,235,0.5) 26deg, rgba(232,213,163,0.32) 52deg, rgba(255,252,242,0) 84deg, rgba(255,252,242,0) 360deg)",
+                  "conic-gradient(from 0deg, rgba(255,252,242,0) 0deg, rgba(255,250,235,0.16) 30deg, rgba(255,250,235,0.26) 60deg, rgba(232,213,163,0.18) 90deg, rgba(255,252,242,0) 130deg, rgba(255,252,242,0) 360deg)",
                 WebkitMaskImage:
                   "radial-gradient(circle closest-side, black 38%, transparent 74%)",
                 maskImage:
@@ -178,12 +179,14 @@ export default function CaptacaoPage() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               transition={{ duration: 0.9, ease: EASE_LUXO }}
               style={{
-                width: "160px",
+                width: "200px",
                 height: "auto",
                 display: "block",
                 position: "relative",
+                // saturate/contrast levíssimos: dão corpo ao ouro e ao
+                // "by luxury events" sem o logo parecer editado
                 filter:
-                  "drop-shadow(0 2px 10px rgba(201,168,76,0.35)) drop-shadow(0 1px 2px rgba(160,120,48,0.25))",
+                  "saturate(1.08) contrast(1.06) drop-shadow(0 2px 10px rgba(201,168,76,0.35)) drop-shadow(0 1px 2px rgba(160,120,48,0.25))",
               }}
             />
           </div>
@@ -321,36 +324,39 @@ export default function CaptacaoPage() {
           fundo ainda por ver, uma pílula convida a descer antes de
           enviar — desaparece sozinha ao chegar lá */}
       <AnimatePresence>
-        {!enviado && barraCheia && !pertoDoFundo && !progresso.enviando && (
-          <motion.button
-            key="guarda-opcionais"
-            onClick={irParaOsOpcionais}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            transition={{ duration: 0.45, ease: EASE_LUXO }}
-            style={{
-              position: "fixed",
-              bottom: "calc(88px + env(safe-area-inset-bottom))",
-              left: "50%",
-              transform: "translateX(-50%)",
-              padding: "8px 16px",
-              borderRadius: "999px",
-              border: "1px solid var(--gold-light)",
-              backgroundColor: "white",
-              color: "var(--gold-dark)",
-              fontSize: "12px",
-              fontWeight: "600",
-              letterSpacing: "0.02em",
-              cursor: "pointer",
-              boxShadow: "0 4px 14px rgba(201,168,76,0.25)",
-              zIndex: 55,
-              whiteSpace: "nowrap",
-            }}
-          >
-            Ainda há detalhes opcionais em baixo ↓
-          </motion.button>
-        )}
+        {!enviado &&
+          barraCheia &&
+          !pertoDoFundo &&
+          !progresso.enviando && (
+            <motion.button
+              key="guarda-opcionais"
+              onClick={irParaOsOpcionais}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              transition={{ duration: 0.45, ease: EASE_LUXO }}
+              style={{
+                position: "fixed",
+                bottom: "calc(88px + env(safe-area-inset-bottom))",
+                left: "50%",
+                transform: "translateX(-50%)",
+                padding: "8px 16px",
+                borderRadius: "999px",
+                border: "1px solid var(--gold-light)",
+                backgroundColor: "white",
+                color: "var(--gold-dark)",
+                fontSize: "12px",
+                fontWeight: "600",
+                letterSpacing: "0.02em",
+                cursor: "pointer",
+                boxShadow: "0 4px 14px rgba(201,168,76,0.25)",
+                zIndex: 55,
+                whiteSpace: "nowrap",
+              }}
+            >
+              Ainda há detalhes opcionais em baixo ↓
+            </motion.button>
+          )}
       </AnimatePresence>
 
       {/* Barra dourada: o envio nunca se esconde — enche-se de ouro
@@ -423,7 +429,8 @@ export default function CaptacaoPage() {
                   fontSize: "14px",
                   fontWeight: "600",
                   letterSpacing: "0.03em",
-                  color: barraCheia || pct > 55 ? "white" : "var(--gold-dark)",
+                  color:
+                    barraCheia || pct > 55 ? "white" : "var(--gold-dark)",
                   transition: "color 0.5s ease",
                 }}
               >
