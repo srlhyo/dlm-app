@@ -37,6 +37,11 @@ export default function CaptacaoForm({
   textoBotao = "Enviar pedido",
   dataInicial = "",
   modoInterno = false,
+  // Barra dourada (página pública /interesse): esconde o botão
+  // interno e reporta o progresso dos obrigatórios ao exterior
+  ocultarBotao = false,
+  onProgresso,
+  registarSubmeter,
 }) {
   const [tipos, setTipos] = useState([]);
   const [nome, setNome] = useState("");
@@ -65,6 +70,50 @@ export default function CaptacaoForm({
   useEffect(() => {
     getTiposParaCaptacao().then(setTipos);
   }, []);
+
+  // Progresso dos campos obrigatórios — alimenta a barra dourada da
+  // página pública. O total é dinâmico: serviços (e balcão) só contam
+  // depois de escolhido o espaço, tal como no validar().
+  useEffect(() => {
+    if (!onProgresso) return;
+    const requisitos = [
+      !!nome.trim(),
+      !!contacto.trim(),
+      !!((eventTypeId && eventTypeId !== "__outro__") || tipoOutro.trim()),
+      !!dataEvento,
+      !!localTipo && (localTipo !== "Outro" || !!localOutro.trim()),
+    ];
+    if (localTipo) {
+      requisitos.push(servicos.length > 0);
+      if (servicos.includes("Balcão")) requisitos.push(balcao.length > 0);
+    }
+    const feitos = requisitos.filter(Boolean).length;
+    onProgresso({
+      feitos,
+      total: requisitos.length,
+      completo: feitos === requisitos.length,
+      enviando,
+    });
+  }, [
+    nome,
+    contacto,
+    eventTypeId,
+    tipoOutro,
+    dataEvento,
+    localTipo,
+    localOutro,
+    servicos,
+    balcao,
+    enviando,
+    onProgresso,
+  ]);
+
+  // Regista a função de envio para o botão externo (barra dourada).
+  // Corre em cada render de propósito: garante que a barra chama
+  // sempre a versão mais recente do submeter (sem closures velhas).
+  useEffect(() => {
+    if (registarSubmeter) registarSubmeter(submeter);
+  });
 
   const toggleServico = (opt) => {
     setServicos((prev) => {
@@ -111,8 +160,7 @@ export default function CaptacaoForm({
     // Serviços só são pedidos (e obrigatórios) depois de escolhido o
     // "onde vai ser realizado" — é ele que revela a secção.
     if (localTipo) {
-      if (servicos.length === 0)
-        e.servicos = "Escolhe pelo menos um serviço.";
+      if (servicos.length === 0) e.servicos = "Escolhe pelo menos um serviço.";
       if (servicos.includes("Balcão") && balcao.length === 0)
         e.balcao = "Escolhe uma opção do balcão.";
     }
@@ -143,8 +191,7 @@ export default function CaptacaoForm({
         local,
         tipoLocal: tipoLocalFinal,
         servicos: localTipo ? servicos : [],
-        servicosBalcao:
-          localTipo && servicos.includes("Balcão") ? balcao : [],
+        servicosBalcao: localTipo && servicos.includes("Balcão") ? balcao : [],
         mensagem,
         ficheiros,
       });
@@ -368,7 +415,11 @@ export default function CaptacaoForm({
           onChange={(e) => {
             setLocalTipo(e.target.value);
             if (e.target.value !== "Outro") setLocalOutro("");
-            setErros((p) => ({ ...p, espaco: undefined, localOutro: undefined }));
+            setErros((p) => ({
+              ...p,
+              espaco: undefined,
+              localOutro: undefined,
+            }));
           }}
         >
           <option value="">Escolher...</option>
@@ -392,63 +443,63 @@ export default function CaptacaoForm({
       </Campo>
 
       {localTipo && (
-      <Campo label="Serviços *" erro={erros.servicos}>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-          {OPCOES_SERVICOS.map((opt) => {
-            const ativo = servicos.includes(opt);
-            return (
-              <button
-                key={opt}
-                type="button"
-                onClick={() => toggleServico(opt)}
-                style={pillStyle(ativo)}
-              >
-                {opt}
-              </button>
-            );
-          })}
-        </div>
-        {servicos.includes("Balcão") && (
-          <div
-            style={{
-              marginTop: "10px",
-              padding: "10px 12px",
-              backgroundColor: "#FBF7EF",
-              border: "1px solid var(--gold-light)",
-              borderRadius: "10px",
-            }}
-          >
-            <p
+        <Campo label="Serviços *" erro={erros.servicos}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+            {OPCOES_SERVICOS.map((opt) => {
+              const ativo = servicos.includes(opt);
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => toggleServico(opt)}
+                  style={pillStyle(ativo)}
+                >
+                  {opt}
+                </button>
+              );
+            })}
+          </div>
+          {servicos.includes("Balcão") && (
+            <div
               style={{
-                fontSize: "10px",
-                fontWeight: "600",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                color: "var(--gold-dark)",
-                margin: "0 0 8px 0",
+                marginTop: "10px",
+                padding: "10px 12px",
+                backgroundColor: "#FBF7EF",
+                border: "1px solid var(--gold-light)",
+                borderRadius: "10px",
               }}
             >
-              Opções do balcão *
-            </p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-              {OPCOES_BALCAO.map((opt) => {
-                const ativo = balcao.includes(opt);
-                return (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => toggleBalcao(opt)}
-                    style={pillStyle(ativo, true)}
-                  >
-                    {opt}
-                  </button>
-                );
-              })}
+              <p
+                style={{
+                  fontSize: "10px",
+                  fontWeight: "600",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  color: "var(--gold-dark)",
+                  margin: "0 0 8px 0",
+                }}
+              >
+                Opções do balcão *
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                {OPCOES_BALCAO.map((opt) => {
+                  const ativo = balcao.includes(opt);
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => toggleBalcao(opt)}
+                      style={pillStyle(ativo, true)}
+                    >
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+              {erros.balcao && <Erro texto={erros.balcao} />}
             </div>
-            {erros.balcao && <Erro texto={erros.balcao} />}
-          </div>
-        )}
-      </Campo>
+          )}
+        </Campo>
       )}
 
       <Campo
@@ -543,24 +594,26 @@ export default function CaptacaoForm({
         </p>
       )}
 
-      <button
-        onClick={submeter}
-        disabled={enviando}
-        style={{
-          width: "100%",
-          padding: "13px",
-          borderRadius: "10px",
-          fontSize: "14px",
-          fontWeight: "600",
-          border: "none",
-          backgroundColor: enviando ? "var(--gold-light)" : "var(--gold)",
-          color: "white",
-          cursor: enviando ? "wait" : "pointer",
-          boxShadow: "0 4px 12px rgba(201,168,76,0.3)",
-        }}
-      >
-        {enviando ? "A enviar..." : textoBotao}
-      </button>
+      {!ocultarBotao && (
+        <button
+          onClick={submeter}
+          disabled={enviando}
+          style={{
+            width: "100%",
+            padding: "13px",
+            borderRadius: "10px",
+            fontSize: "14px",
+            fontWeight: "600",
+            border: "none",
+            backgroundColor: enviando ? "var(--gold-light)" : "var(--gold)",
+            color: "white",
+            cursor: enviando ? "wait" : "pointer",
+            boxShadow: "0 4px 12px rgba(201,168,76,0.3)",
+          }}
+        >
+          {enviando ? "A enviar..." : textoBotao}
+        </button>
+      )}
     </div>
   );
 }
