@@ -148,9 +148,13 @@ export default function ClientesLista({
     setCarregando(false);
   };
 
+  // Corre ao montar E sempre que se volta à vista Lista (trocar para o
+  // Funil e voltar NÃO desmonta este componente — sem isto, um
+  // interessado novo só aparecia depois de um refresh à página) ou
+  // quando o AdminPage sinaliza uma mudança (refrescarEm).
   useEffect(() => {
-    carregar();
-  }, []);
+    if (vista === "lista") carregar();
+  }, [vista, refrescarEm]);
 
   const abrirCliente = async (id) => {
     setPerguntandoFase(false);
@@ -161,6 +165,18 @@ export default function ClientesLista({
       console.error(e);
     }
   };
+
+  // O painel do cliente aberto (à direita, com os eventos dela) tem o
+  // seu próprio fetch, independente da lista — sem isto, editar a data
+  // (ou outro campo) no drawer do evento só se refletia aqui ao
+  // fechar e reabrir o cliente. "aberto" fica de fora das dependências
+  // de propósito: só queremos voltar a pedir quando o AdminPage avisa
+  // uma mudança (refrescarEm), não sempre que abrirCliente troca o
+  // próprio "aberto" (senão duplicava o pedido a cada clique na lista).
+  useEffect(() => {
+    if (aberto) abrirCliente(aberto.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refrescarEm]);
 
   const nomeTipo = (ev) => {
     if (!ev) return "Evento";

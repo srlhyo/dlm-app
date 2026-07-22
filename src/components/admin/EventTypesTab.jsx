@@ -4,6 +4,7 @@ import EventTypeEditor, {
   toEditingSteps,
   blankEditingSteps,
 } from "./EventTypeEditor";
+import AvisoDataDoEvento from "./AvisoDataDoEvento";
 import { deleteEventType } from "../../lib/eventTypes";
 
 export default function EventTypesTab({ eventTypes, loading, onRefetch }) {
@@ -134,6 +135,8 @@ export default function EventTypesTab({ eventTypes, loading, onRefetch }) {
           + Criar Tipo de Evento
         </button>
       </div>
+
+      <AvisoDataDoEvento />
 
       {successMsg && (
         <p

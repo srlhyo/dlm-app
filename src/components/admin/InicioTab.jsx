@@ -67,6 +67,7 @@ export default function InicioTab({
   submissions = [],
   invites = [],
   eventTypes = [],
+  loading = false,
   onAbrirEvento,
   onNavegar,
   onDadosMudaram,
@@ -273,7 +274,7 @@ export default function InicioTab({
         }}
       >
         {hojePorExtenso()}
-        {estaSemana > 0
+        {!loading && estaSemana > 0
           ? ` · ${estaSemana} ${estaSemana === 1 ? "evento" : "eventos"} esta semana`
           : ""}
       </p>
@@ -477,6 +478,10 @@ export default function InicioTab({
           alignItems: "start",
         }}
       >
+        {loading ? (
+          <EsqueletoInicio />
+        ) : (
+          <>
         {/* A precisar de ti */}
         <div>
           <p style={tituloSeccao}>A precisar de ti</p>
@@ -753,6 +758,8 @@ export default function InicioTab({
             </button>
           </div>
         </div>
+          </>
+        )}
       </div>
 
       {/* Modal de novo interessado — o mesmo CaptacaoForm das outras
@@ -839,6 +846,87 @@ export default function InicioTab({
         </div>
       )}
     </motion.div>
+  );
+}
+
+// Estado de carregamento — em vez de mostrar zeros e "tudo em dia" (falso:
+// os dados ainda não chegaram, não é que não existam), mostra placeholders
+// a pulsar até os dados reais chegarem do Supabase.
+function EsqueletoBarra({ largura = "100%", altura = "14px" }) {
+  return (
+    <span
+      style={{
+        display: "block",
+        width: largura,
+        height: altura,
+        borderRadius: "6px",
+        backgroundColor: "#F0E6D0",
+        animation: "dlm-esqueleto-pulso 1.3s ease-in-out infinite",
+      }}
+    />
+  );
+}
+
+function EsqueletoCartao({ altura = "56px" }) {
+  return (
+    <div
+      style={{
+        backgroundColor: "white",
+        borderRadius: "12px",
+        padding: "12px 14px",
+        marginBottom: "8px",
+        border: "1px solid #F0E6D0",
+        height: altura,
+        display: "flex",
+        alignItems: "center",
+      }}
+    >
+      <EsqueletoBarra largura="70%" />
+    </div>
+  );
+}
+
+function EsqueletoInicio() {
+  return (
+    <>
+      <style>{`
+        @keyframes dlm-esqueleto-pulso {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.45; }
+        }
+      `}</style>
+      <div>
+        <p style={tituloSeccao}>A precisar de ti</p>
+        <EsqueletoCartao />
+        <EsqueletoCartao />
+      </div>
+      <div>
+        <p style={tituloSeccao}>Esta semana</p>
+        <EsqueletoCartao altura="52px" />
+        <EsqueletoCartao altura="52px" />
+      </div>
+      <div>
+        <p style={tituloSeccao}>O momento</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          {[1, 2, 3].map((n) => (
+            <div
+              key={n}
+              style={{
+                backgroundColor: "white",
+                borderRadius: "12px",
+                padding: "12px 16px",
+                border: "1px solid #F0E6D0",
+              }}
+            >
+              <div style={{ marginBottom: "6px" }}>
+                <EsqueletoBarra largura="34px" altura="22px" />
+              </div>
+              <EsqueletoBarra largura="60%" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
   );
 }
 

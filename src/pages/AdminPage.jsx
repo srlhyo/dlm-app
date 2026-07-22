@@ -474,6 +474,7 @@ export default function AdminPage() {
         (payload) => {
           console.log("Nova submissão:", payload);
           fetchSubmissions();
+          setFunilVersao((v) => v + 1); // acorda a Lista/Funil de Clientes
         },
       )
       .on(
@@ -812,6 +813,7 @@ export default function AdminPage() {
             submissions={submissions}
             invites={invites}
             eventTypes={eventTypes}
+            loading={loading || loadingEventTypes}
             onAbrirEvento={(ev) => setSelected(ev)}
             onNavegar={handleNavegar}
             onDadosMudaram={fetchSubmissions}

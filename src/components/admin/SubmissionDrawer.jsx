@@ -47,6 +47,15 @@ import { linkWhatsApp } from "../../lib/mensagens";
 //     (o AdminPage recarrega os eventTypes)
 // ============================================================
 
+const formatData = (d) => {
+  if (!d) return "Sem data";
+  return new Date(d).toLocaleDateString("pt-PT", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+};
+
 const STATUS_OPTIONS = ["Recebido", "Em Preparação", "Confirmado", "Concluído"];
 
 const STATUS_COLORS = {
@@ -144,6 +153,12 @@ export default function SubmissionDrawer({
 
   const tipo = eventTypes?.find((et) => et.id === selected.event_type_id);
   const seccoes = seccoesDoModelo(tipo);
+  // O campo do modelo marcado como "a data do evento" (papel: "data") —
+  // se existir, é aqui que o briefing e o formulário completo vão ler a
+  // data (via respostas), por isso qualquer edição da data tem de
+  // escrever também neste campo, não só na coluna data_evento. Mesmo
+  // critério da leitura em getResumoSubmissao: o primeiro encontrado.
+  const campoData = seccoes.flatMap((sec) => sec.campos).find((c) => c.papel === "data");
   const resumo = getResumoSubmissao(selected, eventTypes);
   // O tipo "Outro" que o cliente escreveu na captação (fallback de
   // exibição enquanto não é associado a um modelo).
@@ -190,14 +205,6 @@ export default function SubmissionDrawer({
     valor: selected.valor_acordado,
   };
 
-  const formatData = (d) => {
-    if (!d) return "Sem data";
-    return new Date(d).toLocaleDateString("pt-PT", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    });
-  };
 
   // Abre o modo edição, pré-carregando editData com o valor atual de
   // CADA campo do modelo (lido via getValorAtual — colunas ou respostas).
@@ -231,6 +238,13 @@ export default function SubmissionDrawer({
     for (const [campoId, valor] of Object.entries(editData)) {
       const coluna = FIELD_MAP_INVERSO[campoId];
       if (coluna) update[coluna] = valor;
+    }
+
+    // 2b) o campo do modelo marcado com "papel: data" É a data do
+    // evento, seja qual for o seu id (o modelo pode ter mais do que
+    // uma data — entrega, ensaio, etc. — só essa conta).
+    if (campoData && campoData.id in editData) {
+      update.data_evento = editData[campoData.id] || null;
     }
 
     const { error } = await supabase
@@ -328,9 +342,17 @@ export default function SubmissionDrawer({
                     fontSize: "13px",
                     color: "var(--gray-mid)",
                     margin: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    flexWrap: "wrap",
                   }}
                 >
-                  {formatData(resumo.data)}
+                  <DataEventoEditor
+                    key={selected.id}
+                    submissao={selected}
+                    campoData={campoData}
+                    onSaved={onSaved}
+                  />
                   {tipo
                     ? ` · ${tipo.nome}`
                     : tipoLivre
@@ -811,6 +833,131 @@ export default function SubmissionDrawer({
         </motion.div>
       </motion.div>
     </AnimatePresence>
+  );
+}
+
+// ============================================================
+// DataEventoEditor — a data do evento no cabeçalho, sempre editável
+// aqui, MESMO quando o modelo do tipo de evento não tem um campo de
+// data nos seus steps (o modo Editar geral, mais abaixo, só edita
+// campos do modelo — ver comentário no topo do ficheiro). Grava
+// directo na coluna data_evento, sem depender do modelo.
+// key={submissao.id} no local de uso: remonta (e limpa o estado) ao
+// trocar de evento.
+// ============================================================
+function DataEventoEditor({ submissao, campoData, onSaved }) {
+  const [aEditar, setAEditar] = useState(false);
+  const [valor, setValor] = useState(submissao.data_evento || "");
+  const [aGuardar, setAGuardar] = useState(false);
+
+  const guardar = async () => {
+    setAGuardar(true);
+    // Além da coluna, escreve também no campo do modelo marcado como
+    // "papel: data" (se existir) — é dali que o briefing e o
+    // formulário completo leem a data; sem isto, ficam presos no
+    // valor antigo mesmo depois de corrigida aqui.
+    const update = { data_evento: valor || null };
+    if (campoData) {
+      update.respostas = {
+        ...(submissao.respostas || {}),
+        [campoData.id]: valor || null,
+      };
+    }
+    const { data, error } = await supabase
+      .from("submissions")
+      .update(update)
+      .eq("id", submissao.id)
+      .select()
+      .single();
+    setAGuardar(false);
+    if (error) {
+      console.error(error);
+      alert("Não foi possível guardar a data. Tenta novamente.");
+      return;
+    }
+    if (onSaved) onSaved({ ...submissao, ...data });
+    setAEditar(false);
+  };
+
+  if (aEditar) {
+    return (
+      <span
+        style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+      >
+        <input
+          type="date"
+          value={valor || ""}
+          onChange={(e) => setValor(e.target.value)}
+          disabled={aGuardar}
+          autoFocus
+          style={{
+            fontSize: "12px",
+            padding: "3px 6px",
+            borderRadius: "6px",
+            border: "1.5px solid var(--gold)",
+            outline: "none",
+            fontFamily: "Inter, sans-serif",
+          }}
+        />
+        <button
+          onClick={guardar}
+          disabled={aGuardar}
+          title="Guardar"
+          style={{
+            fontSize: "13px",
+            color: "#16A34A",
+            background: "none",
+            border: "none",
+            cursor: aGuardar ? "wait" : "pointer",
+            padding: "2px",
+            lineHeight: 1,
+          }}
+        >
+          ✓
+        </button>
+        <button
+          onClick={() => {
+            setValor(submissao.data_evento || "");
+            setAEditar(false);
+          }}
+          disabled={aGuardar}
+          title="Cancelar"
+          style={{
+            fontSize: "13px",
+            color: "var(--gray-mid)",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: "2px",
+            lineHeight: 1,
+          }}
+        >
+          ✕
+        </button>
+      </span>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => setAEditar(true)}
+      title="Editar a data do evento"
+      style={{
+        fontSize: "13px",
+        color: "inherit",
+        font: "inherit",
+        background: "none",
+        border: "none",
+        padding: 0,
+        cursor: "pointer",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "5px",
+      }}
+    >
+      {formatData(submissao.data_evento)}
+      <span style={{ fontSize: "11px", opacity: 0.7 }}>✏️</span>
+    </button>
   );
 }
 
