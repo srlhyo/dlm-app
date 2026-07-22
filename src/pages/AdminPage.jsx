@@ -70,6 +70,7 @@ function DadosCaptacao({ submissao }) {
       "Serviços",
       [
         ...(Array.isArray(r.servicos) ? r.servicos : []),
+        ...(Array.isArray(r.servicosBuffet) ? r.servicosBuffet : []),
         ...(Array.isArray(r.servicosBalcao) ? r.servicosBalcao : []),
       ].join(", ") || null,
     ],

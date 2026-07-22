@@ -23,13 +23,26 @@ import { registarErroFormulario } from "../../lib/errosForm";
 // ============================================================
 
 const OPCOES_LOCAL = ["Ao domicílio", "Salão", "Quinta", "Exterior", "Outro"];
-const OPCOES_SERVICOS = ["Mesa posta", "Buffet", "Cenário", "Balcão"];
+const OPCOES_SERVICOS = [
+  "Mesa posta",
+  "Buffet",
+  "Cenário fotografável",
+  "Mesa do bolo da noiva",
+  "Balcão",
+];
+// Pacotes de buffet — escolha ÚNICA, aparecem ao selecionar "Buffet".
+// O detalhe (lotação) faz parte da resposta guardada, para a Nádia
+// saber logo o pacote sem consultar tabela nenhuma.
+const OPCOES_BUFFET = [
+  { nome: "Premium", detalhe: "até 20 pessoas" },
+  { nome: "Supreme", detalhe: "até 35 pessoas" },
+  { nome: "Essence", detalhe: "50 ou mais pessoas" },
+];
 const OPCOES_BALCAO = [
-  "Cocktail & bar",
-  "Welcome drink",
-  "Waffles & panquecas",
+  "Welcome Drink",
+  "Bar & Cocktail",
   "Doces",
-  "Hambúrgueres & hotdogs",
+  "Hambúrgueres & Cachorro",
 ];
 
 export default function CaptacaoForm({
@@ -55,6 +68,7 @@ export default function CaptacaoForm({
   const [localTipo, setLocalTipo] = useState(""); // tipo de espaço
   const [localOutro, setLocalOutro] = useState("");
   const [servicos, setServicos] = useState([]);
+  const [buffet, setBuffet] = useState(""); // pacote escolhido (um só)
   const [balcao, setBalcao] = useState([]);
   const [ficheiros, setFicheiros] = useState([]); // File[]
   const [mensagem, setMensagem] = useState("");
@@ -85,6 +99,7 @@ export default function CaptacaoForm({
     ];
     if (localTipo) {
       requisitos.push(servicos.length > 0);
+      if (servicos.includes("Buffet")) requisitos.push(!!buffet);
       if (servicos.includes("Balcão")) requisitos.push(balcao.length > 0);
     }
     const feitos = requisitos.filter(Boolean).length;
@@ -103,6 +118,7 @@ export default function CaptacaoForm({
     localTipo,
     localOutro,
     servicos,
+    buffet,
     balcao,
     enviando,
     onProgresso,
@@ -120,10 +136,22 @@ export default function CaptacaoForm({
       const novo = prev.includes(opt)
         ? prev.filter((o) => o !== opt)
         : [...prev, opt];
+      if (!novo.includes("Buffet")) setBuffet("");
       if (!novo.includes("Balcão")) setBalcao([]);
       return novo;
     });
-    setErros((prev) => ({ ...prev, servicos: undefined, balcao: undefined }));
+    setErros((prev) => ({
+      ...prev,
+      servicos: undefined,
+      buffet: undefined,
+      balcao: undefined,
+    }));
+  };
+
+  // Buffet: escolha ÚNICA — clicar noutro pacote troca; no mesmo tira.
+  const toggleBuffet = (nome) => {
+    setBuffet((prev) => (prev === nome ? "" : nome));
+    setErros((prev) => ({ ...prev, buffet: undefined }));
   };
 
   // Balcão: escolha ÚNICA — clicar noutra troca; clicar na mesma tira.
@@ -160,9 +188,11 @@ export default function CaptacaoForm({
     // Serviços só são pedidos (e obrigatórios) depois de escolhido o
     // "onde vai ser realizado" — é ele que revela a secção.
     if (localTipo) {
-      if (servicos.length === 0) e.servicos = "Escolhe pelo menos um serviço.";
+      if (servicos.length === 0) e.servicos = "Escolhe pelo menos uma opção.";
+      if (servicos.includes("Buffet") && !buffet)
+        e.buffet = "Escolhe o pacote de buffet.";
       if (servicos.includes("Balcão") && balcao.length === 0)
-        e.balcao = "Escolhe uma opção do balcão.";
+        e.balcao = "Escolhe o tipo de balcão.";
     }
     setErros(e);
     return Object.keys(e).length === 0;
@@ -180,6 +210,9 @@ export default function CaptacaoForm({
       // espaço (ou a descrição, no caso do Outro)
       const tipoLocalFinal =
         localTipo === "Outro" ? `Outro: ${localOutro.trim()}` : localTipo;
+      // O pacote vai com a lotação por extenso ("Premium (até 20
+      // pessoas)") — resposta autoexplicativa em qualquer ecrã do admin
+      const pacoteBuffet = OPCOES_BUFFET.find((p) => p.nome === buffet);
       const submission = await submeterCaptacao({
         nome,
         contacto,
@@ -191,6 +224,10 @@ export default function CaptacaoForm({
         local,
         tipoLocal: tipoLocalFinal,
         servicos: localTipo ? servicos : [],
+        servicosBuffet:
+          localTipo && servicos.includes("Buffet") && pacoteBuffet
+            ? [`${pacoteBuffet.nome} (${pacoteBuffet.detalhe})`]
+            : [],
         servicosBalcao: localTipo && servicos.includes("Balcão") ? balcao : [],
         mensagem,
         ficheiros,
@@ -223,6 +260,8 @@ export default function CaptacaoForm({
           local,
           tipoLocal: localTipo,
           servicos,
+          buffet,
+          balcao,
           mensagem,
         },
       });
@@ -443,7 +482,7 @@ export default function CaptacaoForm({
       </Campo>
 
       {localTipo && (
-        <Campo label="Serviços *" erro={erros.servicos}>
+        <Campo label="Opções *" erro={erros.servicos}>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
             {OPCOES_SERVICOS.map((opt) => {
               const ativo = servicos.includes(opt);
@@ -459,6 +498,81 @@ export default function CaptacaoForm({
               );
             })}
           </div>
+          {servicos.includes("Buffet") && (
+            <div
+              style={{
+                marginTop: "10px",
+                padding: "10px 12px",
+                backgroundColor: "#FBF7EF",
+                border: "1px solid var(--gold-light)",
+                borderRadius: "10px",
+              }}
+            >
+              <p
+                style={{
+                  fontSize: "10px",
+                  fontWeight: "600",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  color: "var(--gold-dark)",
+                  margin: "0 0 8px 0",
+                }}
+              >
+                Pacote de buffet *
+              </p>
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: "6px" }}
+              >
+                {OPCOES_BUFFET.map((p) => {
+                  const ativo = buffet === p.nome;
+                  return (
+                    <button
+                      key={p.nome}
+                      type="button"
+                      onClick={() => toggleBuffet(p.nome)}
+                      style={{
+                        display: "flex",
+                        alignItems: "baseline",
+                        justifyContent: "space-between",
+                        gap: "10px",
+                        width: "100%",
+                        padding: "9px 14px",
+                        borderRadius: "10px",
+                        border: `1.5px solid ${ativo ? "var(--gold)" : "var(--gold-light)"}`,
+                        backgroundColor: ativo ? "var(--gold)" : "white",
+                        cursor: "pointer",
+                        transition: "all 0.15s",
+                        textAlign: "left",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: "13px",
+                          fontWeight: "600",
+                          letterSpacing: "0.02em",
+                          color: ativo ? "white" : "var(--charcoal)",
+                        }}
+                      >
+                        {p.nome}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          color: ativo
+                            ? "rgba(255,255,255,0.9)"
+                            : "var(--gray-mid)",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {p.detalhe}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {erros.buffet && <Erro texto={erros.buffet} />}
+            </div>
+          )}
           {servicos.includes("Balcão") && (
             <div
               style={{
@@ -479,7 +593,7 @@ export default function CaptacaoForm({
                   margin: "0 0 8px 0",
                 }}
               >
-                Opções do balcão *
+                Tipo de balcão *
               </p>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                 {OPCOES_BALCAO.map((opt) => {

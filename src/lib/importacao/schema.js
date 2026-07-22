@@ -61,6 +61,7 @@ export const CHAVES_RESPOSTAS_CANONICAS = [
   "numeroWhatsapp",
   "tipoLocal",
   "servicos",
+  "servicosBuffet",
   "servicosBalcao",
   "pretende",
   "mensagemInicial",

@@ -98,7 +98,8 @@ export const uploadImagemReferencia = async (file) => {
 //                              modais internos a conversa de Instagram
 //                              já existe; o telemóvel é um bónus)
 //   eventTypeId | tipoOutro  — o tipo (modelo existente OU texto livre)
-//   dataEvento, numeroConvidados, local, servicos[], servicosBalcao[],
+//   dataEvento, numeroConvidados, local, servicos[], servicosBuffet[],
+//   servicosBalcao[],
 //   mensagem, ficheiros[]    — File[] de imagens de referência (máx 5)
 // ============================================================
 export const submeterCaptacao = async (payload) => {
@@ -133,10 +134,16 @@ export const submeterCaptacao = async (payload) => {
   if (convidados) respostas.numeroConvidados = convidados;
   const tipoOutro = limpar(payload.tipoOutro);
   if (tipoOutro) respostas.tipoEventoOutro = tipoOutro;
-  // Serviços (a taxonomia nova) + opções do balcão; o "pretende"
-  // antigo continua aceite por retrocompatibilidade.
+  // Serviços (a taxonomia nova) + pacote de buffet + tipo de balcão;
+  // o "pretende" antigo continua aceite por retrocompatibilidade.
   if (Array.isArray(payload.servicos) && payload.servicos.length > 0) {
     respostas.servicos = payload.servicos;
+  }
+  if (
+    Array.isArray(payload.servicosBuffet) &&
+    payload.servicosBuffet.length > 0
+  ) {
+    respostas.servicosBuffet = payload.servicosBuffet;
   }
   if (
     Array.isArray(payload.servicosBalcao) &&

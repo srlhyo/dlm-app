@@ -10,13 +10,21 @@ import CaptacaoForm from "../components/captacao/CaptacaoForm";
 // Ao submeter, nasce a pessoa (clientes) + o evento (fase interessado)
 // e o interessado aparece no funil do admin.
 //
-// Redesign "hero + barra dourada" (v8):
+// Redesign "hero + barra dourada" (v9):
 //   • Halo de champanhe: só a área atrás do logo ganha um tom mais
 //     profundo da paleta (#E8D5A3 translúcido, ancorado ao logo) que
 //     se dissolve no cream sem borda — luz de vela sobre linho, não
-//     é uma forma. Um raio cónico gira sobre o halo como ponteiro\n//     de relógio (24s/volta, luz difusa). O logo ganha um drop-shadow suave que
+//     é uma forma. Um raio cónico gira sobre o halo como ponteiro
+//     de relógio (24s/volta, luz difusa). O logo ganha um drop-shadow suave que
 //     levanta as letras do fundo.
-//   • Tagline emoldurada entre duas hairlines douradas.
+//   • Brilho de joalharia: um feixe de luz varre as LETRAS do logo
+//     (máscara com o próprio PNG — o brilho só existe onde há ouro),
+//     como o reflexo num anel dentro da montra. Passa, descansa,
+//     volta a passar.
+//   • Poeira de ouro: partículas ✦ sobem devagar à volta do halo,
+//     acendem e apagam em tempos desencontrados — champanhe vivo.
+//   • Tagline em serifa (Playfair) emoldurada por hairlines douradas
+//     que crescem do centro.
 //   • Fio de progresso dourado no topo acompanha o scroll.
 //   • Barra fixa no fundo que se enche de ouro com os obrigatórios.
 //   • Guarda dos opcionais: pílula sobre a barra quando falta ver o
@@ -25,6 +33,19 @@ import CaptacaoForm from "../components/captacao/CaptacaoForm";
 
 // Easing da casa: começa decidido, assenta devagar. O luxo move-se devagar.
 const EASE_LUXO = [0.22, 1, 0.36, 1];
+
+// Poeira de ouro à volta do halo: posições em % do contentor do logo.
+// Tempos primos entre si — os ciclos nunca sincronizam, o brilho
+// parece vivo em vez de coreografado.
+const POEIRA = [
+  { left: "6%", top: "22%", size: 11, delay: 0.8, dur: 5.2, drift: -22 },
+  { left: "93%", top: "30%", size: 9, delay: 2.1, dur: 6.1, drift: -18 },
+  { left: "-4%", top: "62%", size: 8, delay: 3.4, dur: 5.7, drift: -20 },
+  { left: "101%", top: "68%", size: 12, delay: 1.5, dur: 6.7, drift: -26 },
+  { left: "14%", top: "88%", size: 7, delay: 4.6, dur: 5.3, drift: -16 },
+  { left: "84%", top: "94%", size: 9, delay: 0.2, dur: 7.1, drift: -24 },
+  { left: "50%", top: "-6%", size: 8, delay: 2.9, dur: 6.3, drift: -14 },
+];
 
 export default function CaptacaoPage() {
   const [enviado, setEnviado] = useState(false);
@@ -172,6 +193,35 @@ export default function CaptacaoPage() {
                 pointerEvents: "none",
               }}
             />
+            {/* Poeira de ouro: partículas que sobem e cintilam à volta
+                do logo — nunca por cima das letras (posições na orla) */}
+            {POEIRA.map((p, i) => (
+              <motion.span
+                key={i}
+                aria-hidden="true"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0, 0.85, 0], y: [6, p.drift] }}
+                transition={{
+                  delay: p.delay,
+                  duration: p.dur,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+                style={{
+                  position: "absolute",
+                  left: p.left,
+                  top: p.top,
+                  fontSize: `${p.size}px`,
+                  lineHeight: 1,
+                  color: "var(--gold)",
+                  textShadow: "0 0 6px rgba(232,213,163,0.9)",
+                  pointerEvents: "none",
+                  userSelect: "none",
+                }}
+              >
+                ✦
+              </motion.span>
+            ))}
             <motion.img
               src={logoUrl}
               alt="Do Luxo à Mesa"
@@ -189,6 +239,47 @@ export default function CaptacaoPage() {
                   "saturate(1.08) contrast(1.06) drop-shadow(0 2px 10px rgba(201,168,76,0.35)) drop-shadow(0 1px 2px rgba(160,120,48,0.25))",
               }}
             />
+            {/* Brilho de joalharia: o próprio PNG do logo serve de
+                máscara, por isso o feixe de luz só acende as LETRAS —
+                varre, descansa uns segundos, volta a varrer */}
+            <span
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                inset: 0,
+                overflow: "hidden",
+                WebkitMaskImage: `url(${logoUrl})`,
+                maskImage: `url(${logoUrl})`,
+                WebkitMaskSize: "100% 100%",
+                maskSize: "100% 100%",
+                WebkitMaskRepeat: "no-repeat",
+                maskRepeat: "no-repeat",
+                pointerEvents: "none",
+              }}
+            >
+              <motion.span
+                initial={{ x: "-160%" }}
+                animate={{ x: "260%" }}
+                transition={{
+                  delay: 1.2,
+                  duration: 1.9,
+                  repeat: Infinity,
+                  repeatDelay: 4.2,
+                  ease: "easeInOut",
+                }}
+                style={{
+                  position: "absolute",
+                  top: "-25%",
+                  bottom: "-25%",
+                  left: 0,
+                  width: "55%",
+                  skewX: -16,
+                  background:
+                    "linear-gradient(105deg, rgba(255,253,244,0) 0%, rgba(255,252,240,0.55) 38%, rgba(255,255,250,0.95) 50%, rgba(255,252,240,0.55) 62%, rgba(255,253,244,0) 100%)",
+                  filter: "blur(4px)",
+                }}
+              />
+            </span>
           </div>
           {!enviado && (
             <motion.div
@@ -204,17 +295,25 @@ export default function CaptacaoPage() {
                 position: "relative",
               }}
             >
-              <span
+              <motion.span
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ delay: 0.55, duration: 0.9, ease: EASE_LUXO }}
                 style={{
                   flex: 1,
                   height: "1px",
-                  backgroundColor: "var(--gold-light)",
+                  transformOrigin: "100% 50%",
+                  background:
+                    "linear-gradient(to left, var(--gold), rgba(232,213,163,0))",
                 }}
               />
               <p
                 style={{
-                  fontSize: "13px",
-                  color: "var(--gray-mid)",
+                  fontSize: "15px",
+                  fontFamily: "Playfair Display, serif",
+                  fontStyle: "italic",
+                  color: "var(--charcoal)",
+                  letterSpacing: "0.02em",
                   margin: 0,
                   lineHeight: 1.6,
                   whiteSpace: "nowrap",
@@ -222,11 +321,16 @@ export default function CaptacaoPage() {
               >
                 Conta-nos sobre o teu evento 🤍
               </p>
-              <span
+              <motion.span
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ delay: 0.55, duration: 0.9, ease: EASE_LUXO }}
                 style={{
                   flex: 1,
                   height: "1px",
-                  backgroundColor: "var(--gold-light)",
+                  transformOrigin: "0% 50%",
+                  background:
+                    "linear-gradient(to right, var(--gold), rgba(232,213,163,0))",
                 }}
               />
             </motion.div>

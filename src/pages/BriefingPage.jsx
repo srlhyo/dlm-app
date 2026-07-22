@@ -253,7 +253,8 @@ const CAMPOS_CAPTACAO = [
   ["numeroWhatsapp", "WhatsApp", false],
   ["tipoLocal", "Espaço", false],
   ["servicos", "Serviços Pedidos", true],
-  ["servicosBalcao", "Opção de Balcão", false],
+  ["servicosBuffet", "Pacote de Buffet", false],
+  ["servicosBalcao", "Tipo de Balcão", false],
   ["mensagemInicial", "Notas da Primeira Conversa", true],
 ];
 

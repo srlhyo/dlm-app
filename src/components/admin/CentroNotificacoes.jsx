@@ -158,6 +158,7 @@ function DetalhePedido({ n }) {
   const convidados = n.dados?.numero_convidados ?? r.numeroConvidados ?? null;
   const servicos = [
     ...(Array.isArray(r.servicos) ? r.servicos : []),
+    ...(Array.isArray(r.servicosBuffet) ? r.servicosBuffet : []),
     ...(Array.isArray(r.servicosBalcao) ? r.servicosBalcao : []),
     ...(Array.isArray(r.pretende) ? r.pretende : []),
   ];
