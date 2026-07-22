@@ -19,6 +19,13 @@ import { linkWhatsApp } from "../../lib/mensagens";
 // ------------------------------------------------------------
 // O sino sonoro — duas notas suaves geradas no browser (WebAudio),
 // sem ficheiros. Falha em silêncio se o browser não deixar tocar.
+//
+// O browser só deixa um AudioContext arrancar depois de um gesto do
+// utilizador na página (clique, tecla, toque) — e uma notificação
+// chega por WebSocket, nunca por um gesto. Sem desbloquear ao
+// primeiro gesto da Nádia (ver useDesbloquearSino, mais abaixo), o
+// AudioContext nasce sempre "suspended" e o sino fica mudo, mesmo com
+// tudo o resto (toast, badge) a funcionar.
 // ------------------------------------------------------------
 let audioCtx = null;
 const tocarSino = () => {
@@ -45,6 +52,41 @@ const tocarSino = () => {
     /* sem áudio — sem drama */
   }
 };
+
+// Cria/retoma o AudioContext dentro do próprio gesto — só isso conta
+// como "user activation" para o browser. Uma vez desbloqueado, fica
+// destrancado para o resto da sessão (mesmo AudioContext partilhado
+// do tocarSino), por isso só precisa de correr uma vez.
+let sinoDesbloqueado = false;
+const desbloquearSino = () => {
+  if (sinoDesbloqueado) return;
+  sinoDesbloqueado = true;
+  try {
+    audioCtx =
+      audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+  } catch {
+    /* sem áudio — sem drama */
+  }
+};
+
+// Liga o desbloqueio ao primeiro clique/tecla/toque da Nádia na app —
+// monta-se uma vez (na ToastNotificacao, sempre presente no
+// AdminPage), muito antes de a primeira notificação chegar.
+function useDesbloquearSino() {
+  useEffect(() => {
+    if (sinoDesbloqueado) return;
+    const eventos = ["pointerdown", "keydown", "touchstart"];
+    eventos.forEach((ev) =>
+      document.addEventListener(ev, desbloquearSino, { once: true }),
+    );
+    return () => {
+      eventos.forEach((ev) =>
+        document.removeEventListener(ev, desbloquearSino),
+      );
+    };
+  }, []);
+}
 
 // ------------------------------------------------------------
 // Tempo relativo humano ("agora mesmo", "há 20 min", "ontem"...)
@@ -1137,6 +1179,10 @@ export default function PainelNotificacoes({
 const DURACAO_TOAST_S = 9;
 
 export function ToastNotificacao({ nova, eventTypes, onAbrir, onFechar }) {
+  // Desbloqueia o som ao primeiro gesto da Nádia na app (ver comentário
+  // acima de tocarSino) — sem isto, o sino fica sempre mudo.
+  useDesbloquearSino();
+
   // Toca o sino a cada chegada
   useEffect(() => {
     if (nova) tocarSino();
