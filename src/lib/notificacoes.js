@@ -75,6 +75,11 @@ export const apagarNotificacoes = async (ids) => {
 };
 
 // Subscreve INSERTs em tempo real. Devolve a função de limpeza.
+//
+// O status é sempre registado (mesmo padrão do canal "db-changes" no
+// AdminPage) — sem isto, um canal preso em CHANNEL_ERROR/CLOSED que
+// nunca chega a SUBSCRIBED falha em total silêncio: as notificações
+// param de chegar e não fica rasto nenhum para perceber porquê.
 export const subscreverNotificacoes = (onNova) => {
   const canal = supabase
     .channel("notificacoes-changes")
@@ -85,7 +90,13 @@ export const subscreverNotificacoes = (onNova) => {
         if (payload?.new) onNova(payload.new);
       },
     )
-    .subscribe();
+    .subscribe((status, err) => {
+      console.log(
+        "Realtime status (notificações):",
+        status,
+        err ? err.message || err : "",
+      );
+    });
   return () => supabase.removeChannel(canal);
 };
 
