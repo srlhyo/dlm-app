@@ -8,6 +8,7 @@ import BriefingPage from "./pages/BriefingPage";
 import MaintenancePage from "./pages/MaintenancePage";
 import CaptacaoPage from "./pages/CaptacaoPage";
 import EnvBanner from "./components/EnvBanner";
+import AvisoDataDoEvento from "./components/admin/AvisoDataDoEvento";
 
 // Lê as variáveis de ambiente
 const isLocked = import.meta.env.VITE_SITE_LOCKED === "true";
@@ -31,6 +32,14 @@ function App() {
             interessados (sem código de acesso, fricção zero) */}
         <Route path="/interesse" element={<CaptacaoPage />} />
         <Route path="/admin/login" element={<LoginPage />} />
+        <Route
+          path="/__preview_aviso"
+          element={
+            <div style={{ padding: "40px", maxWidth: "900px", margin: "0 auto", background: "#faf7f0", minHeight: "100vh" }}>
+              <AvisoDataDoEvento />
+            </div>
+          }
+        />
         <Route
           path="/admin"
           element={
