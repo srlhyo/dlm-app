@@ -66,6 +66,42 @@ export const updateCliente = async (id, dados) => {
   return data;
 };
 
+// O que este evento arrasta consigo ao ser removido — para a Nádia
+// decidir com informação, ANTES de confirmar. Confirmado nas FKs reais
+// da BD (submissions):
+//   documentos.submission_id      → CASCADE   (apagam-se para sempre)
+//   evento_materiais.submission_id→ CASCADE   (reservas de stock só, sem dados a perder)
+//   notificacoes.submission_id    → CASCADE   (notificações antigas, sem interesse)
+//   reservas.submission_id        → SET NULL  (a reserva fica na Agenda, mas desliga-se)
+//   invites.submission_alvo_id    → SET NULL  (convite por preencher perde o alvo)
+//   invites.submission_id         → NO ACTION (BLOQUEIA: convite já preenchido aponta cá)
+export const getVinculosEvento = async (submissionId) => {
+  const [{ data: documentos, error: erroDocs }, { data: reservas, error: erroRes }] =
+    await Promise.all([
+      supabase.from("documentos").select("tipo").eq("submission_id", submissionId),
+      supabase
+        .from("reservas")
+        .select("id, estado")
+        .eq("submission_id", submissionId),
+    ]);
+  if (erroDocs) throw erroDocs;
+  if (erroRes) throw erroRes;
+  return { documentos: documentos || [], reservas: reservas || [] };
+};
+
+// Remove um evento (submission) — para os casos criados por engano.
+// Bloqueado pela BD (FK NO ACTION) só quando já existe um convite
+// preenchido a apontar para este evento (invites.submission_id); quem
+// chama trata o erro (código 23503). Documentos e reservas NÃO
+// bloqueiam — ver getVinculosEvento para avisar antes de apagar.
+export const deleteEvento = async (submissionId) => {
+  const { error } = await supabase
+    .from("submissions")
+    .delete()
+    .eq("id", submissionId);
+  if (error) throw error;
+};
+
 // Cria um evento novo (submission) JÁ LIGADO a um cliente existente —
 // o caminho da recorrência (Opção 3): nunca cria cliente, só evento.
 // O evento nasce na fase inicial do funil.

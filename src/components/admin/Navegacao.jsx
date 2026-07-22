@@ -1,4 +1,4 @@
-import logoUrl from "../../assets/logo.png";
+import LogoDourado from "../LogoDourado";
 
 // ============================================================
 // Navegacao — a casca de navegação da app.
@@ -158,6 +158,14 @@ export function Icone({ nome, tamanho = 18 }) {
           d="M12 4a5.5 5.5 0 00-5.5 5.5c0 4-1.5 5.5-2.5 6.5h16c-1-1-2.5-2.5-2.5-6.5A5.5 5.5 0 0012 4z"
         />
         <path {...t} d="M10 19.5a2 2 0 004 0" />
+      </>
+    ),
+    lixo: (
+      <>
+        <path {...t} d="M5 7h14" />
+        <path {...t} d="M9.5 7V5a1.5 1.5 0 011.5-1.5h2A1.5 1.5 0 0114.5 5v2" />
+        <path {...t} d="M7 7l.8 12.2A2 2 0 009.8 21h4.4a2 2 0 002-1.8L17 7" />
+        <path {...t} d="M10.2 11v6M13.8 11v6" />
       </>
     ),
   };
@@ -331,13 +339,11 @@ export function SidebarNav({
         overflowY: "auto",
       }}
     >
-      {/* O logo coroa a sidebar */}
+      {/* O logo coroa a sidebar — mesmo tratamento de luxo (halo,
+          raio de relógio, poeira de ouro, brilho nas letras) do hero
+          do formulário de interesse, ver LogoDourado.jsx */}
       <div style={{ textAlign: "center", marginBottom: "26px" }}>
-        <img
-          src={logoUrl}
-          alt="Do Luxo à Mesa"
-          style={{ width: "132px", height: "auto", margin: "0 auto" }}
-        />
+        <LogoDourado size={132} />
       </div>
 
       {/* A Caixa de Entrada coroa o menu: é o correio da casa */}

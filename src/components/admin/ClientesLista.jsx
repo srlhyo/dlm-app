@@ -3,6 +3,8 @@ import {
   getClientes,
   getClienteComEventos,
   createEventoParaCliente,
+  deleteEvento,
+  getVinculosEvento,
 } from "../../lib/clientes";
 import { FASE_LABEL, FASE_COR } from "./faseConfig";
 import FunilBoard from "./FunilBoard";
@@ -120,6 +122,14 @@ const faseDaPessoa = (c) => {
   return null;
 };
 
+// Rótulos dos tipos de documento — os mesmos da tab Documentos
+// (DocumentosTab.jsx). "proposta" é a chave interna; na UI é "Projecto".
+const TIPO_DOC_LABEL = {
+  orcamento: "Orçamento",
+  contrato: "Contrato",
+  proposta: "Projecto",
+};
+
 export default function ClientesLista({
   eventTypes = [],
   onAbrirEvento,
@@ -134,6 +144,10 @@ export default function ClientesLista({
   const [busca, setBusca] = useState("");
   const [criandoEvento, setCriandoEvento] = useState(false);
   const [perguntandoFase, setPerguntandoFase] = useState(false);
+  const [eventoParaRemover, setEventoParaRemover] = useState(null);
+  const [vinculosEvento, setVinculosEvento] = useState(null); // { documentos, reservas } | null enquanto verifica
+  const [erroRemoverEvento, setErroRemoverEvento] = useState(null);
+  const [removendoEvento, setRemovendoEvento] = useState(false);
 
   const carregar = async () => {
     setCarregando(true);
@@ -196,6 +210,52 @@ export default function ClientesLista({
       console.error(e);
     }
     setCriandoEvento(false);
+  };
+
+  // Abre a confirmação e, em paralelo, vai ver o que este evento arrasta
+  // consigo (documentos que se perdem, reservas que se desligam) — a
+  // Nádia decide já informada, não às escuras.
+  const pedirRemocaoEvento = async (ev) => {
+    setErroRemoverEvento(null);
+    setEventoParaRemover(ev);
+    setVinculosEvento(null);
+    try {
+      const v = await getVinculosEvento(ev.id);
+      setVinculosEvento(v);
+    } catch (e) {
+      console.error(e);
+      // Sem a lista de vínculos, mostra o aviso genérico à mesma —
+      // não bloqueia a remoção por a verificação ter falhado.
+      setVinculosEvento({ documentos: [], reservas: [] });
+    }
+  };
+
+  const handleConfirmarRemocaoEvento = async () => {
+    if (!eventoParaRemover || !aberto) return;
+    setRemovendoEvento(true);
+    setErroRemoverEvento(null);
+    try {
+      await deleteEvento(eventoParaRemover.id);
+      setEventoParaRemover(null);
+      setVinculosEvento(null);
+      await abrirCliente(aberto.id); // recarrega os eventos
+      await carregar(); // atualiza contagens na lista
+      if (onDadosMudaram) onDadosMudaram();
+    } catch (e) {
+      console.error(e);
+      // Código 23503 = violação de chave estrangeira — só acontece por
+      // um CONVITE já preenchido a apontar para este evento
+      // (invites.submission_id é NO ACTION; documentos e reservas já
+      // não bloqueiam, ver getVinculosEvento).
+      if (e.code === "23503") {
+        setErroRemoverEvento(
+          "Não é possível remover: há um convite/formulário já preenchido ligado a este evento.",
+        );
+      } else {
+        setErroRemoverEvento("Ocorreu um erro ao remover. Tenta novamente.");
+      }
+    }
+    setRemovendoEvento(false);
   };
 
   const filtrados = clientes.filter((c) => {
@@ -541,19 +601,51 @@ export default function ClientesLista({
                         {ev.local_evento ? ` · ${ev.local_evento}` : ""}
                       </p>
                     </div>
-                    <span
+                    <div
                       style={{
-                        fontSize: "11px",
-                        fontWeight: "600",
-                        padding: "3px 10px",
-                        borderRadius: "999px",
-                        backgroundColor: f.bg,
-                        color: f.cor,
-                        whiteSpace: "nowrap",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        flexShrink: 0,
                       }}
                     >
-                      {FASE_LABEL[ev.fase] || ev.fase}
-                    </span>
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: "600",
+                          padding: "3px 10px",
+                          borderRadius: "999px",
+                          backgroundColor: f.bg,
+                          color: f.cor,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {FASE_LABEL[ev.fase] || ev.fase}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          pedirRemocaoEvento(ev);
+                        }}
+                        title="Remover este evento"
+                        aria-label="Remover este evento"
+                        style={{
+                          width: "26px",
+                          height: "26px",
+                          flexShrink: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          borderRadius: "50%",
+                          border: "none",
+                          backgroundColor: "transparent",
+                          color: "var(--gray-mid)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <Icone nome="lixo" tamanho={14} />
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -676,6 +768,194 @@ export default function ClientesLista({
           </div>
         )}
       </div>
+
+      {/* Confirmação de remoção de evento — nunca window.confirm,
+          e nunca escondida dentro do detalhe (SubmissionDrawer): o
+          botão vive já na lista, aqui a confirmação só evita um
+          clique acidental a apagar um evento por engano. */}
+      {eventoParaRemover && (
+        <div
+          onClick={() => {
+            setEventoParaRemover(null);
+            setVinculosEvento(null);
+            setErroRemoverEvento(null);
+          }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 150,
+            backgroundColor: "rgba(0,0,0,0.35)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: "white",
+              borderRadius: "16px",
+              padding: "24px",
+              maxWidth: "400px",
+              width: "100%",
+              boxShadow: "0 8px 48px rgba(0,0,0,0.15)",
+            }}
+          >
+            <h3
+              style={{
+                fontSize: "16px",
+                color: "var(--charcoal)",
+                margin: "0 0 12px 0",
+                fontFamily: "Playfair Display, serif",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+              }}
+            >
+              Remover evento?
+            </h3>
+            <p
+              style={{
+                fontSize: "13px",
+                color: "var(--gray-mid)",
+                margin: "0 0 16px 0",
+                lineHeight: "1.6",
+              }}
+            >
+              O evento <strong>{nomeTipo(eventoParaRemover)}</strong>{" "}
+              {eventoParaRemover.data_evento
+                ? `(${formatarData(eventoParaRemover.data_evento)}) `
+                : ""}
+              de <strong>{aberto?.nome}</strong> vai ser removido. Esta acção
+              não pode ser anulada.
+            </p>
+
+            {vinculosEvento === null ? (
+              <p
+                style={{
+                  fontSize: "12px",
+                  color: "var(--gray-mid)",
+                  margin: "0 0 16px 0",
+                }}
+              >
+                A verificar o que está ligado a este evento...
+              </p>
+            ) : (
+              <>
+                {vinculosEvento.documentos.length > 0 && (
+                  <p
+                    style={{
+                      fontSize: "12px",
+                      color: "#B91C1C",
+                      backgroundColor: "#FEF2F2",
+                      border: "1px solid #FECACA",
+                      borderRadius: "8px",
+                      padding: "10px 14px",
+                      margin: "0 0 10px 0",
+                      lineHeight: "1.6",
+                    }}
+                  >
+                    ⚠ Este evento tem{" "}
+                    <strong>
+                      {vinculosEvento.documentos
+                        .map((d) => TIPO_DOC_LABEL[d.tipo] || d.tipo)
+                        .join(", ")}
+                    </strong>{" "}
+                    — {vinculosEvento.documentos.length === 1 ? "vai" : "vão"}{" "}
+                    ser apagado{vinculosEvento.documentos.length === 1 ? "" : "s"}{" "}
+                    definitivamente junto com o evento.
+                  </p>
+                )}
+                {vinculosEvento.reservas.length > 0 && (
+                  <p
+                    style={{
+                      fontSize: "12px",
+                      color: "#92400E",
+                      backgroundColor: "#FEF3E2",
+                      border: "1px solid #F0D9B5",
+                      margin: "0 0 10px 0",
+                      borderRadius: "8px",
+                      padding: "10px 14px",
+                      lineHeight: "1.6",
+                    }}
+                  >
+                    ℹ Há uma reserva na Agenda ligada a este evento — fica lá,
+                    mas desliga-se do evento removido.
+                  </p>
+                )}
+              </>
+            )}
+
+            {erroRemoverEvento && (
+              <p
+                style={{
+                  fontSize: "12px",
+                  color: "#EF4444",
+                  backgroundColor: "#FEF2F2",
+                  border: "1px solid #FECACA",
+                  borderRadius: "8px",
+                  padding: "10px 14px",
+                  margin: "0 0 16px 0",
+                }}
+              >
+                ⚠ {erroRemoverEvento}
+              </p>
+            )}
+            <div
+              style={{
+                display: "flex",
+                gap: "10px",
+                justifyContent: "flex-end",
+              }}
+            >
+              <button
+                onClick={() => {
+                  setEventoParaRemover(null);
+                  setVinculosEvento(null);
+                  setErroRemoverEvento(null);
+                }}
+                style={{
+                  padding: "10px 20px",
+                  borderRadius: "8px",
+                  fontSize: "13px",
+                  border: "1.5px solid var(--gold-light)",
+                  color: "var(--gray-mid)",
+                  backgroundColor: "white",
+                  cursor: "pointer",
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmarRemocaoEvento}
+                disabled={removendoEvento || vinculosEvento === null}
+                style={{
+                  padding: "10px 20px",
+                  borderRadius: "8px",
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  border: "none",
+                  backgroundColor:
+                    removendoEvento || vinculosEvento === null
+                      ? "#FCA5A5"
+                      : "#EF4444",
+                  color: "white",
+                  cursor:
+                    removendoEvento || vinculosEvento === null
+                      ? "not-allowed"
+                      : "pointer",
+                }}
+              >
+                {removendoEvento
+                  ? "A remover..."
+                  : vinculosEvento === null
+                    ? "A verificar..."
+                    : "Remover"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
