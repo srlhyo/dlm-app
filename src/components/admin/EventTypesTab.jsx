@@ -4,8 +4,7 @@ import EventTypeEditor, {
   toEditingSteps,
   blankEditingSteps,
 } from "./EventTypeEditor";
-import AvisoDataDoEvento from "./AvisoDataDoEvento";
-import AvisoMoradaDoEvento from "./AvisoMoradaDoEvento";
+import AvisosBloqueantes from "./AvisosBloqueantes";
 import { deleteEventType } from "../../lib/eventTypes";
 
 export default function EventTypesTab({ eventTypes, loading, onRefetch }) {
@@ -94,6 +93,7 @@ export default function EventTypesTab({ eventTypes, loading, onRefetch }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25 }}
     >
+      <AvisosBloqueantes pagina="modelos-evento">
       <div
         style={{
           display: "flex",
@@ -135,11 +135,6 @@ export default function EventTypesTab({ eventTypes, loading, onRefetch }) {
         >
           + Criar Tipo de Evento
         </button>
-      </div>
-
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "20px" }}>
-        <AvisoDataDoEvento />
-        <AvisoMoradaDoEvento />
       </div>
 
       {successMsg && (
@@ -574,6 +569,7 @@ export default function EventTypesTab({ eventTypes, loading, onRefetch }) {
           onSaved={handleSaved}
         />
       )}
+      </AvisosBloqueantes>
     </motion.div>
   );
 }
