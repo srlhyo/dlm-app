@@ -1,8 +1,10 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import { motion, AnimatePresence, animate } from "framer-motion";
 import { useCampoDocumento as useRascunho } from "./DocumentoProvider";
 import logoUrl from "../../../assets/logo.png";
 import { uploadImagemReferencia } from "../../../lib/captacao";
 import { guardarValorAcordado } from "../../../lib/clientes";
+import PainelDeslocacao from "./PainelDeslocacao";
 import {
   CATALOGO_SERVICOS,
   CONDICOES_ORCAMENTO,
@@ -11,6 +13,8 @@ import {
   formatarEuros,
   formatarDataPT,
   parsearValor,
+  inputStyle,
+  miniLabel,
 } from "./orcamentoConfig";
 
 // Substitui {N} pelo nº de lugares (ou remove o marcador se vazio)
@@ -151,6 +155,9 @@ export default function GerarOrcamento({
       descricaoTemplate: serv.descricaoTemplate,
       inclui: [...serv.inclui],
       temLugares: serv.temLugares,
+      // Deslocação: o Valor (€) passa a ser calculado pelo painel, nunca
+      // multiplicado — a Qtd fica presa a 1 (ver PainelDeslocacao.jsx).
+      ...(servicoId === "deslocacao" ? { qtd: 1 } : {}),
     });
   };
 
@@ -540,6 +547,31 @@ function LinhaServicoEditor({
   onAtualizarLugares,
   onRemover,
 }) {
+  const ehDeslocacao = linha.servicoId === "deslocacao";
+
+  // Transição visível quando o painel de deslocação escreve no Valor
+  // (€): o número CONTA do valor antigo para o novo, e um anel dourado
+  // pulsa à volta do campo — só para esta linha, só quando o valor
+  // muda por cálculo (não há animação nos outros serviços).
+  const valorAnteriorRef = useRef(parsearValor(linha.valor));
+  const [valorExibido, setValorExibido] = useState(() => parsearValor(linha.valor));
+  const [pulsar, setPulsar] = useState(0);
+
+  useEffect(() => {
+    if (!ehDeslocacao) return;
+    const alvo = parsearValor(linha.valor);
+    if (alvo === valorAnteriorRef.current) return;
+    const inicio = valorAnteriorRef.current;
+    valorAnteriorRef.current = alvo;
+    setPulsar((n) => n + 1);
+    const controls = animate(inicio, alvo, {
+      duration: 0.6,
+      ease: [0.22, 1, 0.36, 1],
+      onUpdate: setValorExibido,
+    });
+    return () => controls.stop();
+  }, [linha.valor, ehDeslocacao]);
+
   return (
     <div
       style={{
@@ -636,24 +668,78 @@ function LinhaServicoEditor({
         />
       )}
 
+      {/* Painel "Cálculo de deslocação" — só para o serviço Deslocação.
+          Trocar de serviço colapsa-o suavemente; ver PainelDeslocacao.jsx.
+          onAtualizar é o MESMO callback que qualquer outro campo desta
+          linha usa — o painel escreve o Valor (€) por aqui, sem caminho
+          paralelo de estado. */}
+      <AnimatePresence initial={false}>
+        {ehDeslocacao && (
+          <motion.div
+            key="painel-deslocacao"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+            style={{ overflow: "hidden" }}
+          >
+            <PainelDeslocacao linha={linha} onAtualizar={onAtualizar} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div style={{ display: "flex", gap: "8px" }}>
         <div style={{ flex: "0 0 70px" }}>
           <label style={miniLabel}>Qtd</label>
           <input
             type="text"
             inputMode="numeric"
-            style={inputStyle}
-            value={linha.qtd}
+            style={{
+              ...inputStyle,
+              ...(ehDeslocacao
+                ? { backgroundColor: "#F3F1EC", color: "var(--gray-mid)", cursor: "not-allowed" }
+                : {}),
+            }}
+            value={ehDeslocacao ? 1 : linha.qtd}
+            disabled={ehDeslocacao}
             onChange={(e) => onAtualizar({ qtd: e.target.value })}
           />
         </div>
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, position: "relative" }}>
           <label style={miniLabel}>Valor (€)</label>
+          {ehDeslocacao && (
+            <motion.span
+              key={pulsar}
+              aria-hidden="true"
+              initial={{ boxShadow: "0 0 0 0 rgba(201,168,76,0)" }}
+              animate={{
+                boxShadow: [
+                  "0 0 0 0 rgba(201,168,76,0)",
+                  "0 0 0 5px rgba(201,168,76,0.35)",
+                  "0 0 0 0 rgba(201,168,76,0)",
+                ],
+              }}
+              transition={{ duration: 0.9, ease: "easeOut" }}
+              style={{
+                position: "absolute",
+                inset: "20px 0 0 0",
+                borderRadius: "8px",
+                pointerEvents: "none",
+              }}
+            />
+          )}
           <input
             type="text"
             inputMode="decimal"
-            style={inputStyle}
-            value={linha.valor}
+            readOnly={ehDeslocacao}
+            style={{
+              ...inputStyle,
+              position: "relative",
+              ...(ehDeslocacao
+                ? { backgroundColor: "#FBF7EF", cursor: "default", fontWeight: "600" }
+                : {}),
+            }}
+            value={ehDeslocacao ? formatarEuros(valorExibido).replace("€", "") : linha.valor}
             onChange={(e) => onAtualizar({ valor: e.target.value })}
             placeholder="0"
           />
@@ -946,28 +1032,6 @@ function Campo({ label, children, flex }) {
     </div>
   );
 }
-
-const inputStyle = {
-  width: "100%",
-  padding: "9px 12px",
-  borderRadius: "8px",
-  border: "1.5px solid var(--gold-light)",
-  fontSize: "13px",
-  outline: "none",
-  fontFamily: "Inter, sans-serif",
-  boxSizing: "border-box",
-  backgroundColor: "white",
-};
-
-const miniLabel = {
-  fontSize: "11px",
-  fontWeight: "600",
-  textTransform: "uppercase",
-  letterSpacing: "0.05em",
-  color: "var(--charcoal)",
-  display: "block",
-  marginBottom: "5px",
-};
 
 const thStyle = {
   textAlign: "left",

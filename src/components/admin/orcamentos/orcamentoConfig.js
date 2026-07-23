@@ -108,3 +108,31 @@ export const formatarDataPT = (iso) => {
   if (!a || !m || !d) return iso;
   return `${d}/${m}/${a}`;
 };
+
+// ------------------------------------------------------------
+// Estilos partilhados dos formulários de orçamento — vivem aqui (não
+// no ficheiro do componente) para poderem ser importados por outros
+// ficheiros (ex: PainelDeslocacao.jsx) sem violar a regra do Fast
+// Refresh, que exige que um ficheiro de componente só exporte componentes.
+// ------------------------------------------------------------
+export const inputStyle = {
+  width: "100%",
+  padding: "9px 12px",
+  borderRadius: "8px",
+  border: "1.5px solid var(--gold-light)",
+  fontSize: "13px",
+  outline: "none",
+  fontFamily: "Inter, sans-serif",
+  boxSizing: "border-box",
+  backgroundColor: "white",
+};
+
+export const miniLabel = {
+  fontSize: "11px",
+  fontWeight: "600",
+  textTransform: "uppercase",
+  letterSpacing: "0.05em",
+  color: "var(--charcoal)",
+  display: "block",
+  marginBottom: "5px",
+};

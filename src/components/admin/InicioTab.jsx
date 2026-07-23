@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { getResumoSubmissao } from "../../lib/submissionFields";
 import { FASES_POS_SINAL } from "./faseConfig";
 import { formatarEuros } from "./orcamentos/orcamentoConfig";
 import CaptacaoForm from "../captacao/CaptacaoForm";
 import ErrosFormulario from "./ErrosFormulario";
+import ConsultaDeslocacao from "./ConsultaDeslocacao";
+import { Icone } from "./Navegacao";
 
 // ============================================================
 // InicioTab — a porta de entrada da app (bloco 12b).
@@ -73,6 +75,7 @@ export default function InicioTab({
   onDadosMudaram,
 }) {
   const [novoInteressado, setNovoInteressado] = useState(false);
+  const [consultaAberta, setConsultaAberta] = useState(false);
 
   // 3 colunas só quando há largura para elas (senão empilham)
   const [largura, setLargura] = useState(window.innerWidth);
@@ -279,10 +282,17 @@ export default function InicioTab({
           : ""}
       </p>
 
-      {/* Procura rápida */}
+      {/* Procura rápida + consulta de deslocação */}
       <div
-        style={{ position: "relative", maxWidth: "560px", margin: "-10px 0 22px 0" }}
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: "10px",
+          maxWidth: "560px",
+          margin: "-10px 0 22px 0",
+        }}
       >
+      <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
         <input
           type="text"
           value={busca}
@@ -394,6 +404,46 @@ export default function InicioTab({
             </div>
           </>
         )}
+      </div>
+
+        {/* Pílula "Deslocação" — abre a consulta rápida (popover), mesmo
+            padrão de fecho ao clicar fora que a pesquisa acima. Descartável:
+            o popover só monta enquanto está aberto, por isso reabre sempre
+            em branco. */}
+        <div style={{ position: "relative", flexShrink: 0 }}>
+          <button
+            type="button"
+            onClick={() => setConsultaAberta((v) => !v)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "7px",
+              padding: "10.5px 16px",
+              borderRadius: "999px",
+              fontSize: "13px",
+              fontWeight: consultaAberta ? "700" : "500",
+              border: `1.5px solid ${consultaAberta ? "var(--gold)" : "var(--gold-light)"}`,
+              backgroundColor: consultaAberta ? "var(--gold)" : "white",
+              color: consultaAberta ? "white" : "var(--charcoal)",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <Icone nome="pin" tamanho={14} />
+            Deslocação
+          </button>
+          <AnimatePresence>
+            {consultaAberta && (
+              <>
+                <div
+                  onClick={() => setConsultaAberta(false)}
+                  style={{ position: "fixed", inset: 0, zIndex: 40 }}
+                />
+                <ConsultaDeslocacao onFechar={() => setConsultaAberta(false)} />
+              </>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       {/* Próximo evento */}

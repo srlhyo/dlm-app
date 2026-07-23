@@ -168,6 +168,31 @@ export function Icone({ nome, tamanho = 18 }) {
         <path {...t} d="M10.2 11v6M13.8 11v6" />
       </>
     ),
+    alerta: (
+      <>
+        <path {...t} d="M12 3.8L21.5 20H2.5z" />
+        <path {...t} d="M12 9.5v5" />
+        <circle cx="12" cy="17.3" r="1" fill="currentColor" stroke="none" />
+      </>
+    ),
+    check: <path {...t} d="M4.5 12.5l5 5 10-10" />,
+    olhoFechado: (
+      <>
+        <path
+          {...t}
+          d="M3.5 12S6.8 5.5 12 5.5 20.5 12 20.5 12 17.2 18.5 12 18.5 3.5 12 3.5 12z"
+        />
+        <circle {...t} cx="12" cy="12" r="2.6" />
+        <path {...t} d="M4 20L20 4" />
+      </>
+    ),
+    setaBaixo: <path {...t} d="M12 4.5v14M6 13l6 5.5 6-5.5" />,
+    pin: (
+      <>
+        <path {...t} d="M12 21s-7-6.1-7-11a7 7 0 0114 0c0 4.9-7 11-7 11z" />
+        <circle {...t} cx="12" cy="10" r="2.5" />
+      </>
+    ),
   };
   return (
     <svg
