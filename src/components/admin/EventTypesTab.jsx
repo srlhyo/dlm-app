@@ -5,6 +5,7 @@ import EventTypeEditor, {
   blankEditingSteps,
 } from "./EventTypeEditor";
 import AvisoDataDoEvento from "./AvisoDataDoEvento";
+import AvisoMoradaDoEvento from "./AvisoMoradaDoEvento";
 import { deleteEventType } from "../../lib/eventTypes";
 
 export default function EventTypesTab({ eventTypes, loading, onRefetch }) {
@@ -136,7 +137,10 @@ export default function EventTypesTab({ eventTypes, loading, onRefetch }) {
         </button>
       </div>
 
-      <AvisoDataDoEvento />
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "20px" }}>
+        <AvisoDataDoEvento />
+        <AvisoMoradaDoEvento />
+      </div>
 
       {successMsg && (
         <p
