@@ -435,9 +435,10 @@ export const getDadosParaDocumento = async (submission, eventTypes) => {
     contacto: cliente?.contacto || ler("contactoPrincipal") || "",
     horaInicio: ler("horaInicio") || "",
     horaFim: ler("horaTermino") || "",
-    // O contrato quer a morada completa do espaço — a moradaExacta é a
-    // melhor candidata; senão, o local do evento.
-    localCompleto: ler("moradaExacta") || ler("localEvento") || "",
+    // O contrato (e o painel de deslocação do orçamento) querem a morada
+    // completa do espaço — o papel "morada" marcado no modelo é a fonte
+    // mais fiável; sem isso, cai nos campos ad-hoc de sempre.
+    localCompleto: resumo.morada || ler("moradaExacta") || ler("localEvento") || "",
     lugares: ler("numeroConvidados") || "",
     valor: submission.valor_acordado ?? "",
   };

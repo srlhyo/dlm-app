@@ -31,6 +31,7 @@ const TYPE_OPTIONS = [
   { value: "radio", label: "Escolha única (um botão)" },
   { value: "checkbox", label: "Escolha múltipla (vários botões)" },
   { value: "paleta", label: "Paleta de Cores 🎨" },
+  { value: "morada", label: "Morada / Endereço" },
 ];
 
 let uidSeq = 0;
@@ -413,7 +414,12 @@ function FieldRow({
             { value: "", label: "Nenhum" },
             { value: "data", label: "Data do evento" },
           ]
-        : null;
+        : field.type === "morada"
+          ? [
+              { value: "", label: "Nenhum" },
+              { value: "morada", label: "Morada do evento" },
+            ]
+          : null;
 
   return (
     <div
@@ -911,11 +917,13 @@ export default function EventTypeEditor({
   };
 
   const handleTypeChange = (stepUid, fieldUid, newType) => {
-    // Papéis válidos por tipo: texto pode ser título/local; data pode ser data.
-    // Ao mudar de tipo, um papel que já não faça sentido é limpo.
+    // Papéis válidos por tipo: texto pode ser título/local; data pode ser
+    // data; morada (o tipo estruturado) pode ser morada. Ao mudar de tipo,
+    // um papel que já não faça sentido é limpo.
     const papelValido = (papel) => {
       if (papel === "titulo" || papel === "local") return newType === "text";
       if (papel === "data") return newType === "date";
+      if (papel === "morada") return newType === "morada";
       return false;
     };
     setSteps((prev) =>

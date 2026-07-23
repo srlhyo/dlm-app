@@ -399,5 +399,66 @@ export default function FormField({
     );
   }
 
+  // morada (endereço partido nas partes que o compõem — o valor é
+  // sempre um objecto, nunca uma string solta; ver src/lib/morada.js).
+  // Só Rua e Localidade são obrigatórias (ver moradaValida em
+  // src/lib/morada.js) — por isso só essas duas mostram "*" e só essas
+  // acendem a vermelho quando faltam; os outros 3 sub-campos nunca são
+  // a causa do erro, por isso nunca ficam vermelhos.
+  if (field.type === "morada") {
+    const v = value && typeof value === "object" ? value : {};
+    const atualizar = (parte, val) =>
+      handleChange(field.id, { ...v, [parte]: val });
+    const vazioRua = !String(v.rua || "").trim();
+    const vazioLocalidade = !String(v.localidade || "").trim();
+    const subCampo = (parte, placeholder, flex = 1, comErro = false) => {
+      const estiloWrapper = {
+        border: `1px solid ${comErro ? "#F87171" : "var(--gold-light)"}`,
+        borderRadius: "8px",
+        backgroundColor: "white",
+        overflow: "hidden",
+        transition: "all 0.2s",
+        boxShadow: comErro ? "0 0 0 3px rgba(248,113,113,0.1)" : "none",
+        scrollMarginTop: "64px",
+      };
+      return (
+        <div style={{ flex }}>
+          <div className="field-wrapper" style={estiloWrapper}>
+            <input
+              value={v[parte] || ""}
+              placeholder={placeholder}
+              onChange={(e) => atualizar(parte, e.target.value)}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
+              style={inputStyle}
+            />
+          </div>
+        </div>
+      );
+    };
+    return (
+      <div>
+        <Label />
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <div style={{ display: "flex", gap: "8px" }}>
+            {subCampo("rua", field.required ? "Rua *" : "Rua", 2, hasError && vazioRua)}
+            {subCampo("numero", "Nº porta", 1)}
+          </div>
+          {subCampo("andar", "Andar / Fração (opcional)")}
+          <div style={{ display: "flex", gap: "8px" }}>
+            {subCampo("codigoPostal", "Código postal", 1)}
+            {subCampo(
+              "localidade",
+              field.required ? "Localidade *" : "Localidade",
+              2,
+              hasError && vazioLocalidade,
+            )}
+          </div>
+        </div>
+        <ErrorMessage error={error} />
+      </div>
+    );
+  }
+
   return null;
 }

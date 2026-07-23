@@ -33,14 +33,22 @@ const formatKm = (n) => {
   return Number.isInteger(arredondado) ? String(arredondado) : arredondado.toFixed(1);
 };
 
-export default function PainelDeslocacao({ linha, onAtualizar }) {
+export default function PainelDeslocacao({ linha, moradaPrefill, onAtualizar }) {
   // Hidrata do que foi persistido na linha (se este evento já tinha um
   // cálculo de deslocação gravado) — só na PRIMEIRA renderização deste
   // componente (o painel remonta de cada vez que a linha entra em
   // "deslocacao", ver AnimatePresence em GerarOrcamento.jsx), por isso
   // o initializer do useState é o sítio certo: nunca mais relê depois.
+  //
+  // Prioridade da morada inicial: 1) o que já foi calculado/gravado
+  // NESTA linha; 2) a morada do PRÓPRIO evento (campo com papel
+  // "morada" no modelo, ou os campos ad-hoc antigos — ver
+  // getResumoSubmissao) — poupa a Nádia de a reescrever à mão numa
+  // linha nova; 3) em branco. Nunca dispara o cálculo sozinho — só
+  // pré-preenche o texto, o clique em "Calcular distância" continua a
+  // ser dela.
   const persistido = linha?.deslocacao;
-  const [morada, setMorada] = useState(persistido?.morada || "");
+  const [morada, setMorada] = useState(persistido?.morada || moradaPrefill || "");
   const [distancia, setDistancia] = useState(
     persistido?.distanciaKm != null ? String(persistido.distanciaKm) : "",
   ); // string do input; "" = sem valor

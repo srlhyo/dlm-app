@@ -1,3 +1,5 @@
+import { moradaValida } from './morada'
+
 // ─── Validadores individuais ───
 
 // Aceita números portugueses (9 dígitos, com ou sem +351/00351) e
@@ -45,6 +47,15 @@ export const validateField = (field, value) => {
 
   if (field.type === 'radio') {
     if (field.required && !value) {
+      return field.errorMsg
+    }
+    return null
+  }
+
+  // Morada — objecto com partes (String(objecto) não detecta vazio,
+  // por isso precisa de verificação própria, não pode cair no fallback)
+  if (field.type === 'morada') {
+    if (field.required && !moradaValida(value)) {
       return field.errorMsg
     }
     return null

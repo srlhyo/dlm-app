@@ -1,3 +1,5 @@
+import { formatarMorada } from "./morada";
+
 // Mapa entre as colunas antigas (snake_case, escritas à medida do
 // Casamento) e os IDs dos campos do formulário (camelCase).
 const FIELD_MAP = {
@@ -82,14 +84,18 @@ export function normalizeSubmission(s) {
 }
 
 // ============================================================
-// getResumoSubmissao — título, data e LOCAL de QUALQUER submissão,
-// independentemente do modelo de evento.
+// getResumoSubmissao — título, data, LOCAL e MORADA de QUALQUER
+// submissão, independentemente do modelo de evento.
 //
 // Prioridade de leitura, em três camadas (da mais fiável para o
 // último recurso):
 //   1. Colunas fixas (Casamento / submissões editadas à mão)
-//   2. PAPÉIS marcados no modelo (papel: "titulo" | "local" | "data")
-//   3. Fallback por TYPE dos campos (comportamento antigo)
+//   2. PAPÉIS marcados no modelo (papel: "titulo" | "local" | "morada" | "data")
+//   3. Fallback por TYPE dos campos — MORADA cai primeiro para o
+//      primeiro campo do tipo "morada" (não é preciso marcar o papel só
+//      para haver UM campo morada por modelo, o caso normal), depois
+//      para os campos ad-hoc "moradaExacta"/"localEvento" de antes deste
+//      tipo existir.
 //
 // A camada 2 é a novidade. A 3 garante RETROCOMPATIBILIDADE: modelos
 // sem papéis marcados comportam-se exactamente como antes, por isso
@@ -110,7 +116,8 @@ function valorTexto(respostas, campoId) {
 }
 
 export function getResumoSubmissao(submissao, eventTypes) {
-  if (!submissao) return { titulo: "Evento", data: null, local: null };
+  if (!submissao)
+    return { titulo: "Evento", data: null, local: null, morada: null };
 
   const tipo = eventTypes?.find((et) => et.id === submissao.event_type_id);
   const campos = camposDoModelo(tipo);
@@ -176,6 +183,45 @@ export function getResumoSubmissao(submissao, eventTypes) {
   }
 
   // ---------------------------------------------------------------
+  // MORADA (o endereço completo do evento — alimenta o cálculo de
+  // deslocação no orçamento; não é o mesmo que LOCAL, que pode ser só
+  // o nome do espaço, ex: "Quinta dos Rosais")
+  // ---------------------------------------------------------------
+  // O valor de um campo "morada" é sempre um OBJECTO (o tipo estruturado,
+  // ver morada.js), por isso passa por formatarMorada — nunca por
+  // valorTexto, que só serve para valores texto/array.
+  let morada = null;
+  // 1) campo marcado com papel "morada" (desambigua se houver mais do
+  //    que um campo do tipo morada no modelo)
+  if (campos.length) {
+    const campoMorada = campos.find((f) => f.papel === "morada");
+    if (campoMorada) {
+      const v = formatarMorada(respostas?.[campoMorada.id]);
+      if (v) morada = v;
+    }
+  }
+  // 2) fallback por TYPE: o primeiro campo do tipo "morada" preenchido —
+  //    na prática só há um por modelo, por isso não devia ser preciso
+  //    marcar o papel à parte para isto funcionar (mesmo critério já
+  //    usado para "data", ver acima).
+  if (!morada && campos.length) {
+    const campoMoradaPorTipo = campos.find((f) => f.type === "morada");
+    if (campoMoradaPorTipo) {
+      const v = formatarMorada(respostas?.[campoMoradaPorTipo.id]);
+      if (v) morada = v;
+    }
+  }
+  // 3) fallback: campos ad-hoc mais antigos que já guardavam a morada
+  //    exacta do espaço por convenção de nome, de antes deste tipo existir
+  if (!morada) {
+    morada =
+      getValorAtual(submissao, "moradaExacta") ||
+      getValorAtual(submissao, "localEvento") ||
+      null;
+    if (typeof morada !== "string" || !morada.trim()) morada = null;
+  }
+
+  // ---------------------------------------------------------------
   // DATA
   // ---------------------------------------------------------------
   // 1) coluna fixa
@@ -195,5 +241,5 @@ export function getResumoSubmissao(submissao, eventTypes) {
     }
   }
 
-  return { titulo, data, local };
+  return { titulo, data, local, morada };
 }

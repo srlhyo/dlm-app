@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabase";
 import { getValorAtual, getResumoSubmissao } from "../../lib/submissionFields";
 import { marcarPagamentoFinal } from "../../lib/clientes";
 import { iniciarTour, tourJaVista } from "../../lib/tour";
+import { formatarMorada } from "../../lib/morada";
 import {
   getTipoEventoLivre,
   precisaClassificacao,
@@ -126,9 +127,11 @@ function seccoesDoModelo(tipo) {
   }));
 }
 
-// Formata um valor para leitura (arrays viram lista separada por vírgulas).
+// Formata um valor para leitura (arrays viram lista separada por vírgulas;
+// objectos — hoje só a morada — viram a morada composta numa linha).
 function formatarValor(v) {
   if (Array.isArray(v)) return v.join(", ");
+  if (v && typeof v === "object") return formatarMorada(v);
   return v;
 }
 
@@ -1208,6 +1211,53 @@ function CampoEdicao({ campo, valor, onChange }) {
       <div>
         {label}
         <SeletorPaleta value={valor} onChange={onChange} compact />
+      </div>
+    );
+  }
+
+  // Morada (endereço partido nas partes que o compõem — ver src/lib/morada.js)
+  if (campo.type === "morada") {
+    const v = valor && typeof valor === "object" ? valor : {};
+    const atualizar = (parte, val) => onChange({ ...v, [parte]: val });
+    return (
+      <div>
+        {label}
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          <div style={{ display: "flex", gap: "6px" }}>
+            <input
+              placeholder="Rua"
+              value={v.rua || ""}
+              onChange={(e) => atualizar("rua", e.target.value)}
+              style={{ ...inputStyle, flex: 2 }}
+            />
+            <input
+              placeholder="Nº porta"
+              value={v.numero || ""}
+              onChange={(e) => atualizar("numero", e.target.value)}
+              style={{ ...inputStyle, flex: 1 }}
+            />
+          </div>
+          <input
+            placeholder="Andar / Fração (opcional)"
+            value={v.andar || ""}
+            onChange={(e) => atualizar("andar", e.target.value)}
+            style={inputStyle}
+          />
+          <div style={{ display: "flex", gap: "6px" }}>
+            <input
+              placeholder="Código postal"
+              value={v.codigoPostal || ""}
+              onChange={(e) => atualizar("codigoPostal", e.target.value)}
+              style={{ ...inputStyle, flex: 1 }}
+            />
+            <input
+              placeholder="Localidade"
+              value={v.localidade || ""}
+              onChange={(e) => atualizar("localidade", e.target.value)}
+              style={{ ...inputStyle, flex: 2 }}
+            />
+          </div>
+        </div>
       </div>
     );
   }

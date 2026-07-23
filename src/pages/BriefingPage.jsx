@@ -8,6 +8,7 @@ import {
   getResumoSubmissao,
 } from "../lib/submissionFields";
 import { normalizarCores } from "../components/admin/SeletorPaleta";
+import { formatarMorada } from "../lib/morada";
 
 // ============================================================
 // BriefingPage — o resumo imprimível de UM evento.
@@ -96,7 +97,8 @@ function IconPrint() {
   );
 }
 
-// Um valor de resposta vira texto imprimível (arrays, paletas, sim/não)
+// Um valor de resposta vira texto imprimível (arrays, paletas, sim/não,
+// morada — o único tipo cujo valor é um objecto com partes, ver morada.js)
 function paraTexto(valor) {
   if (valor === null || valor === undefined) return "";
   if (Array.isArray(valor)) {
@@ -106,6 +108,7 @@ function paraTexto(valor) {
       .join(", ");
   }
   if (typeof valor === "boolean") return valor ? "Sim" : "Não";
+  if (valor && typeof valor === "object") return formatarMorada(valor);
   return String(valor);
 }
 
@@ -244,7 +247,7 @@ function Field({ label, value, largo = false, paleta = null }) {
 }
 
 // Campos "largos" no papel: textos longos e listas ficam a toda a largura
-const TIPOS_LARGOS = ["textarea", "checkbox", "paleta"];
+const TIPOS_LARGOS = ["textarea", "checkbox", "paleta", "morada"];
 
 // A secção da captação — as chaves canónicas que podem não estar no
 // modelo (a primeira conversa com o cliente também é briefing)

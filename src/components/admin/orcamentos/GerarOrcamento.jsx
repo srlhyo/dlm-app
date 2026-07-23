@@ -371,6 +371,7 @@ export default function GerarOrcamento({
               linha={l}
               indice={idx + 1}
               podeRemover={linhas.length > 1}
+              moradaPrefill={prefill?.localCompleto}
               onEscolherServico={(sid) => escolherServico(l.uid, sid)}
               onAtualizar={(campos) => atualizarLinha(l.uid, campos)}
               onAtualizarLugares={(n) => atualizarLugares(l.uid, n)}
@@ -542,6 +543,7 @@ function LinhaServicoEditor({
   linha,
   indice,
   podeRemover,
+  moradaPrefill,
   onEscolherServico,
   onAtualizar,
   onAtualizarLugares,
@@ -683,7 +685,11 @@ function LinhaServicoEditor({
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             style={{ overflow: "hidden" }}
           >
-            <PainelDeslocacao linha={linha} onAtualizar={onAtualizar} />
+            <PainelDeslocacao
+              linha={linha}
+              moradaPrefill={moradaPrefill}
+              onAtualizar={onAtualizar}
+            />
           </motion.div>
         )}
       </AnimatePresence>
