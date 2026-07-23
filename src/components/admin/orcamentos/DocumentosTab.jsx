@@ -4,6 +4,7 @@ import GerarContrato from "./GerarContrato";
 import GerarProposta from "./GerarProposta";
 import { DocumentoProvider } from "./DocumentoProvider";
 import { formatarDataPT } from "./orcamentoConfig";
+import AvisosBloqueantes from "../AvisosBloqueantes";
 
 // ============================================================
 // DocumentosTab — agrupa a geração de Orçamento e Contrato sob o
@@ -147,13 +148,15 @@ export default function DocumentosTab({
           Cada um vive no seu DocumentoProvider (tipo + evento), que
           carrega/migra o documento antes de o montar. */}
       <div style={{ display: sub === "orcamento" ? "block" : "none" }}>
-        <DocumentoProvider tipo="orcamento" submissionId={submissionId}>
-          <GerarOrcamento
-            prefill={contexto}
-            ativo={ativo && sub === "orcamento"}
-            onDadosMudaram={onDadosMudaram}
-          />
-        </DocumentoProvider>
+        <AvisosBloqueantes pagina="orcamento">
+          <DocumentoProvider tipo="orcamento" submissionId={submissionId}>
+            <GerarOrcamento
+              prefill={contexto}
+              ativo={ativo && sub === "orcamento"}
+              onDadosMudaram={onDadosMudaram}
+            />
+          </DocumentoProvider>
+        </AvisosBloqueantes>
       </div>
       <div style={{ display: sub === "contrato" ? "block" : "none" }}>
         <DocumentoProvider tipo="contrato" submissionId={submissionId}>

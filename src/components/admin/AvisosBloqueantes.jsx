@@ -209,6 +209,118 @@ function LinhaDestino({ icon, nome, sub, desbloqueado, delay = 0 }) {
   );
 }
 
+/* ---------- extras opcionais: vantagens + demonstração de cálculo ----------
+   Reservados a avisos "em destaque" (ver `vantagens`/`demoCalculo` no
+   registo) — a funcionalidade mais importante de cada leva merece mais
+   do que uma linha de destino a desbloquear; merece mostrar-se a
+   funcionar. */
+
+function ListaVantagens({ itens }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "9px", margin: "4px 0 18px" }}>
+      {itens.map((texto, i) => (
+        <motion.div
+          key={texto}
+          initial={{ opacity: 0, x: -8 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.1 + i * 0.09, duration: 0.35, ease: EASE }}
+          style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}
+        >
+          <span
+            style={{
+              flexShrink: 0,
+              marginTop: "2px",
+              width: "17px",
+              height: "17px",
+              borderRadius: "50%",
+              background: "linear-gradient(135deg,#e0b93f,#c39420)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <IconCheck size={9} />
+          </span>
+          <span style={{ fontSize: "13.5px", lineHeight: 1.55, color: "var(--charcoal)", fontFamily: SANS }}>
+            {texto}
+          </span>
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
+function Pastilha({ children, resultado }) {
+  return (
+    <span
+      style={{
+        padding: resultado ? "6px 13px" : "5px 11px",
+        borderRadius: "8px",
+        fontSize: resultado ? "15px" : "12px",
+        fontWeight: "700",
+        whiteSpace: "nowrap",
+        fontFamily: resultado ? SERIF : SANS,
+        ...(resultado
+          ? { background: "linear-gradient(160deg,#fffdf5,#fbf2d6)", border: "1px solid var(--gold)", color: "#7a5f16" }
+          : { background: "#fbf7ef", border: "1px solid #f0e6d0", color: "var(--charcoal)" }),
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function DemoCalculo({ demo }) {
+  const [mostrar, setMostrar] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setMostrar(true), 550);
+    return () => clearTimeout(t);
+  }, []);
+
+  const pctTramado = Math.min(100, (demo.kmIncluidos / demo.distanciaKm) * 100);
+  const pctDourado = 100 - pctTramado;
+
+  return (
+    <div style={{ background: "#fffdf5", border: "1px solid #e7c65c", borderRadius: "14px", padding: "16px 16px 14px", marginBottom: "18px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10.5px", color: "var(--gray-mid)", marginBottom: "7px", fontFamily: SANS, letterSpacing: "0.04em" }}>
+        <span>BASE · 0 KM</span>
+        <span>EVENTO · {demo.distanciaKm} KM</span>
+      </div>
+      <div style={{ display: "flex", height: "10px", borderRadius: "999px", overflow: "hidden", border: "1px solid #ece3ce", marginBottom: "14px" }}>
+        <div
+          style={{
+            width: `${pctTramado}%`,
+            backgroundImage: "repeating-linear-gradient(135deg, #ede2c0 0px, #ede2c0 5px, #f7f0dd 5px, #f7f0dd 10px)",
+          }}
+        />
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: mostrar ? `${pctDourado}%` : 0 }}
+          transition={{ duration: 0.8, ease: EASE }}
+          style={{ background: "linear-gradient(90deg, #e8d5a3, #a8842c)" }}
+        />
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: "7px", flexWrap: "wrap", justifyContent: "center" }}>
+        <Pastilha>{demo.kmIncluidos} km incluídos</Pastilha>
+        <span style={{ fontSize: "12px", color: "var(--gray-mid)" }}>+</span>
+        <Pastilha>{demo.kmForaDoRaio} km fora do raio</Pastilha>
+        <span style={{ fontSize: "12px", color: "var(--gray-mid)" }}>×</span>
+        <Pastilha>{demo.euroPorKm} €/km</Pastilha>
+        <span style={{ fontSize: "12px", color: "var(--gray-mid)" }}>=</span>
+        <motion.span
+          initial={{ scale: 0.7, opacity: 0 }}
+          animate={{ scale: mostrar ? 1 : 0.7, opacity: mostrar ? 1 : 0 }}
+          transition={{ delay: 0.65, duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
+          style={{ display: "inline-flex" }}
+        >
+          <Pastilha resultado>{demo.custo} €</Pastilha>
+        </motion.span>
+      </div>
+    </div>
+  );
+}
+
 /* ---------- o conteúdo de um aviso, dentro do assistente ---------- */
 
 function ConteudoAviso({ aviso }) {
@@ -233,15 +345,20 @@ function ConteudoAviso({ aviso }) {
         </div>
       </div>
 
-      <p style={{ fontSize: "14px", lineHeight: 1.65, color: "var(--gray-mid)", fontFamily: SANS, margin: "0 0 18px" }}>
+      <p style={{ fontSize: "14px", lineHeight: 1.65, color: "var(--gray-mid)", fontFamily: SANS, margin: "0 0 16px" }}>
         {aviso.resumo}
       </p>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-        {aviso.destinos.map((d, i) => (
-          <LinhaDestino key={d.nome} {...d} desbloqueado={desbloqueado} delay={i * 0.12} />
-        ))}
-      </div>
+      {aviso.vantagens && <ListaVantagens itens={aviso.vantagens} />}
+      {aviso.demoCalculo && <DemoCalculo demo={aviso.demoCalculo} />}
+
+      {aviso.destinos?.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          {aviso.destinos.map((d, i) => (
+            <LinhaDestino key={d.nome} {...d} desbloqueado={desbloqueado} delay={i * 0.12} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -287,7 +404,7 @@ function Assistente({ avisos, onFechar, onReconhecerUm }) {
         transition={{ duration: 0.35, ease: EASE }}
         style={{
           width: "100%",
-          maxWidth: "480px",
+          maxWidth: "520px",
           maxHeight: "92vh",
           overflowY: "auto",
           background: "linear-gradient(160deg, #fffdf8 0%, #fdf7ea 100%)",

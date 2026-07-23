@@ -125,6 +125,42 @@ export const AVISOS = [
       },
     ],
   },
+  {
+    id: "calculo-deslocacao-orcamento-v1",
+    pagina: "orcamento",
+    icon: "deslocacao",
+    // Um aviso "em destaque" — a funcionalidade mais importante desta
+    // leva merece mais do que uma linha a desbloquear: merece mostrar-se
+    // a funcionar. `vantagens` e `demoCalculo` são só usados por este
+    // (ver ConteudoAviso em AvisosBloqueantes.jsx) — opcionais para
+    // avisos normais.
+    titulo: "Cálculo de Deslocação: a funcionalidade que muda o jogo",
+    resumo:
+      "Até agora, calcular a deslocação de um evento significava saberes a distância de cor, ires à calculadora, e escreveres o valor à mão na linha do orçamento — com espaço para erro em cada passo. Isso acabou.",
+    vantagens: [
+      "Não precisas de saber a distância — escreve só a morada e a ferramenta calcula-a sozinha.",
+      "Não fazes contas — a fórmula (5 km grátis, o resto a 1€ ou 2€/km consoante os troços) aplica-se sozinha.",
+      "O valor entra sozinho na linha do orçamento — sem copiar, sem escrever, sem esquecer.",
+      "Cobre montagem véspera (4 troços) e ida-e-volta no mesmo dia (2 troços), sem cálculo à parte.",
+      "Podes oferecer a deslocação com um interruptor — o valor original fica visível, riscado, para se saber que foi uma oferta.",
+      "Se a morada já estiver no modelo do evento, chega pré-preenchida — nem escreves nada.",
+    ],
+    // O mesmo exemplo que já tinhas visto a funcionar: 30,8 km, 4 troços.
+    demoCalculo: {
+      distanciaKm: 30.8,
+      kmIncluidos: 5,
+      kmForaDoRaio: 25.8,
+      euroPorKm: 2,
+      custo: "51,60",
+    },
+    destinos: [
+      {
+        icon: "deslocacao",
+        nome: "Valor da Linha",
+        sub: "preenchido sozinho, sem escrever nada",
+      },
+    ],
+  },
 ];
 
 // Só os avisos desta página, ainda por reconhecer — a mesma lista serve
