@@ -193,6 +193,12 @@ export function Icone({ nome, tamanho = 18 }) {
         <circle {...t} cx="12" cy="10" r="2.5" />
       </>
     ),
+    lapis: (
+      <>
+        <path {...t} d="M4 20l.9-4L16 4.9a1.6 1.6 0 012.3 0l.8.8a1.6 1.6 0 010 2.3L8 19l-4 1z" />
+        <path {...t} d="M14 6.9L17.1 10" />
+      </>
+    ),
   };
   return (
     <svg

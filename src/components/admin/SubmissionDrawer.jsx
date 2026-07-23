@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../lib/supabase";
 import { getValorAtual, getResumoSubmissao } from "../../lib/submissionFields";
 import { marcarPagamentoFinal } from "../../lib/clientes";
+import { iniciarTour, tourJaVista } from "../../lib/tour";
 import {
   getTipoEventoLivre,
   precisaClassificacao,
@@ -15,6 +16,7 @@ import { formatarEuros } from "./orcamentos/orcamentoConfig";
 import SeletorPaleta, { AmostraPaleta } from "./SeletorPaleta";
 import MensagensSheet from "./MensagensSheet";
 import { linkWhatsApp } from "../../lib/mensagens";
+import { Icone } from "./Navegacao";
 
 // ============================================================
 // SubmissionDrawer — painel lateral de detalhes de um evento.
@@ -148,6 +150,29 @@ export default function SubmissionDrawer({
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState({});
   const [saving, setSaving] = useState(false);
+
+  // Guia interativo — a dica visual (sublinhado + hover) sozinha não
+  // estava a ser óbvia o suficiente; isto aponta mesmo para o campo, uma
+  // única vez por browser, na primeira vez que a Nádia abre um evento.
+  // Dispara depois do slide-in da drawer assentar (mesmo temporizador
+  // que o FormPage.jsx usa para a tour do formulário público).
+  useEffect(() => {
+    if (!selected || tourJaVista("data-evento")) return;
+    const temporizador = setTimeout(() => {
+      iniciarTour("data-evento", [
+        {
+          element: "#tour-data-evento",
+          popover: {
+            title: "A data é editável",
+            description:
+              "Clica aqui a qualquer momento para corrigir a data deste evento.",
+          },
+        },
+      ]);
+    }, 500);
+    return () => clearTimeout(temporizador);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected?.id]);
 
   if (!selected) return <AnimatePresence />;
 
@@ -939,25 +964,55 @@ function DataEventoEditor({ submissao, campoData, onSaved }) {
   }
 
   return (
-    <button
+    // O sublinhado pontilhado é o sinal de "isto edita-se" mesmo sem
+    // rato por perto (não dá para a Nádia adivinhar só pela cor herdada
+    // do texto à volta); o dourado + o lápis a aparecer no hover
+    // confirmam a intenção assim que ela se aproxima.
+    <motion.button
+      id="tour-data-evento"
       onClick={() => setAEditar(true)}
       title="Editar a data do evento"
+      initial="rest"
+      whileHover="hover"
+      whileTap={{ scale: 0.97 }}
+      variants={{
+        rest: { backgroundColor: "rgba(201,168,76,0)", color: "#6b6b6b" },
+        hover: { backgroundColor: "rgba(201,168,76,0.14)", color: "#A07830" },
+      }}
+      transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
       style={{
         fontSize: "13px",
-        color: "inherit",
         font: "inherit",
-        background: "none",
         border: "none",
-        padding: 0,
+        borderRadius: "6px",
+        padding: "2px 6px",
+        margin: "-2px 0 -2px -6px",
         cursor: "pointer",
         display: "inline-flex",
         alignItems: "center",
         gap: "5px",
       }}
     >
-      {formatData(submissao.data_evento)}
-      <span style={{ fontSize: "11px", opacity: 0.7 }}>✏️</span>
-    </button>
+      <span
+        style={{
+          textDecoration: "underline",
+          textDecorationStyle: "dotted",
+          textUnderlineOffset: "3px",
+        }}
+      >
+        {formatData(submissao.data_evento)}
+      </span>
+      <motion.span
+        variants={{
+          rest: { opacity: 0.5, scale: 0.85 },
+          hover: { opacity: 1, scale: 1 },
+        }}
+        transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+        style={{ display: "inline-flex" }}
+      >
+        <Icone nome="lapis" tamanho={12} />
+      </motion.span>
+    </motion.button>
   );
 }
 
