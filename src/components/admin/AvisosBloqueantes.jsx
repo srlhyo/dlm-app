@@ -515,21 +515,64 @@ export default function AvisosBloqueantes({ pagina, children }) {
       {bloqueado && (
         <>
           <BarraAviso pendentes={pendentes} onClick={abrir} />
-          {/* o texto que pede, sem pedir desculpa, para ser lido —
-              fica por baixo da barra, sempre visível mesmo antes de
-              clicar. */}
-          <p
+          {/* o texto que pede, sem pedir desculpa, para ser lido — ganha
+              o seu próprio cartão (não é uma legenda pequena por baixo
+              da barra: é a segunda voz a falar, e tem de se notar tanto
+              quanto a primeira). */}
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35, duration: 0.5, ease: EASE }}
             style={{
-              margin: "0 0 20px",
-              fontFamily: SERIF,
-              fontStyle: "italic",
-              fontSize: "13.5px",
-              color: "#8a6d1e",
+              position: "relative",
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "12px",
+              padding: "14px 18px",
+              marginBottom: "20px",
+              borderRadius: "12px",
+              background: "linear-gradient(135deg, #fdf7ea 0%, #fbf0d4 100%)",
+              border: "1.5px solid #e0b93f",
+              boxShadow: "0 10px 26px -16px rgba(180,140,40,0.55)",
             }}
           >
-            Sei que parece só mais um aviso — mas este não. Lê-o, a sério:
-            são segundos hoje que poupam horas mais tarde.
-          </p>
+            <span
+              aria-hidden="true"
+              style={{
+                flexShrink: 0,
+                fontFamily: SERIF,
+                fontSize: "30px",
+                lineHeight: "0.6",
+                color: "#c9a227",
+                marginTop: "10px",
+              }}
+            >
+              “
+            </span>
+            <p
+              style={{
+                margin: 0,
+                fontFamily: SERIF,
+                fontStyle: "italic",
+                fontSize: "15px",
+                lineHeight: 1.55,
+                color: "#7a5f16",
+              }}
+            >
+              Sei que parece só mais um aviso —{" "}
+              <strong
+                style={{
+                  fontStyle: "normal",
+                  fontWeight: 700,
+                  color: "#5c4610",
+                  boxShadow: "inset 0 -0.4em 0 rgba(211,167,44,0.35)",
+                }}
+              >
+                mas este não
+              </strong>
+              . Lê-o, a sério: são segundos hoje que poupam horas mais tarde.
+            </p>
+          </motion.div>
         </>
       )}
 
