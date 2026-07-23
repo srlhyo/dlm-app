@@ -1,0 +1,21 @@
+# Controlo de cache do Netlify — resolve o "tenho de fazer hard reload
+# depois de cada deploy".
+#
+# O Vite gera os ficheiros de /assets com um hash no nome (ex:
+# index-C6tSFI1i.js) — um deploy novo gera um NOME novo, nunca reescreve
+# um já existente. Por isso podem ficar em cache "para sempre" sem
+# nenhum risco de ficarem desactualizados.
+#
+# O index.html é o oposto: é sempre o MESMO nome, e é ele que aponta
+# para os ficheiros com hash certos da versão actual. Se o browser
+# guardar uma cópia antiga do index.html, fica preso a apontar para
+# ficheiros de uma versão anterior — só um hard reload (que ignora toda
+# a cache) revelava a versão nova. Com isto, o browser passa a
+# confirmar sempre com o servidor antes de usar a cópia que tem —
+# refresh normal já chega.
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/*
+  Cache-Control: public, max-age=0, must-revalidate
