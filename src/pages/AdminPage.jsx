@@ -14,6 +14,7 @@ import CampoSeletor from "../components/admin/CampoSeletor";
 import SubmissionDrawer from "../components/admin/SubmissionDrawer";
 import DashboardTab from "../components/admin/DashboardTab";
 import ClientesLista from "../components/admin/ClientesLista";
+import AvisosBloqueantes from "../components/admin/AvisosBloqueantes";
 import DeleteInviteModal from "../components/admin/DeleteInviteModal";
 import ShareSheet from "../components/admin/ShareSheet";
 import CalendarioTab from "../components/admin/CalendarioTab";
@@ -826,12 +827,14 @@ export default function AdminPage() {
 
         {/* ---- TAB CLIENTES ---- */}
         {activeTab === "clientes" && (
-          <ClientesLista
-            eventTypes={eventTypes}
-            onAbrirEvento={(ev) => setSelected(ev)}
-            onDadosMudaram={fetchSubmissions}
-            refrescarEm={funilVersao}
-          />
+          <AvisosBloqueantes pagina="clientes">
+            <ClientesLista
+              eventTypes={eventTypes}
+              onAbrirEvento={(ev) => setSelected(ev)}
+              onDadosMudaram={fetchSubmissions}
+              refrescarEm={funilVersao}
+            />
+          </AvisosBloqueantes>
         )}
 
         {/* ---- TAB CONVITES (label Formulários) ---- */}

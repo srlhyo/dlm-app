@@ -136,6 +136,25 @@ function IconEtiqueta({ color }) {
   );
 }
 
+function IconLixo({ color }) {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 7h14" />
+      <path d="M9.5 7V5a1.5 1.5 0 011.5-1.5h2A1.5 1.5 0 0114.5 5v2" />
+      <path d="M7 7l.8 12.2A2 2 0 009.8 21h4.4a2 2 0 002-1.8L17 7" />
+    </svg>
+  );
+}
+
+function IconLapis({ color }) {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 20l.9-4L16 4.9a1.6 1.6 0 012.3 0l.8.8a1.6 1.6 0 010 2.3L8 19l-4 1z" />
+      <path d="M14 6.9L17.1 10" />
+    </svg>
+  );
+}
+
 // Mapa nome→ícone — cada aviso no registo (avisosAtualizacao.js) só
 // precisa de referir o NOME; acrescentar um aviso novo com um ícone já
 // existente nunca exige tocar neste ficheiro. Um ícone novo, sim.
@@ -147,6 +166,8 @@ const ICONES = {
   deslocacao: IconDeslocacao,
   contrato: IconContrato,
   etiqueta: IconEtiqueta,
+  lixo: IconLixo,
+  lapis: IconLapis,
 };
 
 /* ---------- linha de destino (bloqueado → desbloqueado, automático) ---------- */

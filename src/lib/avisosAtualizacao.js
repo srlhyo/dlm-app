@@ -75,6 +75,56 @@ export const AVISOS = [
       { icon: "dashboard", nome: "Dashboard", sub: "gráfico de estilos mais pedidos" },
     ],
   },
+  {
+    id: "consulta-rapida-deslocacao-v1",
+    pagina: "inicio",
+    icon: "deslocacao",
+    titulo: "Nova ferramenta: consulta rápida de deslocação",
+    resumo:
+      "Ao telefone com um cliente, já não precisas de abrir o orçamento para saberes o custo da deslocação. A pílula «Deslocação», ao lado da pesquisa, abre uma consulta instantânea — escreves a morada, lês o valor em voz alta, e não guarda nada.",
+    destinos: [
+      {
+        icon: "deslocacao",
+        nome: "Consulta Rápida",
+        sub: "uma consulta instantânea, sem abrir o orçamento",
+      },
+    ],
+  },
+  {
+    id: "remover-evento-cliente-v1",
+    pagina: "clientes",
+    icon: "lixo",
+    titulo: "Agora dá para remover um evento criado por engano",
+    resumo:
+      "Na ficha de um cliente, passa o rato por cima de um evento — o ícone do lixo acende a vermelho. Um clique pede confirmação (e avisa se esse evento já tiver documentos ou convites ligados) antes de apagar de vez.",
+    destinos: [
+      {
+        icon: "lixo",
+        nome: "Eventos do Cliente",
+        sub: "remoção com confirmação, direto na lista",
+      },
+    ],
+  },
+  {
+    id: "editar-data-evento-dois-caminhos-v1",
+    pagina: "clientes",
+    icon: "calendario",
+    titulo: "A data do evento tem dois sítios onde a corrigir",
+    resumo:
+      "Abre a ficha de qualquer evento (mesmo de um cliente antigo importado, sem modelo com campo de data): a data por baixo do nome, no cabeçalho, é SEMPRE editável com um clique. Se o modelo desse evento tiver o seu próprio campo de data — o que veio do formulário de onboarding preenchido pelo cliente — corrige-o em «Editar». Os dois caminhos funcionam, para qualquer evento, de qualquer cliente.",
+    destinos: [
+      {
+        icon: "calendario",
+        nome: "Cabeçalho da Ficha",
+        sub: "sempre disponível, mesmo sem modelo",
+      },
+      {
+        icon: "lapis",
+        nome: "Editar → campo do modelo",
+        sub: "a data que veio do formulário público",
+      },
+    ],
+  },
 ];
 
 // Só os avisos desta página, ainda por reconhecer — a mesma lista serve
