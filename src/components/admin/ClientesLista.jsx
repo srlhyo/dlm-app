@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import {
   getClientes,
   getClienteComEventos,
@@ -128,6 +129,25 @@ const TIPO_DOC_LABEL = {
   orcamento: "Orçamento",
   contrato: "Contrato",
   proposta: "Projecto",
+};
+
+const EASE = [0.22, 1, 0.36, 1];
+
+// Linha de evento: ao passar o rato, aquece ligeiramente (reforça que é
+// clicável) — os valores são hex reais, não var(--...), porque o motor de
+// animação do framer-motion precisa de interpolar cores de verdade.
+const linhaEventoVariants = {
+  rest: { backgroundColor: "#FBF7EF", borderColor: "rgba(201,168,76,0)" },
+  hover: { backgroundColor: "#F7EFDA", borderColor: "#E8D5A3" },
+};
+
+// O botão de remover vive sempre ali (nunca escondido), mas em repouso
+// fica discreto — só "acorda" (opacidade, tamanho e vermelho) quando o
+// rato passa pela LINHA inteira, não só pelo próprio botão: é isso que o
+// torna óbvio sem ter de o ires procurar primeiro.
+const botaoRemoverVariants = {
+  rest: { opacity: 0.35, scale: 0.85, backgroundColor: "rgba(220,38,38,0)", color: "#8A8272" },
+  hover: { opacity: 1, scale: 1, backgroundColor: "rgba(220,38,38,0.12)", color: "#DC2626" },
 };
 
 export default function ClientesLista({
@@ -564,17 +584,21 @@ export default function ClientesLista({
               {aberto.eventos.map((ev) => {
                 const f = FASE_COR[ev.fase] || FASE_COR.interessado;
                 return (
-                  <div
+                  <motion.div
                     key={ev.id}
                     onClick={() => onAbrirEvento && onAbrirEvento(ev)}
+                    initial="rest"
+                    whileHover="hover"
+                    variants={linhaEventoVariants}
+                    transition={{ duration: 0.18, ease: EASE }}
                     style={{
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
                       gap: "10px",
                       padding: "11px 13px",
-                      backgroundColor: "#FBF7EF",
                       borderRadius: "10px",
+                      border: "1px solid transparent",
                       marginBottom: "8px",
                       cursor: onAbrirEvento ? "pointer" : "default",
                     }}
@@ -622,13 +646,16 @@ export default function ClientesLista({
                       >
                         {FASE_LABEL[ev.fase] || ev.fase}
                       </span>
-                      <button
+                      <motion.button
                         onClick={(e) => {
                           e.stopPropagation();
                           pedirRemocaoEvento(ev);
                         }}
                         title="Remover este evento"
                         aria-label="Remover este evento"
+                        variants={botaoRemoverVariants}
+                        whileTap={{ scale: 0.85 }}
+                        transition={{ duration: 0.18, ease: EASE }}
                         style={{
                           width: "26px",
                           height: "26px",
@@ -638,15 +665,13 @@ export default function ClientesLista({
                           justifyContent: "center",
                           borderRadius: "50%",
                           border: "none",
-                          backgroundColor: "transparent",
-                          color: "var(--gray-mid)",
                           cursor: "pointer",
                         }}
                       >
                         <Icone nome="lixo" tamanho={14} />
-                      </button>
+                      </motion.button>
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })}
 
