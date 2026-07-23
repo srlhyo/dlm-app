@@ -1,4 +1,4 @@
-import { getResumoSubmissao } from "../../lib/submissionFields";
+import { getResumoSubmissao, getValorAtual } from "../../lib/submissionFields";
 import { FASES_POS_SINAL } from "./faseConfig";
 import { formatarEuros } from "./orcamentos/orcamentoConfig";
 import { motion } from "framer-motion";
@@ -187,10 +187,26 @@ export default function DashboardTab({
     return Object.entries(counts).map(([mes, total]) => ({ mes, total }));
   };
 
+  // Dupla fonte (coluna fixa OU respostas[campoId], via getValorAtual) —
+  // sem isto, eventos de Modelos de Evento personalizados (que guardam a
+  // resposta em respostas.estiloEvento, não na coluna estilo_evento)
+  // ficavam sempre de fora da contagem, mesmo com dados reais. "estilo"
+  // não é um tipo dedicado (usa checkbox/radio, o mesmo tipo genérico de
+  // muitas outras perguntas), por isso — ao contrário da paleta — o
+  // fallback é pelo PAPEL "estilo" marcado no modelo, não pelo tipo.
   const estilosMaisPedidos = () => {
     const counts = {};
     ativos.forEach((s) => {
-      (s.estilo_evento || []).forEach((e) => {
+      let valores = getValorAtual(s, "estiloEvento");
+      if (!Array.isArray(valores) || valores.length === 0) {
+        const campoEstilo = camposDoTipo(s.event_type_id).find(
+          (f) => f.papel === "estilo",
+        );
+        if (campoEstilo) valores = getValorAtual(s, campoEstilo.id);
+      }
+      // checkbox devolve array; radio devolve uma string só — aceita as duas.
+      const lista = Array.isArray(valores) ? valores : valores ? [valores] : [];
+      lista.forEach((e) => {
         counts[e] = (counts[e] || 0) + 1;
       });
     });
@@ -199,11 +215,35 @@ export default function DashboardTab({
       .sort((a, b) => b.valor - a.valor);
   };
 
+  // A paleta guarda um array de {nome, hex} (ver SeletorPaleta.jsx) —
+  // as cores antigas gravadas directo na coluna eram só o nome (string);
+  // nomeCor aceita as duas formas.
+  const nomeCor = (c) => (c && typeof c === "object" && c.nome ? c.nome : String(c));
+
+  // Os campos de um modelo, para os fallbacks por papel/tipo acima e abaixo.
+  const camposDoTipo = (tipoId) => {
+    const tipo = (eventTypes || []).find((et) => et.id === tipoId);
+    return (tipo?.steps || []).flatMap((step) => step.fields || []);
+  };
+
   const paletasMaisPopulares = () => {
     const counts = {};
     ativos.forEach((s) => {
-      (s.paleta_cores || []).forEach((c) => {
-        counts[c] = (counts[c] || 0) + 1;
+      let valores = getValorAtual(s, "paletaCores");
+      // Fallback por TYPE: "paleta" é um tipo dedicado (só serve para
+      // isto), por isso é seguro apanhar o primeiro campo desse tipo no
+      // modelo — mesmo que o id gerado a partir do label não seja
+      // literalmente "paletaCores" (ex: label "Paleta de Cores" gera
+      // "paletaDeCores", não bate certo com a chave canónica).
+      if (!Array.isArray(valores) || valores.length === 0) {
+        const campoPaleta = camposDoTipo(s.event_type_id).find(
+          (f) => f.type === "paleta",
+        );
+        if (campoPaleta) valores = getValorAtual(s, campoPaleta.id);
+      }
+      (Array.isArray(valores) ? valores : []).forEach((c) => {
+        const nome = nomeCor(c);
+        counts[nome] = (counts[nome] || 0) + 1;
       });
     });
     return Object.entries(counts)

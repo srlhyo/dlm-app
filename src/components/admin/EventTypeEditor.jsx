@@ -419,7 +419,12 @@ function FieldRow({
               { value: "", label: "Nenhum" },
               { value: "morada", label: "Morada do evento" },
             ]
-          : null;
+          : ["checkbox", "radio"].includes(field.type)
+            ? [
+                { value: "", label: "Nenhum" },
+                { value: "estilo", label: "Estilo do evento" },
+              ]
+            : null;
 
   return (
     <div
@@ -918,12 +923,14 @@ export default function EventTypeEditor({
 
   const handleTypeChange = (stepUid, fieldUid, newType) => {
     // Papéis válidos por tipo: texto pode ser título/local; data pode ser
-    // data; morada (o tipo estruturado) pode ser morada. Ao mudar de tipo,
-    // um papel que já não faça sentido é limpo.
+    // data; morada (o tipo estruturado) pode ser morada; estilo pode ser
+    // checkbox ou radio. Ao mudar de tipo, um papel que já não faça
+    // sentido é limpo.
     const papelValido = (papel) => {
       if (papel === "titulo" || papel === "local") return newType === "text";
       if (papel === "data") return newType === "date";
       if (papel === "morada") return newType === "morada";
+      if (papel === "estilo") return newType === "checkbox" || newType === "radio";
       return false;
     };
     setSteps((prev) =>
